@@ -37,6 +37,17 @@ if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
   echo "  슬랙 버튼용 공개 주소도 함께 켭니다."
 fi
 
+# 예전에 막혔던 설정 실수를 켜기 전에 먼저 알려 준다(docs/stuck-notes.md 8·9)
+SLACK_TOKEN=$( (grep '^SLACK_BOT_TOKEN=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
+if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_TOKEN#xoxb-}" = "${SLACK_TOKEN}" ]; then
+  echo "  주의: SLACK_BOT_TOKEN 이 xoxb- 로 시작하지 않습니다. 슬랙 앱 설정 > OAuth & Permissions 의 Bot User OAuth Token 을 넣어야 알림이 갑니다."
+fi
+case "$PWD" in
+  "$HOME/Downloads"*|"$HOME/Documents"*|"$HOME/Desktop"*)
+    echo "  참고: 이 폴더는 맥이 따로 지키는 위치입니다. 처음 켤 때 Docker 가 이 폴더 접근을 물으면 허용해야 합니다."
+    echo "        서버가 「Starting」에서 몇 분째 멈춰 있으면 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더 > Docker 를 확인하세요." ;;
+esac
+
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
 # shellcheck disable=SC2086
 docker compose $PROFILE up -d --build
