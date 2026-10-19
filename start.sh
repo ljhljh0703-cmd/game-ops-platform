@@ -2,6 +2,9 @@
 # 게임 운영 플랫폼 로컬 실행 — Docker 확인 → .env 자동 생성 → 서버·DB 켜기 → 헬스체크까지
 set -euo pipefail
 cd "$(dirname "$0")"
+# 실행 기록을 start.log 에도 남긴다(문제가 생기면 이 파일을 보면 된다)
+exec > >(tee start.log) 2>&1
+echo "시작: $(date)"
 
 echo "[1/4] Docker 확인"
 if ! command -v docker >/dev/null 2>&1; then
