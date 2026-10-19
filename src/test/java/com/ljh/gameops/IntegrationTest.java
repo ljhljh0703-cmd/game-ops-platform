@@ -37,6 +37,6 @@ public abstract class IntegrationTest {
     @BeforeEach
     void cleanTables() {
         sender.reset();
-        jdbc.execute("TRUNCATE notification_outbox, audit_log, issue_report, issue, report RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE notification_outbox, audit_log, correction, issue_report, issue, report RESTART IDENTITY CASCADE");
     }
 }

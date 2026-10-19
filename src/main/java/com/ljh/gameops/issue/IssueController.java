@@ -21,7 +21,7 @@ public class IssueController {
 
     public record IssueView(long id, String title, Category category, Severity severity, IssueStatus status,
                             int reportCount, String classifiedBy, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
-        static IssueView of(Issue i) {
+        public static IssueView of(Issue i) {
             return new IssueView(i.getId(), i.getTitle(), i.getCategory(), i.getSeverity(), i.getStatus(),
                     i.getReportCount(), i.getClassifiedBy(), i.getCreatedAt(), i.getUpdatedAt());
         }

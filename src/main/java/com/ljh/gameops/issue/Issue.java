@@ -55,6 +55,30 @@ public class Issue {
         this.resolvedAt = (next == IssueStatus.RESOLVED || next == IssueStatus.WONT_FIX) ? this.updatedAt : null;
     }
 
+    /** 사람이 분류·심각도를 고칠 때. 사람은 심각도를 내릴 수도 있다. */
+    public void reclassify(Category category, Severity severity) {
+        this.category = category;
+        this.severity = severity;
+        this.classifiedBy = "human";
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /** 잘못 묶인 제보 하나를 떼어낼 때. 심각도는 자동으로 내리지 않는다(내릴지는 사람이 판단). */
+    public void detachReport() {
+        if (this.reportCount <= 1) throw new com.ljh.gameops.common.ConflictException("제보가 하나뿐인 이슈에서는 떼어낼 수 없습니다");
+        this.reportCount--;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /** 대표 제보가 떼어졌을 때 남은 제보로 대표를 바꾼다. 이후 중복 비교도 새 대표 글로 한다. */
+    public void replaceRepresentative(Long reportId, String title, String normalizedKey, String normalizedText) {
+        this.representativeReportId = reportId;
+        this.title = title;
+        this.normalizedKey = normalizedKey;
+        this.normalizedText = normalizedText;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public Long getId() { return id; }
     public Long getGameId() { return gameId; }
     public String getTitle() { return title; }

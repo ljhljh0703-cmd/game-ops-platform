@@ -27,6 +27,7 @@ public class IssueReport {
     public Long getIssueId() { return issueId; }
     public Long getReportId() { return reportId; }
     public double getSimilarity() { return similarity; }
+    public OffsetDateTime getLinkedAt() { return linkedAt; }
 
     public static class Key implements Serializable {
         private Long issueId;

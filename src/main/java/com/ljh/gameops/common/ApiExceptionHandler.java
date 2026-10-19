@@ -30,6 +30,12 @@ public class ApiExceptionHandler {
                 .body(Map.of("error", "다른 변경과 겹쳤습니다. 같은 내용의 열린 이슈가 있거나 동시에 수정됐습니다. 새로고침 뒤 다시 시도하세요."));
     }
 
+    /** 지금 상태에서는 할 수 없는 요청(예: 제보가 하나뿐인 이슈에서 떼어내기). */
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<Map<String, String>> invalidState(ConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
     @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
     ResponseEntity<Map<String, String>> badRequest(Exception e) {
         return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

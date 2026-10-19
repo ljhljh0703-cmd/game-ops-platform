@@ -29,11 +29,17 @@ public class NotificationRenderer {
             throw new IllegalStateException("알림 내용 해석 실패: " + m.getId(), e);
         }
         return switch (m.getType()) {
-            case NEW_ISSUE -> issueLine(m.getType(), p.path("issueId").asLong(), "새 이슈");
+            case NEW_ISSUE -> issueLine(m.getType(), p.path("issueId").asLong(), newIssueLabel(p));
             case SEVERITY_RAISED -> issueLine(m.getType(), p.path("issueId").asLong(),
                     "심각도 상승(" + p.path("from").asText() + "→)");
             case WEEKLY_REPORT -> new RenderedNotification(m.getType(), Severity.LOW, null, p.path("text").asText());
         };
+    }
+
+    private static String newIssueLabel(JsonNode p) {
+        StringBuilder s = new StringBuilder("새 이슈");
+        if (p.hasNonNull("detachedFrom")) s.append("(#").append(p.path("detachedFrom").asLong()).append("에서 떼어냄)");
+        return s.toString();
     }
 
     private RenderedNotification issueLine(NotificationType type, long issueId, String label) {
