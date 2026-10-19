@@ -5,3 +5,4 @@ build/
 .idea/
 start.log
 slack-request-url.txt
+.sync/
