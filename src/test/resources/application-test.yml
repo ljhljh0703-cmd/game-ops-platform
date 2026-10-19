@@ -8,3 +8,11 @@ gameops:
     api-keys:
       local-admin: test-admin-key
     slack-user-ids: U_ADMIN
+  slack:
+    signing-secret: test-signing-secret
+    channels:
+      default-channel: C_DEFAULT
+      urgent: C_URGENT
+  discord:
+    report-channel-ids: C_REPORT
+    default-game: gemtower
