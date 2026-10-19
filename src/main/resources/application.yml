@@ -1,0 +1,62 @@
+# 게임 운영 플랫폼 설정 — 값은 환경 변수로 덮어쓴다(.env.example 참고)
+spring:
+  application:
+    name: game-ops-platform
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/gameops}
+    username: ${DB_USER:gameops}
+    password: ${DB_PASSWORD:gameops}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+gameops:
+  author-hash-salt: ${AUTHOR_HASH_SALT:change-me-local-only}
+  issue:
+    duplicate-threshold: ${DUPLICATE_THRESHOLD:0.55}
+  outbox:
+    batch-size: 20
+    max-attempts: 5
+    base-backoff-ms: 2000
+    poll-ms: ${OUTBOX_POLL_MS:5000}
+  classifier:
+    llm:
+      enabled: ${LLM_ENABLED:false}
+      base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+      api-key: ${LLM_API_KEY:}
+      model: ${LLM_MODEL:gpt-4o-mini}
+      timeout-seconds: 10
+  admin:
+    api-keys:
+      local-admin: ${ADMIN_API_KEY:}
+    slack-user-ids: ${SLACK_ADMIN_USER_IDS:}
+  slack:
+    enabled: ${SLACK_ENABLED:false}
+    bot-token: ${SLACK_BOT_TOKEN:}
+    signing-secret: ${SLACK_SIGNING_SECRET:}
+    channels:
+      default: ${SLACK_CHANNEL_DEFAULT:}
+      urgent: ${SLACK_CHANNEL_URGENT:}
+  discord:
+    enabled: ${DISCORD_ENABLED:false}
+    bot-token: ${DISCORD_BOT_TOKEN:}
+    report-channel-ids: ${DISCORD_REPORT_CHANNEL_IDS:}
+    default-game: ${DISCORD_DEFAULT_GAME:gemtower}
+  weekly-report:
+    cron: "0 0 9 * * MON"
+    zone: Asia/Seoul

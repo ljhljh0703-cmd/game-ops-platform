@@ -1,0 +1,135 @@
+// 제보 접수 흐름 — 분류(외부 호출)는 트랜잭션 밖에서, 저장·중복 묶기·알림 대기열은 한 트랜잭션 안에서
+package com.ljh.gameops.intake;
+
+import com.ljh.gameops.classify.Classification;
+import com.ljh.gameops.classify.IssueClassifier;
+import com.ljh.gameops.common.NotFoundException;
+import com.ljh.gameops.game.Game;
+import com.ljh.gameops.game.GameRepository;
+import com.ljh.gameops.issue.*;
+import com.ljh.gameops.notify.NotificationType;
+import com.ljh.gameops.notify.OutboxService;
+import com.ljh.gameops.report.Report;
+import com.ljh.gameops.report.ReportRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Service
+public class IntakeService {
+    private static final Logger log = LoggerFactory.getLogger(IntakeService.class);
+    private static final EnumSet<IssueStatus> OPEN = EnumSet.of(IssueStatus.OPEN, IssueStatus.IN_PROGRESS);
+    private static final int MAX_TRIES = 3;
+
+    private final GameRepository games;
+    private final ReportRepository reports;
+    private final IssueRepository issues;
+    private final IssueReportRepository links;
+    private final IssueClassifier classifier;
+    private final OutboxService outbox;
+    private final AuthorHasher hasher;
+    private final IssueProperties props;
+    private final TransactionTemplate tx;
+    private final EntityManager em;
+
+    public IntakeService(GameRepository games, ReportRepository reports, IssueRepository issues,
+                         IssueReportRepository links, IssueClassifier classifier, OutboxService outbox,
+                         AuthorHasher hasher, IssueProperties props, TransactionTemplate tx,
+                         EntityManager em) {
+        this.games = games;
+        this.reports = reports;
+        this.issues = issues;
+        this.links = links;
+        this.classifier = classifier;
+        this.outbox = outbox;
+        this.hasher = hasher;
+        this.props = props;
+        this.tx = tx;
+        this.em = em;
+    }
+
+    public IntakeResult submit(SubmitReport cmd) {
+        Game game = games.findByCode(cmd.gameCode())
+                .orElseThrow(() -> new NotFoundException("등록되지 않은 게임: " + cmd.gameCode()));
+
+        Optional<IntakeResult> redelivered = findRedelivery(cmd);
+        if (redelivered.isPresent()) return redelivered.get();
+
+        Classification c = classifier.classify(game.getCode(), cmd.body());
+
+        // 동시 제보가 같은 이슈를 두 번 만들거나(고유 인덱스), 같은 이슈를 동시에 고치면(version) 다시 시도한다.
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return tx.execute(status -> store(game, cmd, c));
+            } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException e) {
+                Optional<IntakeResult> again = findRedelivery(cmd);
+                if (again.isPresent()) return again.get();
+                if (attempt >= MAX_TRIES) throw e;
+                log.info("제보 저장 경합, 다시 시도 {}/{}: {}", attempt, MAX_TRIES, e.getClass().getSimpleName());
+            }
+        }
+    }
+
+    private Optional<IntakeResult> findRedelivery(SubmitReport cmd) {
+        if (cmd.externalId() == null) return Optional.empty();
+        return reports.findBySourceChannelAndExternalId(cmd.channel(), cmd.externalId())
+                .flatMap(r -> links.findByReportId(r.getId())
+                        .map(l -> new IntakeResult(r.getId(), l.getIssueId(),
+                                IntakeResult.Outcome.DUPLICATE_DELIVERY, l.getSimilarity())));
+    }
+
+    private IntakeResult store(Game game, SubmitReport cmd, Classification c) {
+        Report report = reports.saveAndFlush(new Report(game.getId(), cmd.channel(), cmd.externalId(),
+                hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls()));
+
+        String normalized = TextNormalizer.normalize(cmd.body());
+        String key = TextNormalizer.key(normalized);
+
+        Issue best = null;
+        double bestScore = 0;
+        Optional<Issue> exact = issues.findByGameIdAndNormalizedKeyAndStatusIn(game.getId(), key, OPEN);
+        if (exact.isPresent()) {
+            best = exact.get();
+            bestScore = 1.0;
+        } else {
+            List<Issue> candidates = issues.findByGameIdAndStatusIn(game.getId(), OPEN);
+            for (Issue i : candidates) {
+                double s = Similarity.jaccard(normalized, i.getNormalizedText());
+                if (s > bestScore) { bestScore = s; best = i; }
+            }
+        }
+
+        if (best != null && bestScore >= props.duplicateThreshold()) {
+            // 이슈 한 줄을 잠그고 DB 최신 값으로 다시 읽는다. 동시에 붙는 제보들이 차례로 줄을 서고,
+            // 그사이 다른 요청이 닫은 이슈에는 붙이지 않는다.
+            em.refresh(best, LockModeType.PESSIMISTIC_WRITE);
+            if (!best.getStatus().isOpen()) best = null;
+        }
+        if (best != null && bestScore >= props.duplicateThreshold()) {
+            var before = best.getSeverity();
+            best.attachReport(c.severity());
+            issues.saveAndFlush(best);
+            links.save(new IssueReport(best.getId(), report.getId(), bestScore));
+            if (best.getSeverity() != before) {
+                outbox.enqueue(NotificationType.SEVERITY_RAISED, Map.of("issueId", best.getId(), "from", before.name()));
+            }
+            return new IntakeResult(report.getId(), best.getId(), IntakeResult.Outcome.ATTACHED_TO_EXISTING, bestScore);
+        }
+
+        Issue created = issues.saveAndFlush(new Issue(game.getId(), c.title(), c.category(), c.severity(),
+                key, normalized, report.getId(), c.classifiedBy()));
+        links.save(new IssueReport(created.getId(), report.getId(), 1.0));
+        outbox.enqueue(NotificationType.NEW_ISSUE, Map.of("issueId", created.getId()));
+        return new IntakeResult(report.getId(), created.getId(), IntakeResult.Outcome.NEW_ISSUE, 1.0);
+    }
+}

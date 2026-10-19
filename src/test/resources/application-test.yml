@@ -1,0 +1,10 @@
+# 테스트 설정 — 스케줄러가 테스트 중간에 끼어들지 않게 폴링 간격을 크게 둔다
+gameops:
+  author-hash-salt: test-salt-123456
+  outbox:
+    poll-ms: 3600000
+    base-backoff-ms: 1
+  admin:
+    api-keys:
+      local-admin: test-admin-key
+    slack-user-ids: U_ADMIN
