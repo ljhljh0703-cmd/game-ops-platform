@@ -4,3 +4,4 @@ build/
 *.log
 .idea/
 start.log
+slack-request-url.txt

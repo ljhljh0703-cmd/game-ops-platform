@@ -27,9 +27,18 @@ else
   echo "  기존 .env 를 그대로 씁니다."
 fi
 ADMIN_KEY=$(grep '^ADMIN_API_KEY=' .env | cut -d= -f2-)
+SLACK_ON=$( (grep '^SLACK_ENABLED=' .env || true) | cut -d= -f2- | tr -d '[:space:]')
+SLACK_SECRET_LEN=$( (grep '^SLACK_SIGNING_SECRET=' .env || true) | cut -d= -f2- | tr -d '[:space:]' | wc -c | tr -d ' ')
+# macOS 기본 bash(3.2)에서도 돌도록 배열 대신 문자열을 쓴다
+PROFILE=""
+if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
+  PROFILE="--profile slack-buttons"
+  echo "  슬랙 버튼용 공개 주소도 함께 켭니다."
+fi
 
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
-docker compose up -d --build
+# shellcheck disable=SC2086
+docker compose $PROFILE up -d --build
 
 echo "[4/4] 서버가 뜰 때까지 기다리는 중"
 for i in $(seq 1 60); do
@@ -42,8 +51,26 @@ for i in $(seq 1 60); do
     echo "이슈 목록 보기:"
     echo "  curl 'localhost:8080/api/issues?game=gemtower'"
     echo "관리자 키(상태 변경용): ${ADMIN_KEY}"
+    if [ -n "$PROFILE" ]; then
+      url=""
+      for j in $(seq 1 20); do
+        url=$(docker compose logs tunnel 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | tail -1 || true)
+        [ -n "$url" ] && break
+        sleep 2
+      done
+      if [ -n "$url" ]; then
+        echo "${url}/slack/interactions" > slack-request-url.txt
+        echo
+        echo "슬랙 버튼 주소: ${url}/slack/interactions"
+        echo "  슬랙 앱 설정 > Interactivity & Shortcuts > Request URL 에 넣으세요. 공개 주소는 다시 켤 때마다 바뀝니다."
+      else
+        echo "슬랙 버튼용 공개 주소를 받지 못했습니다: docker compose logs tunnel"
+      fi
+    elif [ "${SLACK_ON}" = "true" ]; then
+      echo "슬랙 버튼을 쓰려면 .env 의 SLACK_SIGNING_SECRET 을 채우고 다시 실행하세요(알림은 지금도 갑니다)."
+    fi
     echo "끄기:"
-    echo "  docker compose down"
+    echo "  docker compose --profile slack-buttons down"
     exit 0
   fi
   sleep 3
