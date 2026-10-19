@@ -18,7 +18,7 @@ public class ReportController {
 
     public record ReportRequest(@NotBlank String game, @NotBlank String authorId,
                                 @NotBlank @Size(max = 4000) String body,
-                                String externalId, String attachmentUrls) {}
+                                @Size(max = 100) String externalId, String attachmentUrls) {}
 
     @PostMapping
     public ResponseEntity<IntakeResult> submit(@Valid @RequestBody ReportRequest req) {

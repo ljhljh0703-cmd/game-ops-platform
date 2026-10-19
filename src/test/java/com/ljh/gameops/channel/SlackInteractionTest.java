@@ -60,6 +60,30 @@ class SlackInteractionTest extends IntegrationTest {
     }
 
     @Test
+    void 슬랙식_인코딩도_서명이_맞는다() {
+        // 실제 슬랙은 공백을 %20, 16진수를 소문자로 보낼 수 있다. 원래 바이트로 서명을 계산해야 통과한다.
+        long id = issue();
+        long ts = Instant.now().getEpochSecond();
+        String json = "{\"type\":\"block_actions\",\"user\":{\"id\":\"U_ADMIN\"},\"actions\":[{\"value\":\"" + id + ":RESOLVED\",\"text\":\"해결 버튼\"}]}";
+        String b = "payload=" + lowerHex(URLEncoder.encode(json, StandardCharsets.UTF_8).replace("+", "%20"));
+        ResponseEntity<Map> r = post(b, ts, signer.sign(String.valueOf(ts), b));
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(issues.findById(id).orElseThrow().getStatus()).isEqualTo(IssueStatus.RESOLVED);
+    }
+
+    private static String lowerHex(String s) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '%' && i + 2 < s.length()) {
+                out.append('%').append(s.substring(i + 1, i + 3).toLowerCase());
+                i += 2;
+            } else out.append(c);
+        }
+        return out.toString();
+    }
+
+    @Test
     void 서명이_틀리면_401() {
         long id = issue();
         long ts = Instant.now().getEpochSecond();

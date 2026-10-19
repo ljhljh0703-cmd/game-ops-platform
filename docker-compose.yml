@@ -6,8 +6,10 @@ services:
       POSTGRES_DB: gameops
       POSTGRES_USER: gameops
       POSTGRES_PASSWORD: ${DB_PASSWORD:-gameops}
-    ports:
-      - "5432:5432"
+    # DB 포트는 밖으로 열지 않는다(내 PC에 PostgreSQL이 이미 있어도 충돌하지 않게). 직접 붙어 보려면
+    # 아래 두 줄의 주석을 풀고 왼쪽 숫자를 비어 있는 포트로 바꾼다.
+    # ports:
+    #   - "55432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -22,8 +24,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       DB_URL: jdbc:postgresql://db:5432/gameops
       DB_USER: gameops

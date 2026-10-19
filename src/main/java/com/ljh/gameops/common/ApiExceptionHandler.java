@@ -1,7 +1,9 @@
 // API 예외를 일정한 응답 형식으로 바꾼다
 package com.ljh.gameops.common;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +21,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ForbiddenException.class)
     ResponseEntity<Map<String, String>> forbidden(ForbiddenException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+    }
+
+    /** 같은 내용의 열린 이슈가 이미 있는데 닫힌 이슈를 다시 열거나, 다른 요청과 동시에 고친 경우. */
+    @ExceptionHandler({DataIntegrityViolationException.class, ObjectOptimisticLockingFailureException.class})
+    ResponseEntity<Map<String, String>> conflict(Exception e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "다른 변경과 겹쳤습니다. 같은 내용의 열린 이슈가 있거나 동시에 수정됐습니다. 새로고침 뒤 다시 시도하세요."));
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})

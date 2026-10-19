@@ -58,6 +58,7 @@ class WeeklyReportTest extends IntegrationTest {
     @Test
     void 게임마다_대기열에_넣고_보낸다() {
         assertThat(job.enqueueAll()).isEqualTo(2);
+        assertThat(job.enqueueAll()).isZero(); // 서버가 두 대라 같은 작업이 또 돌아도 같은 주 보고는 한 번만
         assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.WEEKLY_REPORT)).hasSize(2);
         dispatcher.dispatchDue();
         assertThat(sender.sent).extracting(n -> n.text()).anyMatch(t -> t.startsWith("[보석타워]"))

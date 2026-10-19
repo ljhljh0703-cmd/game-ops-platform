@@ -66,6 +66,14 @@ class IntakeServiceTest extends IntegrationTest {
     }
 
     @Test
+    void 글자가_남지_않는_제보끼리는_묶지_않는다() {
+        IntakeResult a = intake.submit(report("ㅋㅋㅋㅋ", "m1", "u1"));
+        IntakeResult b = intake.submit(report("https://cdn.example.com/screenshot.png", "m2", "u2"));
+        IntakeResult c = intake.submit(report("!!!", "m3", "u3"));
+        assertThat(java.util.Set.of(a.issueId(), b.issueId(), c.issueId())).hasSize(3);
+    }
+
+    @Test
     void 작성자_ID는_원문으로_저장하지_않는다() {
         intake.submit(report("보석 합성 버그 있어요", "m1", "discord-user-42"));
         String stored = jdbc.queryForObject("select author_hash from report", String.class);

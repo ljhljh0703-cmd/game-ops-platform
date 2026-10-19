@@ -17,8 +17,14 @@ public class OutboxMessage {
     private String lastError;
     private OffsetDateTime createdAt;
     private OffsetDateTime sentAt;
+    private String dedupeKey;
 
     protected OutboxMessage() {}
+
+    public OutboxMessage(NotificationType type, String payload, String dedupeKey) {
+        this(type, payload);
+        this.dedupeKey = dedupeKey;
+    }
 
     public OutboxMessage(NotificationType type, String payload) {
         this.type = type;

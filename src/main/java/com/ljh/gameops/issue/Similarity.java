@@ -10,7 +10,6 @@ public final class Similarity {
     public static double jaccard(String a, String b) {
         Set<String> x = bigrams(a);
         Set<String> y = bigrams(b);
-        if (x.isEmpty() && y.isEmpty()) return 1.0;
         if (x.isEmpty() || y.isEmpty()) return 0.0;
         Set<String> inter = new HashSet<>(x);
         inter.retainAll(y);

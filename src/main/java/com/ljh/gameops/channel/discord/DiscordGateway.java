@@ -18,6 +18,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Component
@@ -26,6 +28,8 @@ public class DiscordGateway extends ListenerAdapter {
     private final DiscordProperties props;
     private final DiscordReportHandler handler;
     private JDA jda;
+    // 디스코드 라이브러리의 이벤트 스레드는 하나다. 분류(LLM 호출)를 거기서 하면 뒤 명령이 3초 제한을 넘기므로 따로 돌린다.
+    private final ExecutorService workers = Executors.newFixedThreadPool(4);
 
     public DiscordGateway(DiscordProperties props, DiscordReportHandler handler) {
         this.props = props;
@@ -52,9 +56,9 @@ public class DiscordGateway extends ListenerAdapter {
     public void onMessageReceived(MessageReceivedEvent e) {
         Message m = e.getMessage();
         String attachments = m.getAttachments().stream().map(Message.Attachment::getUrl).collect(Collectors.joining("\n"));
-        handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), e.getChannel().getId(), e.getAuthor().getId(),
+        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), e.getChannel().getId(), e.getAuthor().getId(),
                         e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments))
-                .ifPresent(reply -> m.reply(reply).queue());
+                .ifPresent(reply -> m.reply(reply).queue()));
     }
 
     @Override
@@ -63,13 +67,14 @@ public class DiscordGateway extends ListenerAdapter {
         e.deferReply(true).queue(); // 3초 안에 응답해야 하므로 먼저 「처리 중」을 보낸다
         OptionMapping game = e.getOption("game");
         OptionMapping content = e.getOption("content");
-        String reply = handler.onSlashCommand(new DiscordInbound("cmd:" + e.getId(), e.getChannelId(), e.getUser().getId(),
-                false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null));
-        e.getHook().sendMessage(reply).queue();
+        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), e.getChannelId(), e.getUser().getId(),
+                false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null);
+        workers.submit(() -> e.getHook().sendMessage(handler.onSlashCommand(in)).queue());
     }
 
     @PreDestroy
     public void stop() {
+        workers.shutdown();
         if (jda != null) jda.shutdown();
     }
 }

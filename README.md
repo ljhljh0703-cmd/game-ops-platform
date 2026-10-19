@@ -25,6 +25,7 @@
         │
         ▼
   알림 발송 작업 (5초마다) ── 슬랙 실패 시 간격을 늘려 재시도, 5회 실패면 FAILED
+                              (최소 한 번 전달: 드물게 같은 알림이 두 번 갈 수 있음)
         │
         ▼
   슬랙: 새 이슈 · 심각도 상승 · 주간 보고(월 09:00)
@@ -38,7 +39,7 @@ Java 21 · Spring Boot 3.3 · PostgreSQL 16 · Flyway · JDA(디스코드) · Sl
 ## 실행
 
 ```bash
-cp .env.example .env        # ADMIN_API_KEY, AUTHOR_HASH_SALT 채우기
+cp .env.example .env        # 꼭 먼저 만든다. ADMIN_API_KEY, AUTHOR_HASH_SALT 를 영문·숫자로 바꾸기
 docker compose up -d --build
 curl localhost:8080/actuator/health
 ```
@@ -85,6 +86,6 @@ curl -H 'Content-Type: application/json' \
 ./gradlew test
 ```
 
-Docker가 있어야 한다(테스트용 PostgreSQL 컨테이너). 디스코드·슬랙은 가짜 이벤트와 가짜 클라이언트로 시험한다.
+Docker가 있어야 한다(테스트용 PostgreSQL 컨테이너). Docker Compose 2.x 기준. 디스코드·슬랙은 가짜 이벤트와 가짜 클라이언트로 시험한다.
 
 설계 결정과 기각한 대안은 `docs/decisions.md`, 만들면서 막힌 곳은 `docs/stuck-notes.md`.

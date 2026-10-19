@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -93,19 +92,23 @@ public class IntakeService {
                 hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls()));
 
         String normalized = TextNormalizer.normalize(cmd.body());
-        String key = TextNormalizer.key(normalized);
+        // 링크·이모지·감탄사만 있는 글은 정규화하면 빈 문자열이 된다. 빈 글끼리 묶으면 무관한 제보가 한 이슈로
+        // 몰리므로, 빈 글은 비교하지 않고 제보마다 따로 이슈를 만든다.
+        boolean empty = normalized.isEmpty();
+        String key = TextNormalizer.key(empty ? "empty-report:" + report.getId() : normalized);
 
         Issue best = null;
         double bestScore = 0;
-        Optional<Issue> exact = issues.findByGameIdAndNormalizedKeyAndStatusIn(game.getId(), key, OPEN);
-        if (exact.isPresent()) {
-            best = exact.get();
-            bestScore = 1.0;
-        } else {
-            List<Issue> candidates = issues.findByGameIdAndStatusIn(game.getId(), OPEN);
-            for (Issue i : candidates) {
-                double s = Similarity.jaccard(normalized, i.getNormalizedText());
-                if (s > bestScore) { bestScore = s; best = i; }
+        if (!empty) {
+            Optional<Issue> exact = issues.findByGameIdAndNormalizedKeyAndStatusIn(game.getId(), key, OPEN);
+            if (exact.isPresent()) {
+                best = exact.get();
+                bestScore = 1.0;
+            } else {
+                for (Issue i : issues.findByGameIdAndStatusIn(game.getId(), OPEN)) {
+                    double s = Similarity.jaccard(normalized, i.getNormalizedText());
+                    if (s > bestScore) { bestScore = s; best = i; }
+                }
             }
         }
 

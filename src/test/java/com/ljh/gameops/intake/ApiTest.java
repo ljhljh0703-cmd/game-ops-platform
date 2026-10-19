@@ -63,6 +63,28 @@ class ApiTest extends IntegrationTest {
     }
 
     @Test
+    void 외부_ID가_너무_길면_400() {
+        ResponseEntity<Map> r = http.postForEntity("/api/reports",
+                Map.of("game", "gemtower", "authorId", "a", "body", "버그", "externalId", "x".repeat(101)), Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void 같은_내용의_열린_이슈가_있으면_닫힌_이슈를_다시_열_수_없다_409() {
+        long first = createIssue();
+        patchStatus(first, "test-admin-key"); // RESOLVED
+        long second = createIssue();          // 같은 내용 → 새 이슈
+        assertThat(second).isNotEqualTo(first);
+
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.set("X-Api-Key", "test-admin-key");
+        ResponseEntity<Map> r = http.exchange("/api/issues/" + first + "/status", HttpMethod.PATCH,
+                new HttpEntity<>(Map.of("status", "OPEN"), h), Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void 관리자_키_없이는_상태를_못_바꾼다() {
         long id = createIssue();
         assertThat(patchStatus(id, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);

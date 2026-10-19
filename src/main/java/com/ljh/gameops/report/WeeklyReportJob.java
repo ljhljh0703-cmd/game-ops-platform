@@ -37,7 +37,7 @@ public class WeeklyReportJob {
         enqueueAll();
     }
 
-    /** 지난 7일(오늘 0시 기준)을 보고한다. 넣은 게임 수를 돌려준다. */
+    /** 지난 7일(오늘 0시 기준)을 보고한다. 이번에 새로 넣은 게임 수를 돌려준다(이미 넣은 주는 건너뜀). */
     public int enqueueAll() {
         ZonedDateTime today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate().atStartOfDay(zone);
         OffsetDateTime to = today.toOffsetDateTime();
@@ -45,8 +45,8 @@ public class WeeklyReportJob {
         int n = 0;
         for (Game g : games.findAll()) {
             String text = service.build(g.getCode(), from, to);
-            outbox.enqueueStandalone(NotificationType.WEEKLY_REPORT, Map.of("gameCode", g.getCode(), "text", text));
-            n++;
+            String dedupe = "weekly:" + g.getCode() + ":" + to.toLocalDate();
+            if (outbox.enqueueOnce(NotificationType.WEEKLY_REPORT, Map.of("gameCode", g.getCode(), "text", text), dedupe)) n++;
         }
         return n;
     }
