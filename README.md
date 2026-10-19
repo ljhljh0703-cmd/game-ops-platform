@@ -64,6 +64,10 @@ curl -H 'Content-Type: application/json' \
 | GET | `/api/issues?game=gemtower&status=OPEN` | 이슈 목록 |
 | GET | `/api/issues/{id}` | 이슈와 묶인 제보 번호 |
 | PATCH | `/api/issues/{id}/status` | 상태 변경. `X-Api-Key` 관리자 키 필요 |
+| POST | `/api/issues/{id}/reports/{reportId}/detach` | 잘못 묶인 제보를 떼어 새 이슈로. 관리자 키 |
+| PATCH | `/api/issues/{id}/classification` | 분류·심각도 고치기(내리기 가능). 관리자 키 |
+| GET | `/api/corrections?game=` · `/api/corrections/summary?game=` | 사람이 고친 기록과 요약(자주 틀리는 방향, 떼어낸 제보의 유사도). 관리자 키 |
+| GET | `/api/admin/classifier/rules` | 지금 적용 중인 키워드 규칙과 마지막 오류. 관리자 키 |
 | POST | `/slack/interactions` | 슬랙 버튼 (서명 검사) |
 | GET | `/actuator/health` | 헬스체크 |
 
@@ -73,14 +77,23 @@ curl -H 'Content-Type: application/json' \
 |---|---|
 | `game` | 운영 대상 게임 |
 | `report` | 원본 제보. 작성자는 해시만 저장. `(채널, 외부 ID)` 고유 |
-| `issue` | 대표 이슈. 분류·심각도·상태·제보 수. 열린 이슈끼리 같은 본문 키 금지(부분 고유 인덱스) |
+| `issue` | 대표 이슈. 분류·심각도·상태·제보 수·재발 의심 대상. 열린 이슈끼리 같은 본문 키 금지(부분 고유 인덱스) |
 | `issue_report` | 이슈↔제보 연결과 유사도 |
-| `audit_log` | 상태 변경 기록 |
+| `audit_log` | 상태 변경·떼어내기·분류 고치기 기록 |
+| `correction` | 사람이 자동 판단을 고친 기록. 고치기 전후 값, 묶일 때 유사도, 이유 |
 | `notification_outbox` | 알림 대기열 |
 
 ## 설정 키
 
-`.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.
+`.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.
+
+## 분류 키워드 고치기
+
+`config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
+
+## 슬랙 버튼
+
+`.env` 에 `SLACK_SIGNING_SECRET`(슬랙 앱 Basic Information > Signing Secret)과 `SLACK_ADMIN_USER_IDS`(버튼을 누를 수 있는 슬랙 멤버 ID, 쉼표로 여러 명)를 넣고 `start.sh` 를 다시 실행하면, 끝에 슬랙 버튼 주소가 나온다(`slack-request-url.txt` 에도 저장). 슬랙 앱 설정 Interactivity & Shortcuts 의 Request URL 에 넣는다. 인터넷에는 이 주소 하나만 열리고(`deploy/slack-gateway.conf`), 껐다 켜면 주소가 바뀐다.
 
 ## 테스트
 
