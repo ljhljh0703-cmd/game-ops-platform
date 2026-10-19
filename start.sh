@@ -37,7 +37,7 @@ if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
   echo "  슬랙 버튼용 공개 주소도 함께 켭니다."
 fi
 
-# 예전에 막혔던 설정 실수를 켜기 전에 먼저 알려 준다(docs/stuck-notes.md 8·9)
+# 흔한 설정 실수를 켜기 전에 먼저 알려 준다
 SLACK_TOKEN=$( (grep '^SLACK_BOT_TOKEN=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
 if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_TOKEN#xoxb-}" = "${SLACK_TOKEN}" ]; then
   echo "  주의: SLACK_BOT_TOKEN 이 xoxb- 로 시작하지 않습니다. 슬랙 앱 설정 > OAuth & Permissions 의 Bot User OAuth Token 을 넣어야 알림이 갑니다."
