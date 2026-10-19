@@ -1,0 +1,35 @@
+# 로컬 실행 — 서버 + PostgreSQL. 실제 디스코드·슬랙 연결은 .env 에 토큰을 넣고 enabled=true 로
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gameops
+      POSTGRES_USER: gameops
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-gameops}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameops -d gameops"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/gameops
+      DB_USER: gameops
+      DB_PASSWORD: ${DB_PASSWORD:-gameops}
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-data:
