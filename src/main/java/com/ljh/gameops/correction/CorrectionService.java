@@ -7,6 +7,7 @@ import com.ljh.gameops.audit.AuditLogRepository;
 import com.ljh.gameops.classify.Classification;
 import com.ljh.gameops.classify.IssueClassifier;
 import com.ljh.gameops.classify.Titles;
+import com.ljh.gameops.common.ConflictException;
 import com.ljh.gameops.common.NotFoundException;
 import com.ljh.gameops.game.Game;
 import com.ljh.gameops.game.GameRepository;
@@ -69,6 +70,9 @@ public class CorrectionService {
 
         return tx.execute(status -> {
             Issue original = lock(issueId);
+            if (!original.getStatus().isOpen()) {
+                throw new ConflictException("닫힌 이슈에서는 떼어낼 수 없습니다. 다시 연 뒤에 떼어내세요");
+            }
             IssueReport link = links.findByReportId(reportId)
                     .filter(l -> l.getIssueId().equals(issueId))
                     .orElseThrow(() -> new NotFoundException("이 이슈에 묶인 제보가 아닙니다: issue " + issueId + ", report " + reportId));
@@ -123,7 +127,8 @@ public class CorrectionService {
             corrections.save(new Correction(issue.getGameId(), CorrectionKind.RECLASSIFY, issueId, null, null,
                     before, label(issue), null, autoBy, actor, reason));
             audit.save(new AuditLog(actor, "ISSUE_RECLASSIFY", "issue:" + issueId, before + "->" + label(issue) + note(reason)));
-            if (nextSev.ordinal() > beforeSev.ordinal()) {
+            // 닫힌 이슈는 기록 정리용으로만 고친다. 이미 끝난 일로 긴급 채널을 울리지 않는다.
+            if (issue.getStatus().isOpen() && nextSev.ordinal() > beforeSev.ordinal()) {
                 outbox.enqueue(NotificationType.SEVERITY_RAISED, Map.of("issueId", issueId, "from", beforeSev.name()));
             }
             return issue;

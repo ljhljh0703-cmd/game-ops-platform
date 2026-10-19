@@ -44,10 +44,13 @@ public class Issue {
         this.updatedAt = this.createdAt;
     }
 
-    /** 중복 제보가 붙을 때. 더 심각한 제보가 오면 심각도를 올린다. */
+    /**
+     * 중복 제보가 붙을 때. 더 심각한 제보가 오면 심각도를 올린다.
+     * 사람이 분류를 고친 이슈는 그 판단을 존중해 자동으로 올리지 않는다(제보 수만 늘린다).
+     */
     public void attachReport(Severity incoming) {
         this.reportCount++;
-        if (incoming.ordinal() > this.severity.ordinal()) this.severity = incoming;
+        if (!isHumanClassified() && incoming.ordinal() > this.severity.ordinal()) this.severity = incoming;
         this.updatedAt = OffsetDateTime.now();
     }
 
@@ -86,6 +89,8 @@ public class Issue {
         this.normalizedText = normalizedText;
         this.updatedAt = OffsetDateTime.now();
     }
+
+    public boolean isHumanClassified() { return "human".equals(classifiedBy); }
 
     public Long getId() { return id; }
     public Long getGameId() { return gameId; }

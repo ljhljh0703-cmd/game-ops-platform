@@ -196,4 +196,33 @@ class CorrectionApiTest extends IntegrationTest {
                 new HttpEntity<>(admin()), List.class);
         assertThat(list.getBody()).hasSize(3);
     }
+
+    @Test
+    void 사람이_내린_심각도는_비슷한_제보가_더_와도_자동으로_다시_오르지_않는다() {
+        IntakeResult a = submit("상점에서 결제 버튼 위치가 헷갈려요");
+        reclassify(a.issueId(), Map.of("category", "UX", "severity", "LOW"));
+        long raisedBefore = jdbc.queryForObject("select count(*) from notification_outbox where type = 'SEVERITY_RAISED'", Long.class);
+        IntakeResult b = submit("상점에서 결제 버튼 위치가 너무 헷갈려요");
+        assertThat(b.issueId()).isEqualTo(a.issueId());
+        var issue = issues.findById(a.issueId()).orElseThrow();
+        assertThat(issue.getSeverity().name()).isEqualTo("LOW");
+        assertThat(issue.getReportCount()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from notification_outbox where type = 'SEVERITY_RAISED'", Long.class))
+                .isEqualTo(raisedBefore);
+    }
+
+    @Test
+    void 닫힌_이슈에서는_떼어낼_수_없고_분류를_고쳐도_긴급_알림은_없다() {
+        IntakeResult a = submit(CRASH);
+        IntakeResult b = submit(SLOW);
+        jdbc.update("update issue set status = 'RESOLVED', resolved_at = now() where id = ?", a.issueId());
+        assertThat(detach(a.issueId(), b.reportId(), admin()).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        IntakeResult c = submit("젤리 색이 이상해요");
+        jdbc.update("update issue set status = 'RESOLVED', resolved_at = now() where id = ?", c.issueId());
+        long before = jdbc.queryForObject("select count(*) from notification_outbox where type = 'SEVERITY_RAISED'", Long.class);
+        assertThat(reclassify(c.issueId(), Map.of("severity", "CRITICAL")).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("select count(*) from notification_outbox where type = 'SEVERITY_RAISED'", Long.class))
+                .isEqualTo(before);
+    }
 }

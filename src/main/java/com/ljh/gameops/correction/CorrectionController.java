@@ -48,7 +48,6 @@ public class CorrectionController {
     public IssueView reclassify(@PathVariable long id, @RequestBody ClassificationRequest req,
                                 @RequestHeader(value = "X-Api-Key", required = false) String apiKey) {
         String actor = guard.requireAdmin(apiKey);
-        if (req == null) throw new IllegalArgumentException("category 나 severity 중 하나는 필요합니다");
         return IssueView.of(service.reclassify(id, req.category(), req.severity(), actor, req.reason()));
     }
 

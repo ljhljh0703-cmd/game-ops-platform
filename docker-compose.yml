@@ -34,8 +34,9 @@ services:
     volumes:
       # 파일 하나가 아니라 폴더를 연결한다(편집기가 저장할 때 파일을 새로 만들어도 반영되게)
       - ./config:/app/config:ro
+    # 내 컴퓨터 안에서만 열린다(같은 와이파이의 다른 기기도 못 들어온다). 바깥은 슬랙 버튼 주소 하나뿐.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
   # 슬랙 버튼용 공개 주소. SLACK_SIGNING_SECRET 이 있을 때 start.sh 가 함께 켠다(직접 켤 때: docker compose --profile slack-buttons up -d).
   # gateway 는 /slack/interactions 하나만 서버로 넘기고, tunnel 은 그 문만 인터넷에 연결한다.

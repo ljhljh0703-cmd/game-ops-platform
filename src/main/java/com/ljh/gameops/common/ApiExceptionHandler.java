@@ -2,6 +2,7 @@
 package com.ljh.gameops.common;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,8 @@ public class ApiExceptionHandler {
     }
 
     /** 같은 내용의 열린 이슈가 이미 있는데 닫힌 이슈를 다시 열거나, 다른 요청과 동시에 고친 경우. */
-    @ExceptionHandler({DataIntegrityViolationException.class, ObjectOptimisticLockingFailureException.class})
+    @ExceptionHandler({DataIntegrityViolationException.class, ObjectOptimisticLockingFailureException.class,
+            PessimisticLockingFailureException.class})
     ResponseEntity<Map<String, String>> conflict(Exception e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "다른 변경과 겹쳤습니다. 같은 내용의 열린 이슈가 있거나 동시에 수정됐습니다. 새로고침 뒤 다시 시도하세요."));

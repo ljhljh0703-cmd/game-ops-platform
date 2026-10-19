@@ -27,8 +27,9 @@ else
   echo "  기존 .env 를 그대로 씁니다."
 fi
 ADMIN_KEY=$(grep '^ADMIN_API_KEY=' .env | cut -d= -f2-)
-SLACK_ON=$( (grep '^SLACK_ENABLED=' .env || true) | cut -d= -f2- | tr -d '[:space:]')
-SLACK_SECRET_LEN=$( (grep '^SLACK_SIGNING_SECRET=' .env || true) | cut -d= -f2- | tr -d '[:space:]' | wc -c | tr -d ' ')
+# 값에 따옴표를 둘러 써도 Docker 와 같은 뜻으로 읽는다
+SLACK_ON=$( (grep '^SLACK_ENABLED=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
+SLACK_SECRET_LEN=$( (grep '^SLACK_SIGNING_SECRET=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'" | wc -c | tr -d ' ')
 # macOS 기본 bash(3.2)에서도 돌도록 배열 대신 문자열을 쓴다
 PROFILE=""
 if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
@@ -53,8 +54,12 @@ for i in $(seq 1 60); do
     echo "관리자 키(상태 변경용): ${ADMIN_KEY}"
     if [ -n "$PROFILE" ]; then
       url=""
+      rm -f slack-request-url.txt
       for j in $(seq 1 20); do
-        url=$(docker compose logs tunnel 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | tail -1 || true)
+        # 임시 주소는 「단어-단어-…」 모양이다. 실패 기록에 나오는 api.trycloudflare.com 은 거른다.
+        if [ -n "$(docker compose ps --status running -q tunnel 2>/dev/null)" ]; then
+          url=$(docker compose logs tunnel 2>/dev/null | grep -oE 'https://[a-z0-9]+(-[a-z0-9]+)+\.trycloudflare\.com' | tail -1 || true)
+        fi
         [ -n "$url" ] && break
         sleep 2
       done

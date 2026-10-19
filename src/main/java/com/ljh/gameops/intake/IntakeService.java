@@ -16,6 +16,7 @@ import jakarta.persistence.LockModeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -72,7 +73,8 @@ public class IntakeService {
         for (int attempt = 1; ; attempt++) {
             try {
                 return tx.execute(status -> store(game, cmd, c));
-            } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException e) {
+            } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException
+                     | PessimisticLockingFailureException e) {
                 Optional<IntakeResult> again = findRedelivery(cmd);
                 if (again.isPresent()) return again.get();
                 if (attempt >= MAX_TRIES) throw e;
@@ -137,7 +139,12 @@ public class IntakeService {
             // 이슈 한 줄을 잠그고 DB 최신 값으로 다시 읽는다. 동시에 붙는 제보들이 차례로 줄을 서고,
             // 그사이 다른 요청이 닫은 이슈에는 붙이지 않는다.
             em.refresh(best, LockModeType.PESSIMISTIC_WRITE);
-            if (!best.getStatus().isOpen()) best = null;
+            if (!best.getStatus().isOpen()) {
+                best = null;
+            } else if (!best.getNormalizedKey().equals(key)) {
+                // 잠그기 전에 사람이 대표 제보를 바꿨을 수 있다. 최신 대표 글로 다시 잰다.
+                bestScore = Similarity.jaccard(normalized, best.getNormalizedText());
+            }
         }
         if (best != null && bestScore >= props.duplicateThreshold()) {
             var before = best.getSeverity();

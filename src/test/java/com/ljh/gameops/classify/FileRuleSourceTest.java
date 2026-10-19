@@ -70,4 +70,30 @@ class FileRuleSourceTest {
         assertThat(RuleParser.parse("{\"rules\":[{\"category\":\"BUG\",\"severity\":\"LOW\",\"keywords\":[\"FPS\"]}]}")
                 .get(0).keywords()).containsExactly("fps");
     }
+
+    @Test
+    void 저장_도중에_읽어_실패해도_같은_시각의_완성본을_다음_번에_읽는다() throws Exception {
+        Path f = dir.resolve("rules.json");
+        write(f, "{\"rules\":[{\"category\":\"BUG\",\"severity\":\"MEDIUM\",\"keywords\":[\"버그\"]}]}", 1000);
+        var c = new RuleBasedClassifier(new FileRuleSource(f, new BundledRuleSource()));
+
+        // 반쯤 저장된 파일(같은 크기는 아니어도 시각은 같다고 가정하기 위해 시각 고정)
+        write(f, "{\"rules\":[{\"categ", 2000);
+        assertThat(c.rules().lastError()).isNotNull();
+        write(f, "{\"rules\":[{\"category\":\"UX\",\"severity\":\"LOW\",\"keywords\":[\"사라지\"]}]}", 2000);
+        assertThat(c.classify("g", "젤리가 사라지는 현상").category()).isEqualTo(Category.UX);
+        assertThat(c.rules().lastError()).isNull();
+    }
+
+    @Test
+    void 크기와_시각이_같아도_실패했던_파일은_다시_확인한다() throws Exception {
+        Path f = dir.resolve("rules.json");
+        String bad  = "{\"rules\":[{\"category\":\"XX\",\"severity\":\"LOW\",\"keywords\":[\"abc\"]}]}";
+        String good = "{\"rules\":[{\"category\":\"UX\",\"severity\":\"LOW\",\"keywords\":[\"abc\"]}]}";
+        write(f, bad, 1000);
+        var c = new RuleBasedClassifier(new FileRuleSource(f, new BundledRuleSource()));
+        assertThat(c.rules().lastError()).isNotNull();
+        write(f, good, 1000); // 글자 수도 시각도 같다
+        assertThat(c.classify("g", "abc 문제").category()).isEqualTo(Category.UX);
+    }
 }
