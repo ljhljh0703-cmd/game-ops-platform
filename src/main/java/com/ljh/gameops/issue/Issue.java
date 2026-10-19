@@ -22,6 +22,8 @@ public class Issue {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private OffsetDateTime resolvedAt;
+    private Long recurrenceOf;
+    private Double recurrenceSimilarity;
     @Version private long version;
 
     protected Issue() {}
@@ -53,6 +55,12 @@ public class Issue {
         this.status = next;
         this.updatedAt = OffsetDateTime.now();
         this.resolvedAt = (next == IssueStatus.RESOLVED || next == IssueStatus.WONT_FIX) ? this.updatedAt : null;
+    }
+
+    /** 최근 해결한 이슈가 다시 생긴 것으로 보일 때. 묶지는 않고 표시만 한다. */
+    public void markRecurrenceOf(Long resolvedIssueId, double similarity) {
+        this.recurrenceOf = resolvedIssueId;
+        this.recurrenceSimilarity = similarity;
     }
 
     /** 사람이 분류·심각도를 고칠 때. 사람은 심각도를 내릴 수도 있다. */
@@ -93,5 +101,7 @@ public class Issue {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public OffsetDateTime getResolvedAt() { return resolvedAt; }
+    public Long getRecurrenceOf() { return recurrenceOf; }
+    public Double getRecurrenceSimilarity() { return recurrenceSimilarity; }
     public long getVersion() { return version; }
 }

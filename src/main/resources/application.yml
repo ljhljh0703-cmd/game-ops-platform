@@ -29,6 +29,7 @@ gameops:
   author-hash-salt: ${AUTHOR_HASH_SALT:change-me-local-only}
   issue:
     duplicate-threshold: ${DUPLICATE_THRESHOLD:0.55}
+    recurrence-window-days: ${RECURRENCE_WINDOW_DAYS:30}
   outbox:
     batch-size: 20
     max-attempts: 5

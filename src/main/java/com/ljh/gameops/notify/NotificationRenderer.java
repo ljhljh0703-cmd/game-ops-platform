@@ -38,6 +38,7 @@ public class NotificationRenderer {
 
     private static String newIssueLabel(JsonNode p) {
         StringBuilder s = new StringBuilder("새 이슈");
+        if (p.hasNonNull("recurrenceOf")) s.append(" · 재발 의심(최근 해결한 #").append(p.path("recurrenceOf").asLong()).append("과 비슷)");
         if (p.hasNonNull("detachedFrom")) s.append("(#").append(p.path("detachedFrom").asLong()).append("에서 떼어냄)");
         return s.toString();
     }

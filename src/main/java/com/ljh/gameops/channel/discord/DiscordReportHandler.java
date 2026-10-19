@@ -45,9 +45,13 @@ public class DiscordReportHandler {
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
                     in.authorId(), in.content(), in.attachmentUrls()));
-            int count = issues.get(r.issueId()).getReportCount();
+            var issue = issues.get(r.issueId());
+            int count = issue.getReportCount();
             return switch (r.outcome()) {
-                case NEW_ISSUE -> "접수했어요. 이슈 #%d 로 개발팀에 전달합니다.".formatted(r.issueId());
+                case NEW_ISSUE -> issue.getRecurrenceOf() == null
+                        ? "접수했어요. 이슈 #%d 로 개발팀에 전달합니다.".formatted(r.issueId())
+                        : "접수했어요. 이슈 #%d 로 전달합니다. 최근 고친 문제(#%d)가 다시 생긴 것 같아 함께 알렸어요."
+                                .formatted(r.issueId(), issue.getRecurrenceOf());
                 case ATTACHED_TO_EXISTING -> "비슷한 제보가 있어 이슈 #%d 에 합쳤어요. 같은 제보 %d건째입니다.".formatted(r.issueId(), count);
                 case DUPLICATE_DELIVERY -> "이미 접수된 제보예요. 이슈 #%d".formatted(r.issueId());
             };

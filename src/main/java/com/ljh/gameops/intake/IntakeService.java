@@ -20,7 +20,9 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.OffsetDateTime;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -87,6 +89,25 @@ public class IntakeService {
                                 IntakeResult.Outcome.DUPLICATE_DELIVERY, l.getSimilarity())));
     }
 
+    private record Match(Issue issue, double score) {}
+
+    /**
+     * 최근 해결한 이슈 중 이 글과 비슷한 것이 있으면 재발로 본다. 닫힌 이슈에 다시 붙이지는 않는다
+     * (고친 뒤 다시 생긴 건 새 사건이고, 원인이 다를 수 있다). 묶기와 같은 기준값을 쓴다.
+     */
+    private Optional<Match> findRecurrence(Long gameId, String key, String normalized) {
+        OffsetDateTime since = OffsetDateTime.now().minusDays(props.recurrenceWindowDays());
+        Match best = null;
+        for (Issue i : issues.findByGameIdAndStatusAndResolvedAtAfter(gameId, IssueStatus.RESOLVED, since)) {
+            double s = i.getNormalizedKey().equals(key) ? 1.0 : Similarity.jaccard(normalized, i.getNormalizedText());
+            if (s >= props.duplicateThreshold() && (best == null || s > best.score()
+                    || (s == best.score() && i.getResolvedAt().isAfter(best.issue().getResolvedAt())))) {
+                best = new Match(i, s);
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
     private IntakeResult store(Game game, SubmitReport cmd, Classification c) {
         Report report = reports.saveAndFlush(new Report(game.getId(), cmd.channel(), cmd.externalId(),
                 hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls()));
@@ -129,10 +150,15 @@ public class IntakeService {
             return new IntakeResult(report.getId(), best.getId(), IntakeResult.Outcome.ATTACHED_TO_EXISTING, bestScore);
         }
 
-        Issue created = issues.saveAndFlush(new Issue(game.getId(), c.title(), c.category(), c.severity(),
-                key, normalized, report.getId(), c.classifiedBy()));
+        Issue fresh = new Issue(game.getId(), c.title(), c.category(), c.severity(),
+                key, normalized, report.getId(), c.classifiedBy());
+        if (!empty) findRecurrence(game.getId(), key, normalized).ifPresent(m -> fresh.markRecurrenceOf(m.issue().getId(), m.score()));
+        Issue created = issues.saveAndFlush(fresh);
         links.save(new IssueReport(created.getId(), report.getId(), 1.0));
-        outbox.enqueue(NotificationType.NEW_ISSUE, Map.of("issueId", created.getId()));
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("issueId", created.getId());
+        if (created.getRecurrenceOf() != null) payload.put("recurrenceOf", created.getRecurrenceOf());
+        outbox.enqueue(NotificationType.NEW_ISSUE, payload);
         return new IntakeResult(report.getId(), created.getId(), IntakeResult.Outcome.NEW_ISSUE, 1.0);
     }
 }

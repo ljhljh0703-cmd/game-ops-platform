@@ -16,6 +16,8 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
 
     List<Issue> findTop5ByGameIdAndStatusInOrderByReportCountDescUpdatedAtDesc(Long gameId, Collection<IssueStatus> statuses);
 
+    List<Issue> findByGameIdAndStatusAndResolvedAtAfter(Long gameId, IssueStatus status, OffsetDateTime after);
+
     long countByGameIdAndStatusIn(Long gameId, Collection<IssueStatus> statuses);
 
     List<Issue> findByGameIdOrderByUpdatedAtDesc(Long gameId);
