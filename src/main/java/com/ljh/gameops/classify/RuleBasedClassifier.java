@@ -1,32 +1,24 @@
-// 키워드 규칙 분류기 — 외부 호출 없이 항상 답을 낸다(기본값이자 내려가기 대상)
+// 키워드 규칙 분류기 — 외부 호출 없이 항상 답을 낸다(기본값이자 내려가기 대상).
+// 규칙은 코드 밖 파일에서 읽어 운영자가 배포 없이 고칠 수 있다.
 package com.ljh.gameops.classify;
 
 import com.ljh.gameops.issue.Category;
 import com.ljh.gameops.issue.Severity;
 
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public class RuleBasedClassifier implements IssueClassifier {
+    private final RuleSource source;
 
-    private record Rule(Category category, Severity severity, List<String> keywords) {}
+    public RuleBasedClassifier(RuleSource source) { this.source = source; }
 
-    // 위에서부터 먼저 걸리는 규칙을 쓴다. 더 심각한 것을 위에 둔다.
-    private static final List<Rule> RULES = List.of(
-            new Rule(Category.PAYMENT, Severity.CRITICAL, List.of("결제", "환불", "충전", "구매했는데", "payment", "refund", "purchase")),
-            new Rule(Category.CRASH, Severity.HIGH, List.of("튕", "크래시", "강제 종료", "강종", "멈춤", "먹통", "접속 불가", "접속이 안", "crash", "freeze")),
-            new Rule(Category.PERFORMANCE, Severity.MEDIUM, List.of("렉", "느려", "프레임", "버벅", "로딩이 길", "lag", "fps")),
-            new Rule(Category.BUG, Severity.MEDIUM, List.of("버그", "오류", "안 돼", "안돼", "안 됨", "안됨", "이상해", "깨져", "bug", "error")),
-            new Rule(Category.BALANCE, Severity.LOW, List.of("밸런스", "너무 쎄", "너무 세", "너무 약", "사기", "너프", "버프", "op ", "balance")),
-            new Rule(Category.UX, Severity.LOW, List.of("불편", "헷갈", "못 찾", "ui", "버튼", "글씨"))
-    );
+    /** 서버에 내장된 기본 규칙으로 만든다. */
+    public RuleBasedClassifier() { this(new BundledRuleSource()); }
 
     @Override
     public Classification classify(String gameCode, String body) {
         String text = body.toLowerCase(Locale.ROOT) + " ";
-        for (Rule rule : RULES) {
+        for (ClassificationRule rule : source.current().rules()) {
             for (String kw : rule.keywords()) {
                 if (text.contains(kw)) {
                     return new Classification(rule.category(), rule.severity(), Titles.fromBody(body), "rules");
@@ -36,10 +28,5 @@ public class RuleBasedClassifier implements IssueClassifier {
         return new Classification(Category.OTHER, Severity.LOW, Titles.fromBody(body), "rules");
     }
 
-    /** 규칙 목록을 읽기 전용으로 보여 준다(문서·테스트용). */
-    public static Map<Category, List<String>> keywordTable() {
-        Map<Category, List<String>> m = new LinkedHashMap<>();
-        RULES.forEach(r -> m.put(r.category(), r.keywords()));
-        return m;
-    }
+    public RuleSet rules() { return source.current(); }
 }

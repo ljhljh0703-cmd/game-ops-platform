@@ -35,6 +35,7 @@ gameops:
     base-backoff-ms: 2000
     poll-ms: ${OUTBOX_POLL_MS:5000}
   classifier:
+    rules-file: ${CLASSIFIER_RULES_FILE:}
     llm:
       enabled: ${LLM_ENABLED:false}
       base-url: ${LLM_BASE_URL:https://api.openai.com/v1}

@@ -1,0 +1,11 @@
+{
+  "_설명": "분류 키워드 규칙. 위에서부터 먼저 걸리는 규칙 하나를 쓴다. 더 심각한 규칙을 위에 둔다. 분류는 CRASH·BUG·PERFORMANCE·BALANCE·PAYMENT·UX·OTHER, 심각도는 LOW·MEDIUM·HIGH·CRITICAL 중에서 고른다.",
+  "rules": [
+    {"category": "PAYMENT", "severity": "CRITICAL", "keywords": ["결제", "환불", "충전", "구매했는데", "payment", "refund", "purchase"]},
+    {"category": "CRASH", "severity": "HIGH", "keywords": ["튕", "크래시", "강제 종료", "강종", "멈춤", "먹통", "접속 불가", "접속이 안", "crash", "freeze"]},
+    {"category": "PERFORMANCE", "severity": "MEDIUM", "keywords": ["렉", "느려", "프레임", "버벅", "로딩이 길", "lag", "fps"]},
+    {"category": "BUG", "severity": "MEDIUM", "keywords": ["버그", "오류", "안 돼", "안돼", "안 됨", "안됨", "이상해", "깨져", "bug", "error"]},
+    {"category": "BALANCE", "severity": "LOW", "keywords": ["밸런스", "너무 쎄", "너무 세", "너무 약", "사기", "너프", "버프", "op ", "balance"]},
+    {"category": "UX", "severity": "LOW", "keywords": ["불편", "헷갈", "못 찾", "ui", "버튼", "글씨"]}
+  ]
+}

@@ -4,29 +4,40 @@ package com.ljh.gameops.classify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 @Configuration
 public class ClassifierConfig {
     @Bean
-    IssueClassifier issueClassifier(ClassifierProperties props, ObjectMapper mapper) {
-        IssueClassifier rules = new RuleBasedClassifier();
-        if (!props.enabled()) return rules;
-        if (props.apiKey() == null || props.apiKey().isBlank()) {
+    RuleBasedClassifier ruleBasedClassifier(ClassifierProperties props) {
+        RuleSource bundled = new BundledRuleSource();
+        String file = props.rulesFile();
+        RuleSource source = (file == null || file.isBlank()) ? bundled : new FileRuleSource(Path.of(file), bundled);
+        return new RuleBasedClassifier(source);
+    }
+
+    @Bean
+    @Primary
+    IssueClassifier issueClassifier(ClassifierProperties props, RuleBasedClassifier rules, ObjectMapper mapper) {
+        ClassifierProperties.Llm llm = props.llm();
+        if (llm == null || !llm.enabled()) return rules;
+        if (llm.apiKey() == null || llm.apiKey().isBlank()) {
             throw new IllegalStateException("gameops.classifier.llm.enabled=true 인데 api-key 가 비어 있습니다");
         }
         SimpleClientHttpRequestFactory rf = new SimpleClientHttpRequestFactory();
-        Duration timeout = Duration.ofSeconds(Math.max(1, props.timeoutSeconds()));
+        Duration timeout = Duration.ofSeconds(Math.max(1, llm.timeoutSeconds()));
         rf.setConnectTimeout(timeout);
         rf.setReadTimeout(timeout);
         RestClient client = RestClient.builder()
-                .baseUrl(props.baseUrl())
+                .baseUrl(llm.baseUrl())
                 .requestFactory(rf)
-                .defaultHeader("Authorization", "Bearer " + props.apiKey())
+                .defaultHeader("Authorization", "Bearer " + llm.apiKey())
                 .build();
-        return new FallbackClassifier(new LlmClassifier(client, props.model(), mapper), rules);
+        return new FallbackClassifier(new LlmClassifier(client, llm.model(), mapper), rules);
     }
 }
