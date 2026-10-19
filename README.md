@@ -38,11 +38,13 @@ Java 21 · Spring Boot 3.3 · PostgreSQL 16 · Flyway · JDA(디스코드) · Sl
 
 ## 실행
 
+맥에서는 Finder 에서 `start.command` 를 두 번 누르면 된다(처음 한 번은 「확인되지 않은 개발자」 경고가 뜨면 우클릭 → 열기). 터미널에서는:
+
 ```bash
-cp .env.example .env        # 꼭 먼저 만든다. ADMIN_API_KEY, AUTHOR_HASH_SALT 를 영문·숫자로 바꾸기
-docker compose up -d --build
-curl localhost:8080/actuator/health
+./start.sh
 ```
+
+Docker 확인 → `.env` 자동 생성(관리자 키 무작위 생성) → 서버·DB 켜기 → 헬스체크까지 한 번에 한다. 직접 하려면 `cp .env.example .env` 뒤 `docker compose up -d --build`.
 
 제보 올리기:
 
