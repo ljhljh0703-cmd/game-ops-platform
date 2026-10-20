@@ -101,4 +101,13 @@ class DiscordReportHandlerTest extends IntegrationTest {
         assertThat(handler.onChannelMessage(new DiscordInbound("msg:z", "996", "자유-채팅", "u", false, null, "튕겨요", null))).isEmpty();
         assertThat(reports()).isZero();
     }
+
+    @Test
+    void 채널_이름을_몰라도_ID_로_게임을_정한다() {
+        // 2026-10-20: 보석타워 채널(예전 #버그-제보 를 이름만 바꾼 채널) 글이 이름으로 안 잡혀
+        // 예전 설정(채널 ID → 기본 게임 젤리 패닉)으로 떨어졌다. 게임 목록에 ID 를 적으면 이름 없이도 맞게 간다.
+        var r = handler.onChannelMessage(new DiscordInbound("msg:id1", "1561709173522178068", null, "u", false, null, "3층 올라가면 튕겨요", null));
+        assertThat(r).hasValueSatisfying(t -> assertThat(t).startsWith("[보석타워]"));
+        assertThat(gameOfOnlyReport()).isEqualTo("gemtower");
+    }
 }

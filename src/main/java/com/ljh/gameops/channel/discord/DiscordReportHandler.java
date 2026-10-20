@@ -58,10 +58,17 @@ public class DiscordReportHandler {
     private Optional<String> channelGame(DiscordInbound in) {
         Optional<String> mapped = games.forDiscordChannel(in.channelId(), in.channelName()).map(GameSpec::code);
         if (mapped.isPresent()) return mapped;
-        return props.reportChannelIds().contains(in.channelId()) ? Optional.ofNullable(props.defaultGame()) : Optional.empty();
+        if (props.reportChannelIds().contains(in.channelId())) {
+            log.warn("게임 목록에 없는 채널이라 예전 설정(DISCORD_REPORT_CHANNEL_IDS)의 기본 게임 {} 으로 받습니다. channelId={} channelName={}",
+                    props.defaultGame(), in.channelId(), in.channelName());
+            return Optional.ofNullable(props.defaultGame());
+        }
+        return Optional.empty();
     }
 
     private String accept(DiscordInbound in, String game) {
+        // 어느 채널 글을 어느 게임으로 받았는지 남긴다(게임이 엉뚱하게 잡히면 이 줄로 원인을 본다)
+        log.info("디스코드 제보 접수 channelId={} channelName={} game={}", in.channelId(), in.channelName(), game);
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
                     in.authorId(), in.content(), in.attachmentUrls()));
