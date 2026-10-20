@@ -32,7 +32,7 @@ public class NotificationRenderer {
             case NEW_ISSUE -> issueLine(m.getType(), p.path("issueId").asLong(), newIssueLabel(p));
             case SEVERITY_RAISED -> issueLine(m.getType(), p.path("issueId").asLong(),
                     "심각도 상승(" + p.path("from").asText() + "→)");
-            case WEEKLY_REPORT -> new RenderedNotification(m.getType(), Severity.LOW, null, p.path("text").asText());
+            case WEEKLY_REPORT -> new RenderedNotification(m.getType(), p.path("gameCode").asText(null), Severity.LOW, null, p.path("text").asText());
         };
     }
 
@@ -45,9 +45,9 @@ public class NotificationRenderer {
 
     private RenderedNotification issueLine(NotificationType type, long issueId, String label) {
         Issue i = issues.findById(issueId).orElseThrow(() -> new IllegalStateException("이슈 없음: " + issueId));
-        String game = games.findById(i.getGameId()).map(g -> g.getName()).orElse("?");
+        var game = games.findById(i.getGameId());
         String text = "[%s] %s #%d · %s · %s/%s · 제보 %d건".formatted(
-                game, label, i.getId(), i.getTitle(), i.getCategory(), i.getSeverity(), i.getReportCount());
-        return new RenderedNotification(type, i.getSeverity(), i.getId(), text);
+                game.map(g -> g.getName()).orElse("?"), label, i.getId(), i.getTitle(), i.getCategory(), i.getSeverity(), i.getReportCount());
+        return new RenderedNotification(type, game.map(g -> g.getCode()).orElse(null), i.getSeverity(), i.getId(), text);
     }
 }

@@ -43,6 +43,9 @@ gameops:
       api-key: ${LLM_API_KEY:}
       model: ${LLM_MODEL:gpt-4o-mini}
       timeout-seconds: 10
+  games:
+    # 운영하는 게임 목록(게임별 디스코드 제보 채널·슬랙 알림 채널). 비우면 서버에 같이 넣은 기본 목록.
+    file: ${GAMES_FILE:}
   admin:
     api-keys:
       local-admin: ${ADMIN_API_KEY:}

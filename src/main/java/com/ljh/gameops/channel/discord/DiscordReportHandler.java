@@ -1,7 +1,10 @@
-// 디스코드 제보 처리 — 지정 채널 글과 /report 명령을 접수하고 답장 문구를 돌려준다
+// 디스코드 제보 처리 — 게임별 제보 채널 글과 /report 명령을 접수하고 답장 문구를 돌려준다.
+// 어느 게임 제보인지는 채널로 정한다(games.json 의 discordChannels).
 package com.ljh.gameops.channel.discord;
 
 import com.ljh.gameops.common.NotFoundException;
+import com.ljh.gameops.game.GameCatalog;
+import com.ljh.gameops.game.GameSpec;
 import com.ljh.gameops.intake.IntakeResult;
 import com.ljh.gameops.intake.IntakeService;
 import com.ljh.gameops.intake.SubmitReport;
@@ -20,34 +23,48 @@ public class DiscordReportHandler {
     private final IntakeService intake;
     private final IssueService issues;
     private final DiscordProperties props;
+    private final GameCatalog games;
 
-    public DiscordReportHandler(IntakeService intake, IssueService issues, DiscordProperties props) {
+    public DiscordReportHandler(IntakeService intake, IssueService issues, DiscordProperties props, GameCatalog games) {
         this.intake = intake;
         this.issues = issues;
         this.props = props;
+        this.games = games;
     }
 
-    /** 제보 채널에 올라온 일반 글. 봇 글·다른 채널 글·빈 글은 답하지 않는다. */
+    /** 제보 채널에 올라온 일반 글. 봇 글·제보 채널이 아닌 곳의 글·빈 글은 답하지 않는다. */
     public Optional<String> onChannelMessage(DiscordInbound in) {
-        if (in.fromBot() || !props.reportChannelIds().contains(in.channelId())) return Optional.empty();
+        if (in.fromBot()) return Optional.empty();
+        Optional<String> game = channelGame(in);
+        if (game.isEmpty()) return Optional.empty();
         if (in.content() == null || in.content().isBlank()) return Optional.empty();
-        return Optional.of(accept(in));
+        String chosen = (in.gameCode() != null && !in.gameCode().isBlank()) ? in.gameCode().trim() : game.get();
+        return Optional.of(accept(in, chosen));
     }
 
-    /** /report 명령. 게임을 고르지 않으면 기본 게임으로 받는다. */
+    /** /report 명령. 게임을 고르면 그 게임, 안 고르면 명령을 쓴 채널의 게임, 그것도 아니면 기본 게임. */
     public String onSlashCommand(DiscordInbound in) {
         if (in.content() == null || in.content().isBlank()) return "내용을 적어 주세요.";
-        return accept(in);
+        String game = (in.gameCode() != null && !in.gameCode().isBlank()) ? in.gameCode().trim()
+                : channelGame(in).orElse(props.defaultGame());
+        return accept(in, game);
     }
 
-    private String accept(DiscordInbound in) {
-        String game = (in.gameCode() == null || in.gameCode().isBlank()) ? props.defaultGame() : in.gameCode();
+    /** 게임별 채널이 먼저, 예전 방식(DISCORD_REPORT_CHANNEL_IDS → 기본 게임)은 그다음. */
+    private Optional<String> channelGame(DiscordInbound in) {
+        Optional<String> mapped = games.forDiscordChannel(in.channelId(), in.channelName()).map(GameSpec::code);
+        if (mapped.isPresent()) return mapped;
+        return props.reportChannelIds().contains(in.channelId()) ? Optional.ofNullable(props.defaultGame()) : Optional.empty();
+    }
+
+    private String accept(DiscordInbound in, String game) {
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
                     in.authorId(), in.content(), in.attachmentUrls()));
             var issue = issues.get(r.issueId());
             int count = issue.getReportCount();
-            return switch (r.outcome()) {
+            String name = games.byCode(game).map(GameSpec::name).orElse(game);
+            return "[" + name + "] " + switch (r.outcome()) {
                 case NEW_ISSUE -> issue.getRecurrenceOf() == null
                         ? "접수했어요. 이슈 #%d 로 개발팀에 전달합니다.".formatted(r.issueId())
                         : "접수했어요. 이슈 #%d 로 전달합니다. 최근 고친 문제(#%d)가 다시 생긴 것 같아 함께 알렸어요."

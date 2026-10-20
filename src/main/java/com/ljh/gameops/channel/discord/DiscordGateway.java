@@ -11,6 +11,8 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import com.ljh.gameops.game.GameCatalog;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
@@ -27,13 +29,15 @@ import java.util.stream.Collectors;
 public class DiscordGateway extends ListenerAdapter {
     private final DiscordProperties props;
     private final DiscordReportHandler handler;
+    private final GameCatalog games;
     private JDA jda;
     // 디스코드 라이브러리의 이벤트 스레드는 하나다. 분류(LLM 호출)를 거기서 하면 뒤 명령이 3초 제한을 넘기므로 따로 돌린다.
     private final ExecutorService workers = Executors.newFixedThreadPool(4);
 
-    public DiscordGateway(DiscordProperties props, DiscordReportHandler handler) {
+    public DiscordGateway(DiscordProperties props, DiscordReportHandler handler, GameCatalog games) {
         this.props = props;
         this.handler = handler;
+        this.games = games;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -48,15 +52,22 @@ public class DiscordGateway extends ListenerAdapter {
         jda.updateCommands().addCommands(
                 Commands.slash("report", "버그·불편 제보")
                         .addOption(OptionType.STRING, "content", "무슨 일이 있었나요", true)
-                        .addOption(OptionType.STRING, "game", "게임 코드 (예: gemtower)", false)
+                        .addOptions(gameOption())
         ).queue();
+    }
+
+    /** 게임을 목록에서 고르게 한다(디스코드 선택지는 25개까지). 안 고르면 쓴 채널의 게임. */
+    private OptionData gameOption() {
+        OptionData o = new OptionData(OptionType.STRING, "game", "어느 게임인가요 (안 고르면 이 채널의 게임)", false);
+        games.all().stream().limit(25).forEach(g -> o.addChoice(g.name(), g.code()));
+        return o;
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent e) {
         Message m = e.getMessage();
         String attachments = m.getAttachments().stream().map(Message.Attachment::getUrl).collect(Collectors.joining("\n"));
-        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), e.getChannel().getId(), e.getAuthor().getId(),
+        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), e.getChannel().getId(), e.getChannel().getName(), e.getAuthor().getId(),
                         e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments))
                 .ifPresent(reply -> m.reply(reply).queue()));
     }
@@ -67,9 +78,18 @@ public class DiscordGateway extends ListenerAdapter {
         e.deferReply(true).queue(); // 3초 안에 응답해야 하므로 먼저 「처리 중」을 보낸다
         OptionMapping game = e.getOption("game");
         OptionMapping content = e.getOption("content");
-        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), e.getChannelId(), e.getUser().getId(),
+        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), e.getChannelId(), channelName(e), e.getUser().getId(),
                 false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null);
         workers.submit(() -> e.getHook().sendMessage(handler.onSlashCommand(in)).queue());
+    }
+
+    // 명령을 쓴 채널 이름 — 캐시가 없어 못 얻으면 null(그때는 채널 ID 로만 게임을 찾는다)
+    private static String channelName(SlashCommandInteractionEvent e) {
+        try {
+            return e.getChannel().getName();
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     @PreDestroy

@@ -51,7 +51,7 @@ class RecurrenceTest extends IntegrationTest {
     void 디스코드_답장에도_재발을_알린다() {
         IntakeResult first = submit("보스 웨이브에서 튕겨요");
         close(first.issueId(), IssueStatus.RESOLVED);
-        var reply = discord.onChannelMessage(new DiscordInbound("msg:r1", "C_REPORT", "u", false, "jelly-panic", "보스 웨이브에서 튕겨요", null));
+        var reply = discord.onChannelMessage(new DiscordInbound("msg:r1", "C_REPORT", "버그-제보", "u", false, "jelly-panic", "보스 웨이브에서 튕겨요", null));
         assertThat(reply).hasValueSatisfying(r -> assertThat(r).contains("다시 생긴 것 같아").contains("#" + first.issueId()));
     }
 

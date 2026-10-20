@@ -1,6 +1,9 @@
-// 슬랙 메시지 모양 — 채널 고르기와 상태 버튼 만들기(외부 호출 없음, 테스트 대상)
+// 슬랙 메시지 모양 — 채널 고르기와 상태 버튼 만들기(외부 호출 없음, 테스트 대상).
+// 채널: 게임별 채널(games.json)이 먼저, 없으면 공용 채널(.env). 심각하면 게임 긴급 → 공용 긴급 → 보통 채널 순.
 package com.ljh.gameops.channel.slack;
 
+import com.ljh.gameops.game.GameCatalog;
+import com.ljh.gameops.game.GameSpec;
 import com.ljh.gameops.issue.IssueStatus;
 import com.ljh.gameops.issue.Severity;
 import com.ljh.gameops.notify.RenderedNotification;
@@ -18,16 +21,32 @@ import java.util.List;
 public class SlackMessageBuilder {
     public static final String ACTION_PREFIX = "issue_status_";
     private final SlackProperties props;
+    private final GameCatalog games;
 
-    public SlackMessageBuilder(SlackProperties props) { this.props = props; }
+    public SlackMessageBuilder(SlackProperties props) { this(props, GameCatalog.empty()); }
+
+    public SlackMessageBuilder(SlackProperties props, GameCatalog games) {
+        this.props = props;
+        this.games = games;
+    }
 
     public String channelFor(RenderedNotification n) {
-        String urgent = props.channels() == null ? null : props.channels().urgent();
-        String def = props.channels() == null ? null : props.channels().defaultChannel();
+        var game = games.byCode(n.gameCode());
+        String normal = firstNonBlank(game.map(GameSpec::slackChannel).orElse(null),
+                props.channels() == null ? null : props.channels().defaultChannel());
         boolean high = n.severity() == Severity.HIGH || n.severity() == Severity.CRITICAL;
-        if (high && urgent != null && !urgent.isBlank()) return urgent;
-        if (def == null || def.isBlank()) throw new IllegalStateException("슬랙 기본 채널이 설정되지 않았습니다");
-        return def;
+        if (high) {
+            String urgent = firstNonBlank(game.map(GameSpec::slackUrgentChannel).orElse(null),
+                    props.channels() == null ? null : props.channels().urgent());
+            if (urgent != null) return urgent;
+        }
+        if (normal == null) throw new IllegalStateException("슬랙 채널이 설정되지 않았습니다(게임: " + n.gameCode() + ")");
+        return normal;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String v : values) if (v != null && !v.isBlank()) return v.trim();
+        return null;
     }
 
     public List<LayoutBlock> blocks(RenderedNotification n) {

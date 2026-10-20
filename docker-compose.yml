@@ -31,6 +31,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-gameops}
       # 분류 키워드는 config/classifier-rules.json 에서 읽는다. 파일을 고치고 저장하면 다음 제보부터 반영된다.
       CLASSIFIER_RULES_FILE: /app/config/classifier-rules.json
+      # 게임 목록(게임별 디스코드 제보 채널·슬랙 알림 채널). 고친 뒤 서버를 다시 켜면 반영된다.
+      GAMES_FILE: /app/config/games.json
     volumes:
       # 파일 하나가 아니라 폴더를 연결한다(편집기가 저장할 때 파일을 새로 만들어도 반영되게)
       - ./config:/app/config:ro

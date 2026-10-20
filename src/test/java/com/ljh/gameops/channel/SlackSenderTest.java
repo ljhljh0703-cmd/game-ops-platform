@@ -24,7 +24,7 @@ class SlackSenderTest {
     private final MethodsClient client = mock(MethodsClient.class);
     private final SlackSender sender = new SlackSender(client, new SlackMessageBuilder(
             new SlackProperties(true, "x", "s", new SlackProperties.Channels("C_DEFAULT", "C_URGENT"))));
-    private final RenderedNotification n = new RenderedNotification(NotificationType.NEW_ISSUE, Severity.HIGH, 3L, "새 이슈 #3");
+    private final RenderedNotification n = new RenderedNotification(NotificationType.NEW_ISSUE, null, Severity.HIGH, 3L, "새 이슈 #3");
 
     private ChatPostMessageResponse response(boolean ok, String error) {
         ChatPostMessageResponse r = new ChatPostMessageResponse();
