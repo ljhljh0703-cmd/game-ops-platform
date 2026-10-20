@@ -207,6 +207,19 @@ public final class SlackCards {
 
     private static String pct(double v) { return Math.round(v * 100) + "%"; }
 
+    // ── AI 피드백 정리 카드 ──
+
+    /** 보라 띠. 정리 글은 AI 가 쓴 글이지만 플레이어 글을 옮겼을 수 있어 서식 문자(& < >)는 바꿔 넣는다(굵게·목록은 그대로) */
+    public static Attachment digestCard(com.ljh.gameops.notify.DigestCard d) {
+        String scope = (d.gameName() == null ? "전체 게임" : d.gameName()) + " · 최근 " + d.days() + "일 · 제보 " + d.reportCount() + "건";
+        List<LayoutBlock> b = new ArrayList<>();
+        b.add(HeaderBlock.builder().text(plain(cut("🧠 최근 피드백 정리 · " + (d.gameName() == null ? "전체" : d.gameName()), 150))).build());
+        b.add(ContextBlock.builder().elements(List.of(md(escape(scope)))).build());
+        b.add(SectionBlock.builder().text(md(cut(escape(d.text()), 2900))).build());
+        b.add(ContextBlock.builder().elements(List.of(md(actorLabel(d.actor()) + "가 정리 · " + when(d.createdAt())))).build());
+        return Attachment.builder().color("#7C3AED").fallback("최근 피드백 정리 · " + scope).blocks(b).build();
+    }
+
     // ── 입력 창 ──
 
     /** 분류 고치기 창 — 지금 값을 처음 선택으로 둔다. meta = 이슈 번호와 원래 카드 위치 */

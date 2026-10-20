@@ -60,6 +60,7 @@ public class SlackSender implements NotificationSender {
             // 이슈 알림은 카드(색 띠 첨부), 그 밖의 알림(주간 보고·운영 알림)은 글 블록
             if (n.card() != null) req.attachments(List.of(SlackCards.card(n.card(), note)));
             else if (n.rules() != null) req.attachments(List.of(SlackCards.rulesCard(n.rules())));
+            else if (n.digest() != null) req.attachments(List.of(SlackCards.digestCard(n.digest())));
             else req.blocks(builder.blocks(n.withText(text)));
             return client.chatPostMessage(req.build());
         } catch (Exception e) {
