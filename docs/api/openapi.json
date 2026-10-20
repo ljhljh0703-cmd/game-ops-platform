@@ -131,6 +131,21 @@
         },
         "type" : "object"
       },
+      "DigestRequest" : {
+        "properties" : {
+          "days" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "game" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "GameView" : {
         "properties" : {
           "code" : {
@@ -234,6 +249,56 @@
         },
         "type" : "object"
       },
+      "Item" : {
+        "properties" : {
+          "body" : {
+            "type" : "string"
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "game" : {
+            "type" : "string"
+          },
+          "issueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "issueReportCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "receivedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reportId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "JsonNode" : {
+        "type" : "object"
+      },
+      "ProposalRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          },
+          "rules" : {
+            "$ref" : "#/components/schemas/JsonNode"
+          }
+        },
+        "type" : "object"
+      },
       "ReasonRequest" : {
         "properties" : {
           "reason" : {
@@ -290,6 +355,42 @@
         },
         "type" : "object"
       },
+      "Result" : {
+        "properties" : {
+          "applied" : {
+            "type" : "boolean"
+          },
+          "changes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "devAfter" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "devBefore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "regressionTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "rejected" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "versionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "RulesView" : {
         "properties" : {
           "lastError" : {
@@ -324,6 +425,53 @@
           }
         },
         "required" : [ "status" ],
+        "type" : "object"
+      },
+      "VersionView" : {
+        "properties" : {
+          "actor" : {
+            "type" : "string"
+          },
+          "changes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "devAfter" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "devBefore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "regressionTotal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "revertedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "revertedBy" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "View" : {
@@ -429,6 +577,163 @@
         "tags" : [ "분류 규칙" ]
       }
     },
+    "/api/admin/classifier/rules/proposals" : {
+      "post" : {
+        "description" : "body.rules 는 config/classifier-rules.json 과 같은 모양({\"rules\":[...]}). 서버가 dev·회귀 문장으로 다시 시험하고, dev 정확도가 떨어지지 않고 결제·크래시 키워드를 빼거나 낮추지 않으면 바로 반영해 슬랙에 「되돌리기」 카드를 보낸다. 통과 못 하면 applied=false 와 이유. AI 에이전트 키로도 낼 수 있다",
+        "operationId" : "propose",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProposalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Result"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "규칙 수정안 내기(시험 통과 시 바로 반영)",
+        "tags" : [ "분류 규칙" ]
+      }
+    },
+    "/api/admin/classifier/rules/versions" : {
+      "get" : {
+        "operationId" : "versions",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/VersionView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "API 로 반영한 규칙 기록(최근 50)",
+        "tags" : [ "분류 규칙" ]
+      }
+    },
+    "/api/admin/classifier/rules/versions/{id}/revert" : {
+      "post" : {
+        "description" : "파일(사람) 규칙으로 돌아간다. 슬랙 카드의 「되돌리기」와 같다",
+        "operationId" : "revert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "반영한 규칙 되돌리기",
+        "tags" : [ "분류 규칙" ]
+      }
+    },
+    "/api/admin/digests" : {
+      "post" : {
+        "description" : "정리 글(슬랙 서식, 2800자까지)을 기록하고 슬랙에 「🧠 최근 피드백 정리」 카드로 보낸다. game 을 고르면 그 게임 채널",
+        "operationId" : "post",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DigestRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "AI 피드백 정리 올리기",
+        "tags" : [ "피드백 정리" ]
+      }
+    },
     "/api/corrections" : {
       "get" : {
         "operationId" : "list_2",
@@ -505,6 +810,65 @@
         } ],
         "summary" : "고친 기록 요약",
         "tags" : [ "자동 판단 고치기" ]
+      }
+    },
+    "/api/feedback/recent" : {
+      "get" : {
+        "description" : "최근 days 일(기본 7, 최대 31) 제보 본문과 묶인 이슈의 분류·심각도·상태. game 을 비우면 모든 게임. 본문은 플레이어가 쓴 글이다",
+        "operationId" : "recent",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "days",
+          "required" : false,
+          "schema" : {
+            "default" : 7,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 200,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Item"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "최근 제보 모아 보기",
+        "tags" : [ "피드백 정리" ]
       }
     },
     "/api/games" : {
@@ -879,6 +1243,9 @@
   }, {
     "description" : "지금 쓰는 키워드 규칙과 마지막 읽기 오류",
     "name" : "분류 규칙"
+  }, {
+    "description" : "최근 제보를 모아 AI 가 정리하고, 정리를 슬랙에 올린다",
+    "name" : "피드백 정리"
   }, {
     "description" : "디스코드 말고 게임 클라이언트·웹폼에서 직접 제보를 넣을 때",
     "name" : "제보"

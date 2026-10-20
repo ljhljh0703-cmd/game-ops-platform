@@ -29,7 +29,15 @@
         │
         ▼
   슬랙: 새 이슈 · 심각도 상승 · 주간 보고(월 09:00)
-  슬랙 버튼·입력 창 → 서명 확인 → 관리자 확인 → 상태 변경 / 분류 고치기 / 떼어내기 + 감사·고친 기록 → 카드를 그 자리에서 바꿈
+  슬랙 버튼·입력 창 → 서명 확인 → 관리자 확인 → 상태 변경 / 분류 고치기 / 떼어내기 + 감사·고친 기록
+        │
+        ▼
+  어디서 바꿨든(슬랙·API·AI 에이전트) 그 이슈의 슬랙 카드를 그 자리에서 다시 그림
+  해결로 바뀌면 → 디스코드 제보 글마다 「✅ 고쳤어요」 답장
+
+  AI 에이전트(Claude 플러그인)
+    최근 피드백 모아 읽기 → 정리를 슬랙 「🧠 최근 피드백 정리」 카드로
+    고친 기록 보고 분류 규칙 수정안 → 서버가 다시 시험 → 통과한 것만 바로 반영 + 슬랙 「↩️ 되돌리기」 카드
 ```
 
 ## 기술
@@ -68,6 +76,10 @@ curl -H 'Content-Type: application/json' \
 | PATCH | `/api/issues/{id}/classification` | 분류·심각도 고치기(내리기 가능). 관리자 키 |
 | GET | `/api/corrections?game=` · `/api/corrections/summary?game=` | 사람이 고친 기록과 요약(자주 틀리는 방향, 떼어낸 제보의 유사도). 관리자 키 |
 | GET | `/api/admin/classifier/rules` | 지금 적용 중인 키워드 규칙과 마지막 오류. 관리자 키 |
+| POST | `/api/admin/classifier/rules/proposals` | 규칙 수정안 → 서버가 시험해 통과하면 바로 반영(에이전트 키 가능) |
+| GET · POST | `/api/admin/classifier/rules/versions` · `…/{id}/revert` | 반영한 규칙 기록, 되돌리기 |
+| GET | `/api/feedback/recent?game=&days=7` | 최근 제보 본문과 묶인 이슈. 관리자·에이전트 키 |
+| POST | `/api/admin/digests` | AI 피드백 정리를 슬랙 카드로 올리기 |
 | POST | `/slack/interactions` | 슬랙 버튼·입력 창 (서명 검사) |
 | GET | `/actuator/health` | 헬스체크 |
 
@@ -89,7 +101,7 @@ curl -H 'Content-Type: application/json' \
 
 ## AI 에이전트로 운영하기 (Claude 플러그인)
 
-운영 도구(MCP 서버)와 운영 스킬 3종을 Claude 플러그인 하나로 묶었다. 플러그인은 `agent/plugin/game-ops`, MCP 서버 원본은 `agent/mcp-server` 에 있다.
+운영 도구(MCP 서버)와 운영 스킬 4종을 Claude 플러그인 하나로 묶었다. 플러그인은 `agent/plugin/game-ops`, MCP 서버 원본은 `agent/mcp-server` 에 있다.
 
 ```
 /plugin install game-ops --marketplace ljhljh0703-cmd/game-ops-platform
@@ -100,10 +112,11 @@ curl -H 'Content-Type: application/json' \
 | 스킬 | 하는 일 |
 |---|---|
 | `ops-morning` | 모든 게임의 미해결 이슈를 훑어 급한 것·잘못 묶인 것·분류가 틀린 것을 표로 제안 → 사람이 고른 것만 반영 |
-| `ops-rules` | 고친 기록에서 자주 틀리는 키워드 규칙을 찾아 수정안을 만들고 평가 하네스로 전후 정확도 비교 |
+| `ops-digest` | 「피드백 정리해」 — 최근 제보를 모아 자주 나온 문제·새 문제·먼저 볼 것·분류가 틀려 보이는 것으로 정리해 슬랙 카드로 올림 |
+| `ops-rules` | 고친 기록에서 자주 틀리는 키워드 규칙을 찾아 수정안을 냄 → 서버가 시험해 통과하면 바로 반영, 슬랙에서 되돌리기 |
 | `ops-weekly` | 게임별 주간 보고 미리보기에 재발·몰린 증상을 붙여 요약 |
 
-에이전트가 바꾼 것은 감사 기록에 `ai-agent` 로 남는다. 바꾸는 도구 3개(상태·분류·떼어내기)는 이유(`reason`)가 필수이고, 해결 처리는 제안하지 않는다(고쳤는지는 개발팀이 안다). 자세한 경계는 [운영 설계서 5장](docs/OPERATIONS.md).
+에이전트가 바꾼 것은 감사 기록에 `ai-agent` 로 남는다. 바꾸는 도구(상태·분류·떼어내기·규칙 수정)는 이유(`reason`)가 필수이고, 해결 처리는 제안하지 않는다(고쳤는지는 개발팀이 안다). 규칙 수정은 결제·크래시 키워드를 빼거나 낮추면 서버가 막는다. 자세한 경계는 [운영 설계서 5장](docs/OPERATIONS.md).
 
 ## 설정 키
 

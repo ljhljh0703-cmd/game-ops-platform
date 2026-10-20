@@ -1,7 +1,7 @@
 {
   "name": "game-ops",
-  "version": "0.1.0",
-  "description": "게임 운영 플랫폼을 Claude 에서 운영한다 — 아침 이슈 정리, 분류 규칙 고치기 제안, 주간 보고. 바꾸는 일은 사람 확인 후에.",
+  "version": "0.2.0",
+  "description": "게임 운영 플랫폼을 Claude 에서 운영한다 — 아침 이슈 정리, 최근 피드백 정리(슬랙 카드), 분류 규칙 고치기(시험 통과 시 바로 반영·슬랙에서 되돌리기), 주간 보고. 해결·보류는 사람이.",
   "author": { "name": "이주형" },
   "repository": "https://github.com/ljhljh0703-cmd/game-ops-platform",
   "license": "MIT",
