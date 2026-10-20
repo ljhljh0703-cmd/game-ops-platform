@@ -1,6 +1,6 @@
 # game-ops-platform
 
-게임 운영 플랫폼. 플레이어가 디스코드에 올린 버그·불만을 서버가 받아 분류하고, 비슷한 제보를 하나의 이슈로 묶어 DB에 넣는다. 개발팀 슬랙에는 새 이슈 알림과 주간 보고가 가고, 알림의 버튼으로 이슈 상태를 바꾼다.
+게임 운영 플랫폼. 플레이어가 디스코드에 올린 버그·불만을 서버가 받아 분류하고, 비슷한 제보를 하나의 이슈로 묶어 DB에 넣는다. 개발팀 슬랙에는 새 이슈 카드와 주간 보고가 가고, 카드의 버튼으로 상태를 바꾸거나 분류 고치기·잘못 묶인 제보 떼어내기를 슬랙 안에서 바로 한다.
 
 여러 게임을 한 서버로 운영한다. 기본 목록: 젤리 패닉(`jelly-panic`), 보석타워(`gemtower`), 무브퓨(`movefu`) — `config/games.json`.
 
@@ -29,7 +29,7 @@
         │
         ▼
   슬랙: 새 이슈 · 심각도 상승 · 주간 보고(월 09:00)
-  슬랙 버튼 → 서명 확인 → 관리자 확인 → 상태 변경 + 감사 기록
+  슬랙 버튼·입력 창 → 서명 확인 → 관리자 확인 → 상태 변경 / 분류 고치기 / 떼어내기 + 감사·고친 기록 → 카드를 그 자리에서 바꿈
 ```
 
 ## 기술
@@ -68,7 +68,7 @@ curl -H 'Content-Type: application/json' \
 | PATCH | `/api/issues/{id}/classification` | 분류·심각도 고치기(내리기 가능). 관리자 키 |
 | GET | `/api/corrections?game=` · `/api/corrections/summary?game=` | 사람이 고친 기록과 요약(자주 틀리는 방향, 떼어낸 제보의 유사도). 관리자 키 |
 | GET | `/api/admin/classifier/rules` | 지금 적용 중인 키워드 규칙과 마지막 오류. 관리자 키 |
-| POST | `/slack/interactions` | 슬랙 버튼 (서명 검사) |
+| POST | `/slack/interactions` | 슬랙 버튼·입력 창 (서명 검사) |
 | GET | `/actuator/health` | 헬스체크 |
 
 ## 테이블
@@ -129,6 +129,16 @@ curl -H 'Content-Type: application/json' \
 `config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리거나 평가 관문(회귀 문장 전부 · dev 정확도 95% 이상)을 못 넘으면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 고치기 전후로 `./gradlew evalClassifier -Prules=수정안` 으로 재 보고, 깃에 올릴 때는 테스트가 holdout 까지 한 번 더 막는다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
 
 ## 슬랙 버튼
+
+이슈 알림은 심각도 색 띠가 붙은 카드로 온다(긴급 빨강 · 높음 주황 · 보통 노랑 · 낮음 회색). 카드에는 분류·심각도·제보 수·상태 4칸, 플레이어 원문 인용, 재발·처음 시각, 버튼 한 줄이 있다.
+
+| 버튼 | 하는 일 |
+|---|---|
+| 진행 중 · ✅ 해결 · 보류 · 다시 열기 | 상태 변경. 카드가 그 자리에서 「✅ 해결됨 · 누가 · 언제」로 바뀌고 띠가 초록이 된다 |
+| 🏷️ 분류 고치기 | 입력 창에서 분류·심각도·이유를 고른다. 고친 기록에 남는다 |
+| ✂️ 잘못 묶임 떼어내기 | 묶인 제보 목록에서 다른 문제인 것을 골라 새 이슈로 뺀다(제보 2건 이상일 때만 보임) |
+
+플레이어 글은 슬랙 서식 문자를 바꿔 넣어 `<!channel>` 같은 전체 호출이나 가짜 링크가 동작하지 않는다. 슬랙 앱에 추가 권한은 필요 없다(chat:write 로 카드 바꾸기, 입력 창은 버튼과 같은 주소로 들어온다).
 
 `.env` 에 `SLACK_SIGNING_SECRET`(슬랙 앱 Basic Information > Signing Secret)과 `SLACK_ADMIN_USER_IDS`(버튼을 누를 수 있는 슬랙 멤버 ID, 쉼표로 여러 명)를 넣고 `start.sh` 를 다시 실행하면, 끝에 슬랙 버튼 주소가 나온다(`slack-request-url.txt` 에도 저장). 슬랙 앱 설정 Interactivity & Shortcuts 의 Request URL 에 넣는다. 인터넷에는 이 주소 하나만 열리고(`deploy/slack-gateway.conf`), 껐다 켜면 주소가 바뀐다. 바뀌면 서버가 1분 안에 공용 긴급 채널(`SLACK_CHANNEL_URGENT`)로 새 주소를 알린다.
 

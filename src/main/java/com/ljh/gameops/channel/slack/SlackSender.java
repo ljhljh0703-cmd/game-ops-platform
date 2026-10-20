@@ -10,6 +10,7 @@ import com.slack.api.methods.response.chat.ChatPostMessageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Set;
 
 public class SlackSender implements NotificationSender {
@@ -26,12 +27,13 @@ public class SlackSender implements NotificationSender {
     @Override
     public void send(RenderedNotification n) {
         String channel = builder.channelFor(n);
-        ChatPostMessageResponse r = post(channel, n, n.text());
+        ChatPostMessageResponse r = post(channel, n, n.text(), null);
         if (r != null && !r.isOk() && CHANNEL_ERRORS.contains(r.getError())) {
             String shared = builder.sharedFallbackFor(n, channel);
             if (shared != null) {
                 log.warn("슬랙 채널 {} 로 못 보내 공용 채널로 보냅니다: {} (games.json 채널 이름·봇 초대 확인)", channel, r.getError());
-                r = post(shared, n, n.text() + "\n_(게임 채널 " + channel + " 로 못 보내 여기로 왔어요: " + r.getError() + ")_");
+                String note = "_(게임 채널 " + channel + " 로 못 보내 여기로 왔어요: " + r.getError() + ")_";
+                r = post(shared, n, n.text() + "\n" + note, note);
             }
         }
         if (r == null || !r.isOk()) {
@@ -39,13 +41,13 @@ public class SlackSender implements NotificationSender {
         }
     }
 
-    private ChatPostMessageResponse post(String channel, RenderedNotification n, String text) {
+    private ChatPostMessageResponse post(String channel, RenderedNotification n, String text, String note) {
         try {
-            return client.chatPostMessage(ChatPostMessageRequest.builder()
-                    .channel(channel)
-                    .text(text)
-                    .blocks(builder.blocks(n.withText(text)))
-                    .build());
+            var req = ChatPostMessageRequest.builder().channel(channel).text(text);
+            // 이슈 알림은 카드(색 띠 첨부), 그 밖의 알림(주간 보고·운영 알림)은 글 블록
+            if (n.card() != null) req.attachments(List.of(SlackCards.card(n.card(), note)));
+            else req.blocks(builder.blocks(n.withText(text)));
+            return client.chatPostMessage(req.build());
         } catch (Exception e) {
             throw new IllegalStateException("슬랙 호출 실패: " + e.getMessage(), e);
         }

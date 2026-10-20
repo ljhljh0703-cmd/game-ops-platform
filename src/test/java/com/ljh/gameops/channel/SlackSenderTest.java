@@ -79,4 +79,16 @@ class SlackSenderTest {
         assertThatThrownBy(() -> perGame.send(movefuLow)).hasMessageContaining("ratelimited");
         verify(client, times(1)).chatPostMessage(any(ChatPostMessageRequest.class));
     }
+
+    @Test
+    void 이슈_카드는_색_띠_첨부로_보낸다() throws Exception {
+        when(client.chatPostMessage(any(ChatPostMessageRequest.class))).thenReturn(response(true, null));
+        var card = new com.ljh.gameops.notify.IssueCard(3, "보석타워", "새 이슈", "튕겨요", "튕겨요", com.ljh.gameops.issue.Category.CRASH,
+                Severity.HIGH, com.ljh.gameops.issue.IssueStatus.OPEN, 1, null, null, null, java.time.OffsetDateTime.now(), null);
+        sender.send(new RenderedNotification(NotificationType.NEW_ISSUE, null, Severity.HIGH, 3L, "새 이슈 #3", card));
+        ArgumentCaptor<ChatPostMessageRequest> cap = ArgumentCaptor.forClass(ChatPostMessageRequest.class);
+        verify(client).chatPostMessage(cap.capture());
+        assertThat(cap.getValue().getAttachments()).singleElement().satisfies(a -> assertThat(a.getColor()).isEqualTo("#E8912D"));
+        assertThat(cap.getValue().getText()).isEqualTo("새 이슈 #3"); // 알림 미리보기용 한 줄
+    }
 }
