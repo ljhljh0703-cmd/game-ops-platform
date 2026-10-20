@@ -1,6 +1,18 @@
 {
   "components" : {
     "schemas" : {
+      "AutoRequest" : {
+        "properties" : {
+          "days" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "game" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CategoryFix" : {
         "properties" : {
           "count" : {
@@ -268,6 +280,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "issueTitle" : {
+            "type" : "string"
+          },
           "receivedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -357,35 +372,18 @@
       },
       "Result" : {
         "properties" : {
-          "applied" : {
+          "byAi" : {
             "type" : "boolean"
           },
-          "changes" : {
-            "items" : {
-              "type" : "string"
-            },
-            "type" : "array"
-          },
-          "devAfter" : {
-            "format" : "double",
-            "type" : "number"
-          },
-          "devBefore" : {
-            "format" : "double",
-            "type" : "number"
-          },
-          "regressionTotal" : {
-            "format" : "int32",
+          "digestId" : {
+            "format" : "int64",
             "type" : "integer"
           },
-          "rejected" : {
-            "items" : {
-              "type" : "string"
-            },
-            "type" : "array"
+          "posted" : {
+            "type" : "boolean"
           },
-          "versionId" : {
-            "format" : "int64",
+          "reportCount" : {
+            "format" : "int32",
             "type" : "integer"
           }
         },
@@ -731,6 +729,46 @@
           "adminKey" : [ ]
         } ],
         "summary" : "AI 피드백 정리 올리기",
+        "tags" : [ "피드백 정리" ]
+      }
+    },
+    "/api/admin/digests/auto" : {
+      "post" : {
+        "description" : "서버가 최근 제보를 이슈별로 모아 AI 에게 고르고 요약하게 하고, 제보 수·심각도·상태는 기록에서 채워 「🧠 최근 피드백 정리」 카드로 올린다. AI 가 안 되면 기록만으로 정리. 제보가 없으면 올리지 않는다",
+        "operationId" : "auto",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AutoRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Result"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "피드백 정리 보고서 자동으로 올리기",
         "tags" : [ "피드백 정리" ]
       }
     },

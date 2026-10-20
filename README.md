@@ -80,6 +80,7 @@ curl -H 'Content-Type: application/json' \
 | GET · POST | `/api/admin/classifier/rules/versions` · `…/{id}/revert` | 반영한 규칙 기록, 되돌리기 |
 | GET | `/api/feedback/recent?game=&days=7` | 최근 제보 본문과 묶인 이슈. 관리자·에이전트 키 |
 | POST | `/api/admin/digests` | AI 피드백 정리를 슬랙 카드로 올리기 |
+| POST | `/api/admin/digests/auto` | 서버가 최근 제보를 AI 로 정리해 보고서 카드로 올리기(게임·기간 선택) |
 | POST | `/slack/interactions` | 슬랙 버튼·입력 창 (서명 검사) |
 | GET | `/actuator/health` | 헬스체크 |
 
@@ -155,6 +156,24 @@ curl -H 'Content-Type: application/json' \
 
 슬랙 왼쪽에서 봇을 누르면 홈 탭에 게임마다 열림·진행 중·긴급·이번 주 해결 수와 먼저 볼 이슈 5개, 최근 AI 피드백 정리·규칙 반영이 보인다(「🔄 새로고침」).
 
+### /피드백정리 (슬랙 명령)
+
+슬랙 아무 곳에서 `/피드백정리` 를 치면 최근 7일 제보를 AI 가 정리한 보고서 카드가 올라온다. 게임 알림 채널에서 치면 그 게임, 아니면 전체 게임(공용 채널). `/피드백정리 젤리패닉 3` 처럼 게임과 기간(1~31일)을 적을 수 있다. 운영 담당(`SLACK_ADMIN_USER_IDS`)만 쓸 수 있다.
+
+```
+*보스 튕김이 몰리고 결제 문제 1건*
+🔥 자주 나온 문제
+• #12 보스 웨이브에서 튕김 · 제보 3건 ▮▮▮▮▮ · 크래시/높음 · 진행 중
+🆕 새로 생긴 문제
+• #15 결제 후 보석 미지급 · 제보 1건 ▮▮▯▯▯ · 결제/긴급 · 열림
+👀 먼저 볼 것
+• #15 돈이 걸린 문제 · 결제/긴급 · 열림
+🏷️ 분류 다시 볼 것
+• #9 버그 → 불편 · 버그/낮음 · 열림
+```
+
+AI 는 고르고 요약만 하고, 숫자(제보 수·심각도·상태)는 서버가 기록에서 넣는다. AI 키(`LLM_API_KEY`)가 없거나 응답이 이상하면 기록만으로 같은 모양을 만든다.
+
 ### 봇 얼굴
 
 카드마다 게임별 봇 이름·아이콘으로 온다(`config/games.json` 의 `botName`·`icon`, 공용 카드는 「게임 운영 봇」). 아이콘은 `docs/brand/` (보석타워·운영 봇은 웹 ChatGPT 생성, 젤리 패닉은 게임 출시 아이콘, 무브퓨는 글자 아이콘).
@@ -164,8 +183,9 @@ curl -H 'Content-Type: application/json' \
 1. OAuth & Permissions > Bot Token Scopes 에 `chat:write.customize` 추가(봇 얼굴용)
 2. App Home > Home Tab 켜기
 3. Event Subscriptions 켜기 > Request URL 에 `start.sh` 가 보여 주는 `…/slack/events` > Subscribe to bot events 에 `app_home_opened`
-4. 다시 설치(Reinstall to Workspace)
-5. `.env` 에 `SLACK_CUSTOM_IDENTITY=true` 를 넣고 `start.sh` 다시 실행
+4. Slash Commands > Create New Command > `/피드백정리`, Request URL 에 `…/slack/commands` (권한 `commands` 가 붙는다)
+5. 다시 설치(Reinstall to Workspace)
+6. `.env` 에 `SLACK_CUSTOM_IDENTITY=true` 를 넣고 `start.sh` 다시 실행
 
 플레이어 글은 슬랙 서식 문자를 바꿔 넣어 `<!channel>` 같은 전체 호출이나 가짜 링크가 동작하지 않는다. 슬랙 앱에 추가 권한은 필요 없다(chat:write 로 카드 바꾸기, 입력 창은 버튼과 같은 주소로 들어온다).
 

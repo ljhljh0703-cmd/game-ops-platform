@@ -55,13 +55,16 @@ public class TunnelUrlWatcher {
         if (host == null || !QUICK_HOST.matcher(host).matches() || host.equals(lastSeen)) return;
         String url = "https://" + host + "/slack/interactions";
         String events = "https://" + host + "/slack/events";
+        String commands = "https://" + host + "/slack/commands";
         String text = """
-                :warning: *슬랙 주소가 바뀌었습니다*. 바꾸기 전에는 카드 버튼과 홈 현황판이 안 먹습니다.
+                :warning: *슬랙 주소가 바뀌었습니다*. 바꾸기 전에는 카드 버튼·홈 현황판·/피드백정리 가 안 먹습니다.
                 1) 슬랙 앱 설정 > Interactivity & Shortcuts > Request URL
                 `%s`
                 2) 슬랙 앱 설정 > Event Subscriptions > Request URL
-                `%s`""".formatted(url, events);
-        if (outbox.enqueueOnce(NotificationType.SLACK_URL_CHANGED, Map.of("text", text, "url", url, "eventsUrl", events), "slack-url:" + host)) {
+                `%s`
+                3) 슬랙 앱 설정 > Slash Commands > /피드백정리 > Request URL
+                `%s`""".formatted(url, events, commands);
+        if (outbox.enqueueOnce(NotificationType.SLACK_URL_CHANGED, Map.of("text", text, "url", url, "eventsUrl", events, "commandsUrl", commands), "slack-url:" + host)) {
             log.warn("슬랙 버튼 주소가 바뀌어 알림을 넣었습니다: {}", url);
         }
         lastSeen = host;
