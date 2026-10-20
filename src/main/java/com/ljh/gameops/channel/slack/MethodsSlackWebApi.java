@@ -46,6 +46,11 @@ public class MethodsSlackWebApi implements SlackWebApi {
     }
 
     @Override
+    public void updateDigestCard(String channel, String ts, com.ljh.gameops.notify.DigestCard card) {
+        update(channel, ts, "최근 피드백 정리 #" + card.digestId(), SlackCards.digestCard(card));
+    }
+
+    @Override
     public boolean publishHome(String userId, View view) {
         try {
             var r = client.viewsPublish(com.slack.api.methods.request.views.ViewsPublishRequest.builder().userId(userId).view(view).build());

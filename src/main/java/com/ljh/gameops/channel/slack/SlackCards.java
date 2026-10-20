@@ -209,7 +209,10 @@ public final class SlackCards {
 
     // ── AI 피드백 정리 카드 ──
 
-    /** 보라 띠. 정리 글은 AI 가 쓴 글이지만 플레이어 글을 옮겼을 수 있어 서식 문자(& < >)는 바꿔 넣는다(굵게·목록은 그대로) */
+    public static final String ACTION_DIGEST_HANDOFF = "digest_handoff";
+
+    /** 보라 띠. 정리 글은 AI 가 쓴 글이지만 플레이어 글을 옮겼을 수 있어 서식 문자(& < >)는 바꿔 넣는다(굵게·목록은 그대로).
+     *  아직 안 넘겼으면 「🤖 개발 AI에게 넘기기」 버튼, 넘겼으면 넘긴 이슈 링크와 누가·언제. 5블록 */
     public static Attachment digestCard(com.ljh.gameops.notify.DigestCard d) {
         String scope = (d.gameName() == null ? "전체 게임" : d.gameName()) + " · 최근 " + d.days() + "일 · 제보 " + d.reportCount() + "건";
         List<LayoutBlock> b = new ArrayList<>();
@@ -217,6 +220,20 @@ public final class SlackCards {
         b.add(ContextBlock.builder().elements(List.of(md(escape(scope)))).build());
         b.add(SectionBlock.builder().text(md(cut(escape(d.text()), 2900))).build());
         b.add(ContextBlock.builder().elements(List.of(md(actorLabel(d.actor()) + "가 정리 · " + when(d.createdAt())))).build());
+        if (d.handoffs().isEmpty()) {
+            b.add(ActionsBlock.builder().elements(List.<BlockElement>of(
+                    button(ACTION_DIGEST_HANDOFF, "🤖 개발 AI에게 넘기기", String.valueOf(d.digestId()), "primary"))).build());
+        } else {
+            var h = d.handoffs();
+            StringBuilder links = new StringBuilder("🤖 *개발 AI에게 넘김* · ");
+            for (int i = 0; i < h.size(); i++) {
+                if (i > 0) links.append(", ");
+                links.append('<').append(h.get(i).url()).append('|').append(escape(h.get(i).label())).append('>');
+            }
+            var last = h.get(h.size() - 1);
+            links.append(" · ").append(actorLabel(last.actor())).append(" · ").append(when(last.at()));
+            b.add(ContextBlock.builder().elements(List.of(md(cut(links.toString(), 2900)))).build());
+        }
         return Attachment.builder().color("#7C3AED").fallback("최근 피드백 정리 · " + scope).blocks(b).build();
     }
 

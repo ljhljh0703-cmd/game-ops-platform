@@ -15,6 +15,9 @@ public interface SlackWebApi {
     /** 규칙 반영 카드를 바꾼다(되돌린 뒤). 뒤에서 보낸다. */
     void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card);
 
+    /** 피드백 정리 카드를 바꾼다(개발 AI에게 넘긴 뒤). 뒤에서 보낸다 */
+    default void updateDigestCard(String channel, String ts, com.ljh.gameops.notify.DigestCard card) {}
+
     /** 그 사람의 앱 홈 탭에 화면을 올린다(views.publish). 바로 보낸다 */
     boolean publishHome(String userId, View view);
 }

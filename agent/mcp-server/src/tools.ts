@@ -190,4 +190,31 @@ export function registerTools(server: McpServer, api: GameOpsApi): void {
     const r = await api.request("POST", "/api/admin/digests", { game, days, text }, true);
     return ok("슬랙에 정리를 올렸어요", r);
   }));
+
+  server.registerTool("auto_digest", {
+    title: "피드백 정리 보고서 자동으로 올리기",
+    description:
+      "서버가 최근 제보를 이슈별로 모아 AI 로 고르고 요약해 「🧠 최근 피드백 정리」 보고서 카드로 올린다(슬랙 /피드백정리 와 같음). " +
+      "숫자는 서버 기록에서 채운다. 빠르게 같은 모양의 보고가 필요할 때 쓴다. 직접 판단을 덧붙여 쓰려면 recent_feedback → post_digest.",
+    inputSchema: { game: gameCode.optional(), days: z.number().int().min(1).max(31).default(7) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, ({ game, days }) => run(async () => {
+    const r = await api.request<{ posted: boolean; digestId?: number; reportCount: number }>("POST", "/api/admin/digests/auto", { game, days }, true);
+    return ok(r.posted ? `정리 #${r.digestId} 를 올렸어요(제보 ${r.reportCount}건)` : `최근 ${days}일 제보가 없어 올리지 않았어요`, r);
+  }));
+
+  server.registerTool("handoff_to_dev", {
+    title: "개발 AI에게 넘기기",
+    description:
+      "피드백 정리(digestId)를 게임 저장소의 깃허브 이슈(개발 지시서, 라벨 player-feedback)로 만든다. 게임 정리는 그 게임 하나, 전체 정리는 제보가 있는 게임마다. " +
+      "같은 정리는 한 번만 만들어진다. 슬랙 정리 카드가 「넘김 · 링크」로 바뀐다. 게임 코드는 고치지 않는다(지시서를 받은 개발 AI는 사람이 돌린다).",
+    inputSchema: { digestId: z.number().int().positive() },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+  }, ({ digestId }) => run(async () => {
+    const r = await api.request<{ gameName: string; url: string; issueCount: number; already: boolean }[]>(
+      "POST", `/api/admin/digests/${digestId}/handoff`, undefined, true);
+    if (r.length === 0) return ok("넘길 열린 이슈가 없어요", r);
+    const lines = r.map((h) => `${h.gameName}: ${h.url} (고칠 것 ${h.issueCount}건${h.already ? ", 전에 넘김" : ""})`);
+    return ok("개발 AI에게 넘겼어요\n" + lines.join("\n"), r);
+  }));
 }

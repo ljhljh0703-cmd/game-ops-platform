@@ -1,8 +1,8 @@
 {
-  "_설명": "운영하는 게임 목록. code 는 영문 소문자·숫자·- (한 번 정하면 바꾸지 않기), name 은 알림에 보이는 이름. discordChannels 는 제보를 받을 디스코드 채널 ID 와 이름(여러 개 가능, 한 채널은 한 게임에만). ID 를 먼저 보고, 못 찾으면 이름(띄어쓰기·- 무시)으로 찾는다. ID 는 채널 이름을 바꿔도 안 끊긴다. slackChannel 은 이 게임 알림 채널(#이름 또는 ID). slackUrgentChannel 을 비우면 심각한 알림은 공용 긴급 채널(SLACK_CHANNEL_URGENT)로 간다. botName·icon 은 슬랙 카드에 보일 봇 이름·아이콘(SLACK_CUSTOM_IDENTITY=true 일 때). 고친 뒤 서버를 다시 켜면 반영된다.",
+  "_설명": "운영하는 게임 목록. code 는 영문 소문자·숫자·- (한 번 정하면 바꾸지 않기), name 은 알림에 보이는 이름. discordChannels 는 제보를 받을 디스코드 채널 ID 와 이름(여러 개 가능, 한 채널은 한 게임에만). ID 를 먼저 보고, 못 찾으면 이름(띄어쓰기·- 무시)으로 찾는다. ID 는 채널 이름을 바꿔도 안 끊긴다. slackChannel 은 이 게임 알림 채널(#이름 또는 ID). slackUrgentChannel 을 비우면 심각한 알림은 공용 긴급 채널(SLACK_CHANNEL_URGENT)로 간다. botName·icon 은 슬랙 카드에 보일 봇 이름·아이콘(SLACK_CUSTOM_IDENTITY=true 일 때). repo 는 게임 코드 깃허브 저장소(소유자/이름) — 「개발 AI에게 넘기기」가 여기에 이슈를 만든다. 고친 뒤 서버를 다시 켜면 반영된다.",
   "games": [
-    {"code": "jelly-panic", "name": "젤리 패닉", "discordChannels": ["1562047507310182450", "젤리패닉-버그-제보"], "slackChannel": "#젤리패닉-알림", "botName": "젤리 패닉 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/jelly-panic.png"},
-    {"code": "gemtower", "name": "보석타워", "discordChannels": ["1561709173522178068", "보석타워-버그-제보"], "slackChannel": "#보석타워-알림", "botName": "보석타워 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/gemtower.png"},
-    {"code": "movefu", "name": "무브퓨", "discordChannels": ["1562047682782957711", "무브퓨-버그-제보"], "slackChannel": "#무브퓨-알림", "botName": "무브퓨 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/movefu.png"}
+    {"code": "jelly-panic", "name": "젤리 패닉", "discordChannels": ["1562047507310182450", "젤리패닉-버그-제보"], "slackChannel": "#젤리패닉-알림", "botName": "젤리 패닉 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/jelly-panic.png", "repo": "ljhljh0703-cmd/jelly-panic"},
+    {"code": "gemtower", "name": "보석타워", "discordChannels": ["1561709173522178068", "보석타워-버그-제보"], "slackChannel": "#보석타워-알림", "botName": "보석타워 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/gemtower.png", "repo": "ljhljh0703-cmd/uzmap-forge"},
+    {"code": "movefu", "name": "무브퓨", "discordChannels": ["1562047682782957711", "무브퓨-버그-제보"], "slackChannel": "#무브퓨-알림", "botName": "무브퓨 운영봇", "icon": "https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/movefu.png", "repo": "ljhljh0703-cmd/few-moves"}
   ]
 }

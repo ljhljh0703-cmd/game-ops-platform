@@ -56,13 +56,17 @@ public class SlackInteractionController {
     private final com.ljh.gameops.classify.RuleChangeService rules;
     private final SlackMessageStore store;
     private final SlackHomeService home;
+    private final com.ljh.gameops.handoff.DevHandoffService handoff;
+    // 깃허브 이슈 만들기는 3초를 넘길 수 있어 뒤에서
+    private final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     public SlackInteractionController(SlackProperties props, AdminGuard guard, IssueService issues, CorrectionService corrections,
                                       ReportRepository reports, IssueCardFactory cards, SlackWebApi web,
                                       ObjectMapper mapper, Clock clock, SlackResponder responder,
                                       com.ljh.gameops.classify.RuleChangeService rules, SlackMessageStore store,
-                                      SlackHomeService home) {
+                                      SlackHomeService home, com.ljh.gameops.handoff.DevHandoffService handoff) {
         this.home = home;
+        this.handoff = handoff;
         this.rules = rules;
         this.store = store;
         this.props = props;
@@ -76,6 +80,9 @@ public class SlackInteractionController {
         this.clock = clock;
         this.responder = responder;
     }
+
+    @jakarta.annotation.PreDestroy
+    void stopPool() { pool.shutdown(); }
 
     @PostMapping(value = "/interactions", consumes = "application/x-www-form-urlencoded")
     public ResponseEntity<?> interact(HttpServletRequest request,
@@ -127,6 +134,20 @@ public class SlackInteractionController {
                 store.remember(SlackMessageStore.Kind.RULES, Long.parseLong(value), channel, messageTs);
                 rules.revert(Long.parseLong(value), "slack:" + userId);
                 return ResponseEntity.ok(Map.of("text", "규칙 #" + value + " 되돌림"));
+            }
+            if (actionId.equals(SlackCards.ACTION_DIGEST_HANDOFF)) {
+                long digestId = Long.parseLong(value);
+                // 넘긴 뒤 이 카드가 「넘김 · 링크」로 바뀐다(공통 갱신). 실패하면 누른 사람에게만 이유
+                pool.submit(() -> {
+                    try {
+                        var done = handoff.handoff(digestId, "slack:" + userId, channel, messageTs);
+                        if (done.isEmpty()) responder.reply(responseUrl, "넘길 열린 이슈가 없어요(모두 해결됐거나 제보가 없음).");
+                    } catch (RuntimeException e) {
+                        log.warn("개발 AI에게 넘기기 실패 digest={}: {}", digestId, e.getMessage());
+                        responder.reply(responseUrl, "개발 AI에게 넘기지 못했어요: " + e.getMessage());
+                    }
+                });
+                return ResponseEntity.ok().build();
             }
             if (actionId.equals(SlackCards.ACTION_RECLASSIFY) || actionId.equals(SlackCards.ACTION_DETACH)) {
                 long issueId = Long.parseLong(value);

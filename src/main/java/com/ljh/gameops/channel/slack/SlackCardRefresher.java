@@ -3,6 +3,8 @@
 package com.ljh.gameops.channel.slack;
 
 import com.ljh.gameops.classify.RuleVersionRepository;
+import com.ljh.gameops.notify.DigestCardFactory;
+import com.ljh.gameops.notify.DigestChanged;
 import com.ljh.gameops.notify.IssueCardFactory;
 import com.ljh.gameops.notify.IssueChanged;
 import com.ljh.gameops.notify.RuleChangeCard;
@@ -26,10 +28,13 @@ public class SlackCardRefresher {
     private final RuleVersionRepository versions;
     private final SlackWebApi web;
     private final Clock clock;
+    private final DigestCardFactory digestCards;
     // 커밋 뒤 처리 단계에서는 새 DB 쓰기가 커밋되지 않을 수 있어, 아예 다른 스레드에서 한다(한 줄로 차례대로)
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
 
-    public SlackCardRefresher(SlackMessageStore store, IssueCardFactory cards, RuleVersionRepository versions, SlackWebApi web, Clock clock) {
+    public SlackCardRefresher(SlackMessageStore store, IssueCardFactory cards, RuleVersionRepository versions, SlackWebApi web, Clock clock,
+                              DigestCardFactory digestCards) {
+        this.digestCards = digestCards;
         this.store = store;
         this.cards = cards;
         this.versions = versions;
@@ -75,6 +80,21 @@ public class SlackCardRefresher {
                 for (var l : locs) web.updateRulesCard(l.channel(), l.ts(), card);
             } catch (RuntimeException ex) {
                 log.warn("슬랙 규칙 카드 새로 그리기 실패 #{}: {}", e.versionId(), ex.getMessage());
+            }
+        });
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onDigestChanged(DigestChanged e) {
+        pool.submit(() -> {
+            try {
+                if (e.channel() != null) store.remember(SlackMessageStore.Kind.DIGEST, e.digestId(), e.channel(), e.ts());
+                var locs = store.find(SlackMessageStore.Kind.DIGEST, e.digestId());
+                if (locs.isEmpty()) return;
+                var card = digestCards.current(e.digestId());
+                for (var l : locs) web.updateDigestCard(l.channel(), l.ts(), card);
+            } catch (RuntimeException ex) {
+                log.warn("슬랙 정리 카드 새로 그리기 실패 #{}: {}", e.digestId(), ex.getMessage());
             }
         });
     }

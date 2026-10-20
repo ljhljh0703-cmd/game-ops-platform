@@ -16,8 +16,10 @@ public class FeedbackController {
     private final FeedbackService service;
     private final AutoDigest auto;
     private final AdminGuard guard;
+    private final com.ljh.gameops.handoff.DevHandoffService handoff;
 
-    public FeedbackController(FeedbackService service, AutoDigest auto, AdminGuard guard) {
+    public FeedbackController(FeedbackService service, AutoDigest auto, AdminGuard guard, com.ljh.gameops.handoff.DevHandoffService handoff) {
+        this.handoff = handoff;
         this.service = service;
         this.auto = auto;
         this.guard = guard;
@@ -56,5 +58,18 @@ public class FeedbackController {
         String game = req == null ? null : req.game();
         int days = req == null || req.days() == null ? AutoDigest.DEFAULT_DAYS : req.days();
         return auto.run(game, days, actor);
+    }
+
+    @PostMapping("/api/admin/digests/{id}/handoff")
+    @Operation(summary = "개발 AI에게 넘기기", description = "피드백 정리를 게임 저장소의 깃허브 이슈(개발 지시서, 라벨 player-feedback)로 만든다. 게임을 정한 정리는 그 게임 하나, 전체 정리는 제보가 있는 게임마다. 같은 정리·게임은 한 번만(다시 부르면 전에 만든 이슈). 슬랙 정리 카드가 「넘김 · 링크」로 바뀐다. 게임 코드는 자동으로 고치지 않는다")
+    @SecurityRequirement(name = "adminKey")
+    public List<com.ljh.gameops.handoff.DevHandoffService.Result> handoff(@PathVariable long id, @RequestHeader(value = "X-Api-Key", required = false) String apiKey) {
+        String actor = guard.requireAdmin(apiKey);
+        try {
+            return handoff.handoff(id, actor, null, null);
+        } catch (IllegalStateException e) {
+            // 토큰 없음·권한 없음·저장소 없음 — 지금은 넘길 수 없는 상태
+            throw new com.ljh.gameops.common.ConflictException(e.getMessage());
+        }
     }
 }

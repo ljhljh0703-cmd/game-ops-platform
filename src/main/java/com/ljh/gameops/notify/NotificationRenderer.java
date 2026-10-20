@@ -17,10 +17,13 @@ public class NotificationRenderer {
     private final IssueCardFactory cards;
     private final com.ljh.gameops.classify.RuleVersionRepository versions;
     private final com.ljh.gameops.feedback.FeedbackService feedback;
+    private final DigestCardFactory digestCards;
 
     public NotificationRenderer(ObjectMapper mapper, IssueRepository issues, GameRepository games, IssueCardFactory cards,
-                                com.ljh.gameops.classify.RuleVersionRepository versions, com.ljh.gameops.feedback.FeedbackService feedback) {
+                                com.ljh.gameops.classify.RuleVersionRepository versions, com.ljh.gameops.feedback.FeedbackService feedback,
+                                DigestCardFactory digestCards) {
         this.feedback = feedback;
+        this.digestCards = digestCards;
         this.mapper = mapper;
         this.issues = issues;
         this.games = games;
@@ -55,7 +58,7 @@ public class NotificationRenderer {
                 var d = feedback.get(p.path("digestId").asLong());
                 yield new RenderedNotification(m.getType(), d.gameCode(), Severity.LOW, null,
                         "🧠 최근 피드백 정리 · " + (d.gameName() == null ? "전체 게임" : d.gameName()), null, null,
-                        new DigestCard(d.id(), d.gameName(), d.days(), d.reportCount(), d.text(), d.actor(), d.createdAt()));
+                        digestCards.current(d.id()));
             }
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
         };

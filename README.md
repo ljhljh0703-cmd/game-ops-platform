@@ -35,8 +35,13 @@
   어디서 바꿨든(슬랙·API·AI 에이전트) 그 이슈의 슬랙 카드를 그 자리에서 다시 그림
   해결로 바뀌면 → 디스코드 제보 글마다 「✅ 고쳤어요」 답장
 
+  피드백 정리 → 개발 AI에게 넘기기
+    슬랙 /피드백정리 (또는 Claude 「피드백 정리해」) → 「🧠 최근 피드백 정리」 보고서 카드
+    카드의 「🤖 개발 AI에게 넘기기」 → 게임 저장소에 개발 지시서(깃허브 이슈, 라벨 player-feedback)
+    게임 폴더 Claude 「넘어온 피드백 처리해」 → 재현 · 계획 · 사람 확인 · 고치기 · 이슈에 결과 댓글
+    배포 뒤 슬랙 카드 [해결] → 디스코드 제보자에게 「✅ 고쳤어요」
+
   AI 에이전트(Claude 플러그인)
-    최근 피드백 모아 읽기 → 정리를 슬랙 「🧠 최근 피드백 정리」 카드로
     고친 기록 보고 분류 규칙 수정안 → 서버가 다시 시험 → 통과한 것만 바로 반영 + 슬랙 「↩️ 되돌리기」 카드
 ```
 
@@ -81,6 +86,7 @@ curl -H 'Content-Type: application/json' \
 | GET | `/api/feedback/recent?game=&days=7` | 최근 제보 본문과 묶인 이슈. 관리자·에이전트 키 |
 | POST | `/api/admin/digests` | AI 피드백 정리를 슬랙 카드로 올리기 |
 | POST | `/api/admin/digests/auto` | 서버가 최근 제보를 AI 로 정리해 보고서 카드로 올리기(게임·기간 선택) |
+| POST | `/api/admin/digests/{id}/handoff` | 정리를 게임 저장소 깃허브 이슈(개발 지시서)로 넘기기. 같은 정리는 한 번만 |
 | POST | `/slack/interactions` | 슬랙 버튼·입력 창 (서명 검사) |
 | GET | `/actuator/health` | 헬스체크 |
 
@@ -102,7 +108,7 @@ curl -H 'Content-Type: application/json' \
 
 ## AI 에이전트로 운영하기 (Claude 플러그인)
 
-운영 도구(MCP 서버)와 운영 스킬 4종을 Claude 플러그인 하나로 묶었다. 플러그인은 `agent/plugin/game-ops`, MCP 서버 원본은 `agent/mcp-server` 에 있다.
+운영 도구(MCP 서버)와 운영 스킬 5종을 Claude 플러그인 하나로 묶었다. 플러그인은 `agent/plugin/game-ops`, MCP 서버 원본은 `agent/mcp-server` 에 있다.
 
 ```
 /plugin install game-ops --marketplace ljhljh0703-cmd/game-ops-platform
@@ -113,7 +119,8 @@ curl -H 'Content-Type: application/json' \
 | 스킬 | 하는 일 |
 |---|---|
 | `ops-morning` | 모든 게임의 미해결 이슈를 훑어 급한 것·잘못 묶인 것·분류가 틀린 것을 표로 제안 → 사람이 고른 것만 반영 |
-| `ops-digest` | 「피드백 정리해」 — 최근 제보를 모아 자주 나온 문제·새 문제·먼저 볼 것·분류가 틀려 보이는 것으로 정리해 슬랙 카드로 올림 |
+| `ops-digest` | 「피드백 정리해」 — 최근 제보를 모아 자주 나온 문제·새 문제·먼저 볼 것·분류가 틀려 보이는 것으로 정리해 슬랙 카드로 올리고, 원하면 개발 AI에게 넘김(게임 저장소 이슈) |
+| `dev-intake` | 게임 저장소에서 「넘어온 피드백 처리해」 — 개발 지시서를 읽고 재현 → 계획 → 사람 확인 → 고치기·테스트 → 이슈에 결과 댓글. 운영 상태는 안 바꿈 |
 | `ops-rules` | 고친 기록에서 자주 틀리는 키워드 규칙을 찾아 수정안을 냄 → 서버가 시험해 통과하면 바로 반영, 슬랙에서 되돌리기 |
 | `ops-weekly` | 게임별 주간 보고 미리보기에 재발·몰린 증상을 붙여 요약 |
 
@@ -173,6 +180,12 @@ curl -H 'Content-Type: application/json' \
 ```
 
 AI 는 고르고 요약만 하고, 숫자(제보 수·심각도·상태)는 서버가 기록에서 넣는다. AI 키(`LLM_API_KEY`)가 없거나 응답이 이상하면 기록만으로 같은 모양을 만든다.
+
+### 개발 AI에게 넘기기
+
+정리 카드의 「🤖 개발 AI에게 넘기기」를 누르면 그 게임 저장소(`config/games.json` 의 `repo`)에 개발 지시서 이슈가 생기고, 카드가 「🤖 개발 AI에게 넘김 · 링크 · 누가 · 언제」로 바뀐다. 지시서는 한 줄 요약 → 고칠 것(긴급·높음·결제·크래시·제보 많은 순, 이슈마다 플레이어 글 3개까지) → 완료 기준. 플레이어 글은 믿지 않는 자료라고 적고, 깃허브에서 사람 부르기(@)·이슈 연결(#)·HTML 이 동작하지 않게 바꿔 넣는다. 게임 코드는 자동으로 고치지 않는다 — 게임 폴더에서 Claude 에게 「넘어온 피드백 처리해」(`dev-intake` 스킬)라고 하면 계획을 보여 주고 확인받은 것만 고친다.
+
+필요한 것: `.env` 의 `GITHUB_TOKEN` — 깃허브 Settings > Developer settings > Fine-grained tokens 에서 게임 저장소만 고르고 Issues: Read and write.
 
 ### 봇 얼굴
 

@@ -48,6 +48,8 @@ class SlackInteractionTest extends IntegrationTest {
         final List<String> homes = new java.util.concurrent.CopyOnWriteArrayList<>();
         final List<View> homeViews = new java.util.concurrent.CopyOnWriteArrayList<>();
         public boolean publishHome(String userId, View view) { homes.add(userId); homeViews.add(view); return true; }
+        final List<com.ljh.gameops.notify.DigestCard> digestUpdated = new java.util.concurrent.CopyOnWriteArrayList<>();
+        public void updateDigestCard(String channel, String ts, com.ljh.gameops.notify.DigestCard card) { digestUpdated.add(card); }
     }
 
     @TestConfiguration
@@ -59,7 +61,7 @@ class SlackInteractionTest extends IntegrationTest {
     @Autowired CorrectionRepository corrections;
 
     @BeforeEach
-    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); web.rulesUpdated.clear(); web.homes.clear(); web.homeViews.clear(); }
+    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); web.rulesUpdated.clear(); web.homes.clear(); web.homeViews.clear(); web.digestUpdated.clear(); }
 
     /** 뒤에서 오는 카드 바꾸기를 기다린다(최대 5초) */
     static void await(java.util.function.BooleanSupplier ok) {

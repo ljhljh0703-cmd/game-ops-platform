@@ -48,6 +48,7 @@ public class SlackSender implements NotificationSender {
             try {
                 if (n.card() != null) store.remember(SlackMessageStore.Kind.ISSUE, n.card().issueId(), r.getChannel(), r.getTs());
                 else if (n.rules() != null) store.remember(SlackMessageStore.Kind.RULES, n.rules().versionId(), r.getChannel(), r.getTs());
+                else if (n.digest() != null) store.remember(SlackMessageStore.Kind.DIGEST, n.digest().digestId(), r.getChannel(), r.getTs());
             } catch (RuntimeException e) {
                 log.warn("슬랙 카드 위치 기억 실패(카드는 보냄): {}", e.getMessage()); // 보낸 걸 다시 보내지 않게 예외는 안 던진다
             }

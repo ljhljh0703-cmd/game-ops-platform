@@ -74,6 +74,10 @@ gameops:
     bot-token: ${DISCORD_BOT_TOKEN:}
     report-channel-ids: ${DISCORD_REPORT_CHANNEL_IDS:}
     default-game: ${DISCORD_DEFAULT_GAME:gemtower}
+  github:
+    # 「개발 AI에게 넘기기」 — 게임 저장소에 개발 지시서 이슈를 만든다. 저장소 Issues 쓰기 권한 토큰. 비우면 넘기기만 꺼진다
+    token: ${GITHUB_TOKEN:}
+    api-url: ${GITHUB_API_URL:https://api.github.com}
   weekly-report:
     cron: "0 0 9 * * MON"
     zone: Asia/Seoul
