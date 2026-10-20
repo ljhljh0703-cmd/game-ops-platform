@@ -78,6 +78,8 @@ gameops:
     # 「개발 AI에게 넘기기」 — 게임 저장소에 개발 지시서 이슈를 만든다. 저장소 Issues 쓰기 권한 토큰. 비우면 넘기기만 꺼진다
     token: ${GITHUB_TOKEN:}
     api-url: ${GITHUB_API_URL:https://api.github.com}
+    # 고친 코드가 들어왔는지 보는 간격(합쳐진 PR·기본 브랜치 커밋의 ops-번호 → 자동 해결)
+    watch-ms: ${GITHUB_WATCH_MS:20000}
   weekly-report:
     cron: "0 0 9 * * MON"
     zone: Asia/Seoul

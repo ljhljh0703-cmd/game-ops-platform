@@ -173,6 +173,7 @@ public final class SlackCards {
     static String actorLabel(String actor) {
         if (actor == null) return "?";
         if (actor.equals("ai-agent")) return "🤖 AI 에이전트";
+        if (actor.startsWith("github:")) return "🔀 깃허브 " + escape(actor.substring(7)) + "(코드 반영)";
         if (actor.startsWith("slack:")) {
             String id = actor.substring(6);
             return id.matches("[A-Z0-9_]{2,30}") ? "<@" + id + ">" : "슬랙 관리자";

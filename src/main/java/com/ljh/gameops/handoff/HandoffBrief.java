@@ -45,9 +45,9 @@ public final class HandoffBrief {
         }
         b.append("\n## 완료 기준\n")
                 .append("- 위 문제를 재현하고 고친 뒤 테스트를 붙여 주세요.\n")
-                .append("- 커밋·PR 메시지에 운영 번호를 적어 주세요(예: `ops-").append(rows.get(0).id()).append("`).\n")
-                .append("- 고친 버전을 배포하면 운영 슬랙 카드에서 사람이 [해결]을 눌러요. 그러면 제보한 플레이어에게 디스코드로 「고쳤어요」가 가요.\n")
-                .append("- 운영 이슈 상태는 개발 AI가 바꾸지 않아요.\n\n")
+                .append("- 고친 것만 PR 제목·본문이나 커밋 메시지에 운영 번호를 적어 주세요(예: `ops-").append(rows.get(0).id()).append("`). 못 고친 것은 번호를 적지 않아요.\n")
+                .append("- 그 PR 이 합쳐지거나 기본 브랜치에 들어오면 운영 이슈가 자동으로 해결되고, 제보한 플레이어에게 디스코드로 「고쳤어요」가 가요. 합치는 건 사람이 해요.\n")
+                .append("- 운영 이슈 상태는 개발 AI가 직접 바꾸지 않아요.\n\n")
                 .append("<!-- game-ops handoff digest=").append(digestId).append(" game=").append(gameCode).append(" -->\n");
         String title = "[플레이어 피드백] " + gameName + " · 고칠 것 " + rows.size() + "건 (최근 " + days + "일)";
         return new Brief(title, b.toString(), rows.size());

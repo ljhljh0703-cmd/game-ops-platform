@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +52,72 @@ public class GitHubConfig {
                     throw new IllegalStateException(why, e);
                 }
             }
+            public boolean ready() { return true; }
+        };
+    }
+
+    @Bean
+    GitHubRepoReader gitHubRepoReader(@Value("${gameops.github.token:}") String token,
+                                      @Value("${gameops.github.api-url:https://api.github.com}") String apiUrl) {
+        if (token == null || token.isBlank()) {
+            return new GitHubRepoReader() {
+                public List<Merged> recentlyMerged(String repo) { return List.of(); }
+                public List<Commit> commitsSince(String repo, OffsetDateTime since) { return List.of(); }
+                public boolean comment(String repo, int number, String body) { return false; }
+                public boolean ready() { return false; }
+            };
+        }
+        SimpleClientHttpRequestFactory rf = new SimpleClientHttpRequestFactory();
+        rf.setConnectTimeout(Duration.ofSeconds(5));
+        rf.setReadTimeout(Duration.ofSeconds(15));
+        RestClient client = RestClient.builder().baseUrl(apiUrl).requestFactory(rf)
+                .defaultHeader("Authorization", "Bearer " + token.strip())
+                .defaultHeader("Accept", "application/vnd.github+json")
+                .defaultHeader("X-GitHub-Api-Version", "2022-11-28").build();
+        return new GitHubRepoReader() {
+            public List<Merged> recentlyMerged(String repo) {
+                JsonNode arr = client.get().uri("/repos/" + repo + "/pulls?state=closed&sort=updated&direction=desc&per_page=20")
+                        .retrieve().body(JsonNode.class);
+                List<Merged> out = new ArrayList<>();
+                if (arr == null) return out;
+                for (JsonNode p : arr) {
+                    if (p.path("merged_at").isNull() || p.path("merged_at").asText("").isEmpty()) continue;
+                    int n = p.path("number").asInt();
+                    // 목록에는 합친 사람이 없어 한 건만 더 묻는다(새로 합쳐진 것만 이 길로 온다)
+                    String by = p.path("user").path("login").asText(null);
+                    try {
+                        JsonNode one = client.get().uri("/repos/" + repo + "/pulls/" + n).retrieve().body(JsonNode.class);
+                        if (one != null && !one.path("merged_by").isNull()) by = one.path("merged_by").path("login").asText(by);
+                    } catch (RuntimeException ignore) {}
+                    out.add(new Merged(n, p.path("title").asText(""), p.path("body").asText(""), by,
+                            OffsetDateTime.parse(p.path("merged_at").asText()), p.path("html_url").asText()));
+                }
+                return out;
+            }
+
+            public List<Commit> commitsSince(String repo, OffsetDateTime since) {
+                JsonNode arr = client.get().uri("/repos/" + repo + "/commits?per_page=30&since=" + since.toInstant())
+                        .retrieve().body(JsonNode.class);
+                List<Commit> out = new ArrayList<>();
+                if (arr == null) return out;
+                for (JsonNode c : arr) {
+                    String who = c.path("author").path("login").asText(c.path("commit").path("author").path("name").asText("?"));
+                    out.add(new Commit(c.path("sha").asText(), c.path("commit").path("message").asText(""), who,
+                            OffsetDateTime.parse(c.path("commit").path("committer").path("date").asText()), c.path("html_url").asText()));
+                }
+                return out;
+            }
+
+            public boolean comment(String repo, int number, String body) {
+                try {
+                    client.post().uri("/repos/" + repo + "/issues/" + number + "/comments").contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of("body", body)).retrieve().toBodilessEntity();
+                    return true;
+                } catch (RuntimeException e) {
+                    return false;
+                }
+            }
+
             public boolean ready() { return true; }
         };
     }
