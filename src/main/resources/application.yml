@@ -61,6 +61,11 @@ gameops:
     channels:
       default-channel: ${SLACK_CHANNEL_DEFAULT:}
       urgent: ${SLACK_CHANNEL_URGENT:}
+    # 카드마다 봇 얼굴(게임별 이름·아이콘은 games.json). 슬랙 앱에 chat:write.customize 를 더하고 다시 설치한 뒤 true
+    identity:
+      enabled: ${SLACK_CUSTOM_IDENTITY:false}
+      name: ${SLACK_BOT_NAME:게임 운영 봇}
+      icon: ${SLACK_BOT_ICON:https://raw.githubusercontent.com/ljhljh0703-cmd/game-ops-platform/main/docs/brand/opsbot.png}
     # 슬랙 버튼 주소 지킴이(TunnelUrlWatcher) — 터널의 주소 창구. 비우면 끈다. docker-compose 가 채운다
     tunnel-metrics-url: ${TUNNEL_METRICS_URL:}
     tunnel-check-ms: 60000

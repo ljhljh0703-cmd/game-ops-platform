@@ -57,6 +57,12 @@ public class SlackSender implements NotificationSender {
     private ChatPostMessageResponse post(String channel, RenderedNotification n, String text, String note) {
         try {
             var req = ChatPostMessageRequest.builder().channel(channel).text(text);
+            // 게임마다 봇 얼굴(이름·아이콘). 켜져 있을 때만(슬랙 앱 chat:write.customize 권한 필요)
+            String[] who = builder.identityFor(n);
+            if (who != null) {
+                if (who[0] != null) req.username(who[0]);
+                if (who[1] != null) req.iconUrl(who[1]);
+            }
             // 이슈 알림은 카드(색 띠 첨부), 그 밖의 알림(주간 보고·운영 알림)은 글 블록
             if (n.card() != null) req.attachments(List.of(SlackCards.card(n.card(), note)));
             else if (n.rules() != null) req.attachments(List.of(SlackCards.rulesCard(n.rules())));

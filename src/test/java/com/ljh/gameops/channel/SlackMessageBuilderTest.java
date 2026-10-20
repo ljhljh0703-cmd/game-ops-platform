@@ -94,4 +94,20 @@ class SlackMessageBuilderTest {
         var weekly = new RenderedNotification(NotificationType.WEEKLY_REPORT, "gemtower", Severity.LOW, null, "주간");
         assertThat(perGame.channelFor(weekly)).isEqualTo("#보석타워-알림");
     }
+
+    @Test
+    void 봇_얼굴은_켤_때만_게임별_없으면_공용() {
+        var games = new GameCatalog(List.of(
+                new GameSpec("gemtower", "보석타워", List.of(), "#보석타워-알림", null, "보석타워 운영봇", "https://x/gem.png"),
+                new GameSpec("movefu", "무브퓨", List.of(), null, null)));
+        var ch = new SlackProperties.Channels("C_DEFAULT", "C_URGENT");
+        var on = new SlackMessageBuilder(new SlackProperties(true, "x", "s", ch, new SlackProperties.Identity(true, "게임 운영 봇", "https://x/bot.png")), games);
+        var gem = new RenderedNotification(NotificationType.NEW_ISSUE, "gemtower", Severity.LOW, 1L, "t");
+        var mf = new RenderedNotification(NotificationType.NEW_ISSUE, "movefu", Severity.LOW, 1L, "t");
+        assertThat(on.identityFor(gem)).containsExactly("보석타워 운영봇", "https://x/gem.png");
+        assertThat(on.identityFor(mf)).containsExactly("게임 운영 봇", "https://x/bot.png");
+        var off = new SlackMessageBuilder(new SlackProperties(true, "x", "s", ch, new SlackProperties.Identity(false, "게임 운영 봇", "https://x/bot.png")), games);
+        assertThat(off.identityFor(gem)).isNull();
+        assertThat(b.identityFor(gem)).isNull(); // 설정 없음
+    }
 }

@@ -151,6 +151,22 @@ curl -H 'Content-Type: application/json' \
 | 🏷️ 분류 고치기 | 입력 창에서 분류·심각도·이유를 고른다. 고친 기록에 남는다 |
 | ✂️ 잘못 묶임 떼어내기 | 묶인 제보 목록에서 다른 문제인 것을 골라 새 이슈로 뺀다(제보 2건 이상일 때만 보임) |
 
+### 홈 현황판
+
+슬랙 왼쪽에서 봇을 누르면 홈 탭에 게임마다 열림·진행 중·긴급·이번 주 해결 수와 먼저 볼 이슈 5개, 최근 AI 피드백 정리·규칙 반영이 보인다(「🔄 새로고침」).
+
+### 봇 얼굴
+
+카드마다 게임별 봇 이름·아이콘으로 온다(`config/games.json` 의 `botName`·`icon`, 공용 카드는 「게임 운영 봇」). 아이콘은 `docs/brand/` (보석타워·운영 봇은 웹 ChatGPT 생성, 젤리 패닉은 게임 출시 아이콘, 무브퓨는 글자 아이콘).
+
+### 슬랙 앱 설정 (처음 한 번)
+
+1. OAuth & Permissions > Bot Token Scopes 에 `chat:write.customize` 추가(봇 얼굴용)
+2. App Home > Home Tab 켜기
+3. Event Subscriptions 켜기 > Request URL 에 `start.sh` 가 보여 주는 `…/slack/events` > Subscribe to bot events 에 `app_home_opened`
+4. 다시 설치(Reinstall to Workspace)
+5. `.env` 에 `SLACK_CUSTOM_IDENTITY=true` 를 넣고 `start.sh` 다시 실행
+
 플레이어 글은 슬랙 서식 문자를 바꿔 넣어 `<!channel>` 같은 전체 호출이나 가짜 링크가 동작하지 않는다. 슬랙 앱에 추가 권한은 필요 없다(chat:write 로 카드 바꾸기, 입력 창은 버튼과 같은 주소로 들어온다).
 
 `.env` 에 `SLACK_SIGNING_SECRET`(슬랙 앱 Basic Information > Signing Secret)과 `SLACK_ADMIN_USER_IDS`(버튼을 누를 수 있는 슬랙 멤버 ID, 쉼표로 여러 명)를 넣고 `start.sh` 를 다시 실행하면, 끝에 슬랙 버튼 주소가 나온다(`slack-request-url.txt` 에도 저장). 슬랙 앱 설정 Interactivity & Shortcuts 의 Request URL 에 넣는다. 인터넷에는 이 주소 하나만 열리고(`deploy/slack-gateway.conf`), 껐다 켜면 주소가 바뀐다. 바뀌면 서버가 1분 안에 공용 긴급 채널(`SLACK_CHANNEL_URGENT`)로 새 주소를 알린다.

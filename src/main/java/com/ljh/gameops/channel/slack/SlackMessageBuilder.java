@@ -44,6 +44,17 @@ public class SlackMessageBuilder {
         return normal;
     }
 
+    /** 카드에 보일 봇 이름·아이콘 [이름, 아이콘 주소]. 꺼져 있으면 null(슬랙 앱 기본 이름·아이콘) */
+    public String[] identityFor(RenderedNotification n) {
+        var id = props.identity();
+        if (id == null || !id.enabled()) return null;
+        var game = games.byCode(n.gameCode());
+        String name = firstNonBlank(game.map(GameSpec::botName).orElse(null), id.name());
+        String icon = firstNonBlank(game.map(GameSpec::icon).orElse(null), id.icon());
+        if (name == null && icon == null) return null;
+        return new String[]{name, icon};
+    }
+
     /** 게임 채널로 못 보냈을 때(채널 없음·봇이 못 들어감) 대신 보낼 공용 채널. 게임 채널과 같거나 없으면 null. */
     public String sharedFallbackFor(RenderedNotification n, String failedChannel) {
         boolean high = n.severity() == Severity.HIGH || n.severity() == Severity.CRITICAL;

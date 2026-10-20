@@ -52,7 +52,7 @@ public final class GameCatalog {
             List<String> channels = new ArrayList<>();
             g.path("discordChannels").forEach(c -> channels.add(c.asText()));
             out.add(new GameSpec(text(g, "code"), text(g, "name"), channels,
-                    text(g, "slackChannel"), text(g, "slackUrgentChannel")));
+                    text(g, "slackChannel"), text(g, "slackUrgentChannel"), text(g, "botName"), text(g, "icon")));
         }
         return new GameCatalog(out);
     }
