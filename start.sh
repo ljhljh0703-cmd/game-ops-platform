@@ -98,6 +98,8 @@ for i in $(seq 1 60); do
         echo "  슬랙 앱 설정 > Interactivity & Shortcuts > Request URL 에 넣으세요. 공개 주소는 다시 켤 때마다 바뀝니다."
         echo "슬랙 홈 현황판 주소: ${url}/slack/events"
         echo "  슬랙 앱 설정 > Event Subscriptions > Request URL 에 넣으세요(바뀌면 슬랙 긴급 채널로도 알려 줍니다)."
+        echo "슬랙 명령(/피드백정리) 주소: ${url}/slack/commands"
+        echo "  슬랙 앱 설정 > Slash Commands > /피드백정리 > Request URL 에 넣으세요."
       else
         echo "슬랙 버튼용 공개 주소를 받지 못했습니다: docker compose logs tunnel"
       fi

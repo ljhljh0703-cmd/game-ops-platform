@@ -14,10 +14,12 @@ import java.util.Map;
 @Tag(name = "피드백 정리", description = "최근 제보를 모아 AI 가 정리하고, 정리를 슬랙에 올린다")
 public class FeedbackController {
     private final FeedbackService service;
+    private final AutoDigest auto;
     private final AdminGuard guard;
 
-    public FeedbackController(FeedbackService service, AdminGuard guard) {
+    public FeedbackController(FeedbackService service, AutoDigest auto, AdminGuard guard) {
         this.service = service;
+        this.auto = auto;
         this.guard = guard;
     }
 
@@ -42,5 +44,17 @@ public class FeedbackController {
         int days = req.days() == null ? 7 : Math.max(1, Math.min(31, req.days()));
         long id = service.post(req.game(), days, req.text(), actor);
         return Map.of("digestId", id, "posted", true);
+    }
+
+    public record AutoRequest(String game, Integer days) {}
+
+    @PostMapping("/api/admin/digests/auto")
+    @Operation(summary = "피드백 정리 보고서 자동으로 올리기", description = "서버가 최근 제보를 이슈별로 모아 AI 에게 고르고 요약하게 하고, 제보 수·심각도·상태는 기록에서 채워 「🧠 최근 피드백 정리」 카드로 올린다. AI 가 안 되면 기록만으로 정리. 제보가 없으면 올리지 않는다")
+    @SecurityRequirement(name = "adminKey")
+    public AutoDigest.Result auto(@RequestBody(required = false) AutoRequest req, @RequestHeader(value = "X-Api-Key", required = false) String apiKey) {
+        String actor = guard.requireAdmin(apiKey);
+        String game = req == null ? null : req.game();
+        int days = req == null || req.days() == null ? AutoDigest.DEFAULT_DAYS : req.days();
+        return auto.run(game, days, actor);
     }
 }
