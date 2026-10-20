@@ -1,6 +1,8 @@
 // 슬랙 버튼 눌림 받기 — 서명 확인 → 관리자 확인 → 이슈 상태 변경(감사 기록 포함)
 package com.ljh.gameops.channel.slack;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ljh.gameops.common.AdminGuard;
@@ -21,6 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slack")
+@Hidden // 슬랙만 부르는 주소라 API 안내에서 뺀다
 public class SlackInteractionController {
     private static final Logger log = LoggerFactory.getLogger(SlackInteractionController.class);
 

@@ -1,0 +1,881 @@
+{
+  "components" : {
+    "schemas" : {
+      "CategoryFix" : {
+        "properties" : {
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "from" : {
+            "type" : "string"
+          },
+          "to" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassificationRequest" : {
+        "properties" : {
+          "category" : {
+            "enum" : [ "CRASH", "BUG", "PERFORMANCE", "BALANCE", "PAYMENT", "UX", "OTHER" ],
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "enum" : [ "LOW", "MEDIUM", "HIGH", "CRITICAL" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassificationRule" : {
+        "properties" : {
+          "category" : {
+            "enum" : [ "CRASH", "BUG", "PERFORMANCE", "BALANCE", "PAYMENT", "UX", "OTHER" ],
+            "type" : "string"
+          },
+          "keywords" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "severity" : {
+            "enum" : [ "LOW", "MEDIUM", "HIGH", "CRITICAL" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CorrectionView" : {
+        "properties" : {
+          "actor" : {
+            "type" : "string"
+          },
+          "after" : {
+            "type" : "string"
+          },
+          "autoBy" : {
+            "type" : "string"
+          },
+          "before" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "issueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "enum" : [ "DETACH", "RECLASSIFY" ],
+            "type" : "string"
+          },
+          "newIssueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "reportId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "similarity" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "DetachStats" : {
+        "properties" : {
+          "avgSimilarity" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "maxSimilarity" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "minSimilarity" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "DetachView" : {
+        "properties" : {
+          "created" : {
+            "$ref" : "#/components/schemas/IssueView"
+          },
+          "original" : {
+            "$ref" : "#/components/schemas/IssueView"
+          }
+        },
+        "type" : "object"
+      },
+      "GameView" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "discordChannels" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openIssues" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "slackChannel" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "IntakeResult" : {
+        "properties" : {
+          "issueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "outcome" : {
+            "enum" : [ "NEW_ISSUE", "ATTACHED_TO_EXISTING", "DUPLICATE_DELIVERY" ],
+            "type" : "string"
+          },
+          "reportId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "similarity" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "IssueDetail" : {
+        "properties" : {
+          "issue" : {
+            "$ref" : "#/components/schemas/IssueView"
+          },
+          "reportIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "IssueView" : {
+        "properties" : {
+          "category" : {
+            "enum" : [ "CRASH", "BUG", "PERFORMANCE", "BALANCE", "PAYMENT", "UX", "OTHER" ],
+            "type" : "string"
+          },
+          "classifiedBy" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "recurrenceOf" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reportCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "severity" : {
+            "enum" : [ "LOW", "MEDIUM", "HIGH", "CRITICAL" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReasonRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportRequest" : {
+        "properties" : {
+          "attachmentUrls" : {
+            "type" : "string"
+          },
+          "authorId" : {
+            "type" : "string"
+          },
+          "body" : {
+            "maxLength" : 4000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "externalId" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "game" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorId", "body", "game" ],
+        "type" : "object"
+      },
+      "ReportView" : {
+        "properties" : {
+          "body" : {
+            "type" : "string"
+          },
+          "receivedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reportId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "similarity" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "sourceChannel" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RulesView" : {
+        "properties" : {
+          "lastError" : {
+            "type" : "string"
+          },
+          "loadedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "rules" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassificationRule"
+            },
+            "type" : "array"
+          },
+          "source" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "StatusRequest" : {
+        "properties" : {
+          "status" : {
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
+      "View" : {
+        "properties" : {
+          "categoryFixes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CategoryFix"
+            },
+            "type" : "array"
+          },
+          "detaches" : {
+            "$ref" : "#/components/schemas/DetachStats"
+          },
+          "reclassified" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "severityLowered" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "severityRaised" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "wrongBy" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          }
+        },
+        "type" : "object"
+      },
+      "WeeklyPreview" : {
+        "properties" : {
+          "from" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "game" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "adminKey" : {
+        "description" : "관리자 키(.env 의 ADMIN_API_KEY 또는 AGENT_API_KEY)",
+        "in" : "header",
+        "name" : "X-Api-Key",
+        "type" : "apiKey"
+      }
+    }
+  },
+  "info" : {
+    "description" : "플레이어 제보를 받아 분류·묶기한 이슈를 조회하고, 사람(또는 AI 에이전트)이 상태와 자동 판단을 고친다.\n바꾸는 요청은 모두 `X-Api-Key` 헤더가 필요하다. 키마다 이름이 있어 감사 기록에 누가 바꿨는지 남는다\n(사람 = local-admin, AI 에이전트 = ai-agent).\n이 서버는 내 컴퓨터 안(127.0.0.1)에서만 열리고, 인터넷에는 슬랙 버튼 주소 하나만 열린다.",
+    "title" : "게임 운영 플랫폼 API",
+    "version" : "0.2.0"
+  },
+  "openapi" : "3.0.1",
+  "paths" : {
+    "/api/admin/classifier/rules" : {
+      "get" : {
+        "operationId" : "current",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RulesView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "분류 규칙 보기",
+        "tags" : [ "분류 규칙" ]
+      }
+    },
+    "/api/corrections" : {
+      "get" : {
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CorrectionView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "고친 기록",
+        "tags" : [ "자동 판단 고치기" ]
+      }
+    },
+    "/api/corrections/summary" : {
+      "get" : {
+        "description" : "어떤 자동 판단이 자주 틀리는지. 키워드 규칙·묶기 기준을 고칠 근거",
+        "operationId" : "summary",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/View"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "고친 기록 요약",
+        "tags" : [ "자동 판단 고치기" ]
+      }
+    },
+    "/api/games" : {
+      "get" : {
+        "description" : "games.json 의 게임과 게임별 미해결(접수·진행 중) 이슈 수",
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/GameView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "게임 목록",
+        "tags" : [ "게임" ]
+      }
+    },
+    "/api/games/{code}/weekly-report" : {
+      "get" : {
+        "description" : "지금 시각 기준 지난 days 일을 보고 문구로 만든다. 슬랙으로 보내지는 않는다",
+        "operationId" : "weekly",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "보고 기간(일), 1~31",
+          "in" : "query",
+          "name" : "days",
+          "required" : false,
+          "schema" : {
+            "default" : 7,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WeeklyPreview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "주간 보고 미리보기",
+        "tags" : [ "게임" ]
+      }
+    },
+    "/api/issues" : {
+      "get" : {
+        "description" : "게임 코드로 거르고, status 를 주면 그 상태만",
+        "operationId" : "list",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/IssueView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "이슈 목록",
+        "tags" : [ "이슈" ]
+      }
+    },
+    "/api/issues/{id}" : {
+      "get" : {
+        "description" : "이슈와 묶인 제보 번호들",
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IssueDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "이슈 하나",
+        "tags" : [ "이슈" ]
+      }
+    },
+    "/api/issues/{id}/classification" : {
+      "patch" : {
+        "description" : "둘 중 하나만 보내도 된다. 사람이 정한 값은 이후 자동 판단이 덮지 않는다",
+        "operationId" : "reclassify",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClassificationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IssueView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "분류·심각도 고치기",
+        "tags" : [ "자동 판단 고치기" ]
+      }
+    },
+    "/api/issues/{id}/reports" : {
+      "get" : {
+        "description" : "잘못 묶였는지·분류가 맞는지 판단할 때 본다. 플레이어 글이라 관리자 키가 필요하다. 작성자는 해시만 저장하므로 내보내지 않는다",
+        "operationId" : "reportsOf",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReportView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "이슈에 묶인 제보 본문",
+        "tags" : [ "이슈" ]
+      }
+    },
+    "/api/issues/{id}/reports/{reportId}/detach" : {
+      "post" : {
+        "description" : "그 제보만으로 다시 분류해 새 이슈를 만든다. 원래 이슈 심각도는 내리지 않는다",
+        "operationId" : "detach",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReasonRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DetachView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "제보 떼어내기",
+        "tags" : [ "자동 판단 고치기" ]
+      }
+    },
+    "/api/issues/{id}/status" : {
+      "patch" : {
+        "description" : "OPEN·IN_PROGRESS·RESOLVED·WONT_FIX. 감사 기록에 키 이름이 남는다",
+        "operationId" : "changeStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IssueView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "이슈 상태 바꾸기",
+        "tags" : [ "이슈" ]
+      }
+    },
+    "/api/reports" : {
+      "post" : {
+        "description" : "새 이슈면 201, 기존 이슈에 붙거나 같은 externalId 재전송이면 200",
+        "operationId" : "submit",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IntakeResult"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "제보 등록",
+        "tags" : [ "제보" ]
+      }
+    }
+  },
+  "servers" : [ {
+    "description" : "작가 맥 Docker",
+    "url" : "http://127.0.0.1:8080"
+  } ],
+  "tags" : [ {
+    "description" : "운영 중인 게임 목록과 주간 보고",
+    "name" : "게임"
+  }, {
+    "description" : "비슷한 제보를 묶은 단위. 조회는 키 없이, 상태 변경은 관리자 키",
+    "name" : "이슈"
+  }, {
+    "description" : "잘못 묶인 제보 떼어내기·분류 고치기와 그 기록. 모두 관리자 키",
+    "name" : "자동 판단 고치기"
+  }, {
+    "description" : "지금 쓰는 키워드 규칙과 마지막 읽기 오류",
+    "name" : "분류 규칙"
+  }, {
+    "description" : "디스코드 말고 게임 클라이언트·웹폼에서 직접 제보를 넣을 때",
+    "name" : "제보"
+  } ]
+}

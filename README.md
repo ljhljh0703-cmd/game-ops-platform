@@ -83,6 +83,10 @@ curl -H 'Content-Type: application/json' \
 | `correction` | 사람이 자동 판단을 고친 기록. 고치기 전후 값, 묶일 때 유사도, 이유 |
 | `notification_outbox` | 알림 대기열 |
 
+## API
+
+[API 안내](docs/API.md) · 명세 [`docs/api/openapi.json`](docs/api/openapi.json) · 서버를 켠 뒤 `http://127.0.0.1:8080/swagger-ui.html`
+
 ## 설정 키
 
 `.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.

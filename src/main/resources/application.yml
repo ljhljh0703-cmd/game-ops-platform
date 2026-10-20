@@ -49,6 +49,8 @@ gameops:
   admin:
     api-keys:
       local-admin: ${ADMIN_API_KEY:}
+      # AI 에이전트(MCP) 전용 키. 사람 키와 따로 두어 감사 기록에 ai-agent 로 남고, 언제든 이 키만 끊을 수 있다
+      ai-agent: ${AGENT_API_KEY:}
     slack-user-ids: ${SLACK_ADMIN_USER_IDS:}
   slack:
     enabled: ${SLACK_ENABLED:false}

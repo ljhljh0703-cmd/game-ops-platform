@@ -7,6 +7,7 @@ gameops:
   admin:
     api-keys:
       local-admin: test-admin-key
+      ai-agent: test-agent-key
     slack-user-ids: U_ADMIN
   slack:
     signing-secret: test-signing-secret
