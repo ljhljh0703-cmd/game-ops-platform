@@ -15,12 +15,15 @@ public class NotificationRenderer {
     private final IssueRepository issues;
     private final GameRepository games;
     private final IssueCardFactory cards;
+    private final com.ljh.gameops.classify.RuleVersionRepository versions;
 
-    public NotificationRenderer(ObjectMapper mapper, IssueRepository issues, GameRepository games, IssueCardFactory cards) {
+    public NotificationRenderer(ObjectMapper mapper, IssueRepository issues, GameRepository games, IssueCardFactory cards,
+                                com.ljh.gameops.classify.RuleVersionRepository versions) {
         this.mapper = mapper;
         this.issues = issues;
         this.games = games;
         this.cards = cards;
+        this.versions = versions;
     }
 
     public RenderedNotification render(OutboxMessage m) {
@@ -40,6 +43,12 @@ public class NotificationRenderer {
             // 플레이어 답장은 대기열에서 디스코드로 바로 보낸다(OutboxDispatcher). 여기는 기록·로그용 한 줄
             case PLAYER_RESOLVED -> new RenderedNotification(m.getType(), null, Severity.LOW, p.path("issueId").asLong(),
                     "제보자에게 해결 답장 #" + p.path("issueId").asLong());
+            // 규칙 반영 — 게임이 없는 운영 알림이라 공용 채널. 보낼 때의 상태로 그린다(그사이 되돌렸으면 되돌린 모양)
+            case RULES_CHANGED -> {
+                var v = versions.findById(p.path("versionId").asLong()).orElseThrow(() -> new IllegalStateException("규칙 판 없음"));
+                yield new RenderedNotification(m.getType(), null, Severity.LOW, null,
+                        "🤖 분류 규칙을 고쳤어요 #" + v.getId() + " · " + v.getSummary().replace("\n", " / "), null, RuleChangeCard.of(v));
+            }
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
         };
     }

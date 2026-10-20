@@ -45,6 +45,17 @@ public class EvalRuleGate implements RuleGate {
         }
     }
 
+    /** dev 분류 정확도(0~1) — 수정안이 지금보다 떨어지지 않았는지 비교할 때 */
+    public double devAccuracy(List<ClassificationRule> rules) {
+        RuleSet set = new RuleSet(rules, "관문 확인", OffsetDateTime.now(), null);
+        var classifier = new RuleBasedClassifier(() -> set);
+        int ok = 0;
+        for (Case c : dev) if (classifier.classify(c.game(), c.body()).category() == c.category()) ok++;
+        return (double) ok / dev.size();
+    }
+
+    public int regressionCount() { return regression.size(); }
+
     @Override
     public String reject(List<ClassificationRule> rules) {
         RuleSet set = new RuleSet(rules, "관문 확인", OffsetDateTime.now(), null);

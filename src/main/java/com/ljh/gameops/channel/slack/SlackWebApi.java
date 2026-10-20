@@ -11,4 +11,7 @@ public interface SlackWebApi {
 
     /** 봇이 올린 카드(채널·ts)를 새 내용으로 바꾼다. 뒤에서 보낸다. */
     void updateCard(String channel, String ts, IssueCard card);
+
+    /** 규칙 반영 카드를 바꾼다(되돌린 뒤). 뒤에서 보낸다. */
+    void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card);
 }

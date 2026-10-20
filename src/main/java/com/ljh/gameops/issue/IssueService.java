@@ -8,6 +8,7 @@ import com.ljh.gameops.game.Game;
 import com.ljh.gameops.game.GameRepository;
 import com.ljh.gameops.notify.NotificationType;
 import com.ljh.gameops.notify.OutboxService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +21,11 @@ public class IssueService {
     private final GameRepository games;
     private final AuditLogRepository audit;
     private final OutboxService outbox;
+    private final ApplicationEventPublisher events;
 
     public IssueService(IssueRepository issues, IssueReportRepository links, GameRepository games, AuditLogRepository audit,
-                        OutboxService outbox) {
+                        OutboxService outbox, ApplicationEventPublisher events) {
+        this.events = events;
         this.issues = issues;
         this.links = links;
         this.games = games;
@@ -61,6 +64,8 @@ public class IssueService {
         if (next == IssueStatus.RESOLVED) {
             outbox.enqueue(NotificationType.PLAYER_RESOLVED, java.util.Map.of("issueId", id));
         }
+        // 어디서 바꿨든 슬랙 카드를 그 자리에서 바꾸게 알린다(커밋된 뒤)
+        events.publishEvent(com.ljh.gameops.notify.IssueChanged.by(id, actor, Labels.statusVerb(next)));
         return issue;
     }
 }

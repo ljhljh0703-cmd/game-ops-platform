@@ -37,12 +37,20 @@ public class MethodsSlackWebApi implements SlackWebApi {
 
     @Override
     public void updateCard(String channel, String ts, IssueCard card) {
+        update(channel, ts, card.gameName() + " #" + card.issueId() + " · " + card.title(), SlackCards.card(card, null));
+    }
+
+    @Override
+    public void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card) {
+        update(channel, ts, "분류 규칙 #" + card.versionId(), SlackCards.rulesCard(card));
+    }
+
+    private void update(String channel, String ts, String text, com.slack.api.model.Attachment attachment) {
         if (channel == null || ts == null) return;
         pool.submit(() -> {
             try {
-                var r = client.chatUpdate(ChatUpdateRequest.builder().channel(channel).ts(ts)
-                        .text(card.gameName() + " #" + card.issueId() + " · " + card.title())
-                        .attachments(List.of(SlackCards.card(card, null))).build());
+                var r = client.chatUpdate(ChatUpdateRequest.builder().channel(channel).ts(ts).text(text)
+                        .attachments(List.of(attachment)).build());
                 if (!r.isOk()) log.warn("슬랙 카드 바꾸기 실패: {}", r.getError());
             } catch (Exception e) {
                 log.warn("슬랙 카드 바꾸기 실패: {}", e.getMessage());

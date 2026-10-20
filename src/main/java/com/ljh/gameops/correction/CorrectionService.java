@@ -18,6 +18,8 @@ import com.ljh.gameops.report.Report;
 import com.ljh.gameops.report.ReportRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import org.springframework.context.ApplicationEventPublisher;
+import com.ljh.gameops.notify.IssueChanged;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -40,10 +42,13 @@ public class CorrectionService {
     private final IssueClassifier classifier;
     private final TransactionTemplate tx;
     private final EntityManager em;
+    private final ApplicationEventPublisher events;
 
     public CorrectionService(IssueRepository issues, IssueReportRepository links, ReportRepository reports,
                              GameRepository games, CorrectionRepository corrections, AuditLogRepository audit,
-                             OutboxService outbox, IssueClassifier classifier, TransactionTemplate tx, EntityManager em) {
+                             OutboxService outbox, IssueClassifier classifier, TransactionTemplate tx, EntityManager em,
+                             ApplicationEventPublisher events) {
+        this.events = events;
         this.issues = issues;
         this.links = links;
         this.reports = reports;
@@ -105,6 +110,7 @@ public class CorrectionService {
             audit.save(new AuditLog(actor, "ISSUE_DETACH", "issue:" + issueId,
                     "report " + reportId + " -> issue " + created.getId() + note(reason)));
             outbox.enqueue(NotificationType.NEW_ISSUE, Map.of("issueId", created.getId(), "detachedFrom", issueId));
+            events.publishEvent(IssueChanged.by(issueId, actor, "✂️ 제보 1건을 #" + created.getId() + "(으)로 떼어냄"));
             return new DetachResult(original, created);
         });
     }
@@ -119,6 +125,7 @@ public class CorrectionService {
             if (nextCat == issue.getCategory() && nextSev == issue.getSeverity()) return issue;
 
             String before = label(issue);
+            String beforeKo = Labels.of(issue.getCategory(), issue.getSeverity());
             Severity beforeSev = issue.getSeverity();
             String autoBy = issue.getClassifiedBy();
             issue.reclassify(nextCat, nextSev);
@@ -131,6 +138,7 @@ public class CorrectionService {
             if (issue.getStatus().isOpen() && nextSev.ordinal() > beforeSev.ordinal()) {
                 outbox.enqueue(NotificationType.SEVERITY_RAISED, Map.of("issueId", issueId, "from", beforeSev.name()));
             }
+            events.publishEvent(IssueChanged.by(issueId, actor, "🏷️ 분류 고침 " + beforeKo + " → " + Labels.of(nextCat, nextSev)));
             return issue;
         });
     }

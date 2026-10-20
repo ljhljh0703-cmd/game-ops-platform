@@ -40,13 +40,9 @@ public final class SlackCards {
     static final ZoneId ZONE = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("M/d HH:mm");
 
-    static final Map<Category, String> CATEGORY = Map.of(
-            Category.CRASH, "크래시", Category.BUG, "버그", Category.PERFORMANCE, "성능", Category.BALANCE, "밸런스",
-            Category.PAYMENT, "결제", Category.UX, "불편", Category.OTHER, "기타");
-    static final Map<Severity, String> SEVERITY = Map.of(
-            Severity.CRITICAL, "긴급", Severity.HIGH, "높음", Severity.MEDIUM, "보통", Severity.LOW, "낮음");
-    static final Map<IssueStatus, String> STATUS = Map.of(
-            IssueStatus.OPEN, "열림", IssueStatus.IN_PROGRESS, "진행 중", IssueStatus.RESOLVED, "해결됨", IssueStatus.WONT_FIX, "보류");
+    static final Map<Category, String> CATEGORY = com.ljh.gameops.issue.Labels.CATEGORY;
+    static final Map<Severity, String> SEVERITY = com.ljh.gameops.issue.Labels.SEVERITY;
+    static final Map<IssueStatus, String> STATUS = com.ljh.gameops.issue.Labels.STATUS;
     private static final Map<SourceChannel, String> SOURCE = Map.of(
             SourceChannel.DISCORD, "디스코드", SourceChannel.SLACK, "슬랙", SourceChannel.API, "API");
 
@@ -168,6 +164,48 @@ public final class SlackCards {
         for (String line : t.split("\n", -1)) s.append("> ").append(line).append('\n');
         return s.toString().stripTrailing();
     }
+
+    // ── 규칙 반영 카드 ──
+
+    public static final String ACTION_RULES_REVERT = "rules_revert";
+
+    /** 「누가」 — 에이전트 키 이름·관리자 키 이름·슬랙 멤버를 사람이 읽는 말로 */
+    static String actorLabel(String actor) {
+        if (actor == null) return "?";
+        if (actor.equals("ai-agent")) return "🤖 AI 에이전트";
+        if (actor.startsWith("slack:")) {
+            String id = actor.substring(6);
+            return id.matches("[A-Z0-9_]{2,30}") ? "<@" + id + ">" : "슬랙 관리자";
+        }
+        return "관리자(" + escape(actor) + ")";
+    }
+
+    /** AI 가 분류 규칙을 고쳤을 때 — 파란 띠. 되돌리면 회색 띠에 「↩️ 되돌림 · 누가 · 언제」. 5블록 */
+    public static Attachment rulesCard(com.ljh.gameops.notify.RuleChangeCard r) {
+        String mark = r.active() ? "🤖" : "↩️";
+        List<LayoutBlock> b = new ArrayList<>();
+        b.add(HeaderBlock.builder().text(plain(mark + " 분류 규칙을 고쳤어요 · #" + r.versionId())).build());
+        b.add(SectionBlock.builder().fields(List.<TextObject>of(
+                md("*고친 쪽*\n" + actorLabel(r.actor())),
+                md("*시험*\ndev " + pct(r.devBefore()) + " → " + pct(r.devAfter()) + " · 회귀 " + r.regressionTotal() + "/" + r.regressionTotal()))).build());
+        StringBuilder t = new StringBuilder();
+        for (String line : r.changes()) t.append("• ").append(escape(line)).append('\n');
+        if (r.reason() != null && !r.reason().isBlank()) t.append(quote(r.reason()));
+        b.add(SectionBlock.builder().text(md(cut(t.toString().strip(), 2900))).build());
+        List<ContextBlockElement> ctx = new ArrayList<>();
+        if (r.lastAction() != null) ctx.add(md("*" + r.lastAction() + "*"));
+        ctx.add(md((r.active() ? "시험 통과해 자동 반영 · " : "지금은 안 씀 · ") + when(r.createdAt())));
+        ctx.add(md("사람이 규칙 파일을 고치면 파일이 이겨요"));
+        b.add(ContextBlock.builder().elements(ctx).build());
+        if (r.active()) {
+            b.add(ActionsBlock.builder().blockId("rules_" + r.versionId()).elements(List.of(
+                    button(ACTION_RULES_REVERT, "↩️ 되돌리기", String.valueOf(r.versionId()), null))).build());
+        }
+        return Attachment.builder().color(r.active() ? "#4A90E2" : "#A0A0A0")
+                .fallback("분류 규칙을 고쳤어요 #" + r.versionId()).blocks(b).build();
+    }
+
+    private static String pct(double v) { return Math.round(v * 100) + "%"; }
 
     // ── 입력 창 ──
 

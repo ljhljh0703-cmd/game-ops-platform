@@ -53,10 +53,15 @@ public class SlackInteractionController {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final SlackResponder responder;
+    private final com.ljh.gameops.classify.RuleChangeService rules;
+    private final SlackMessageStore store;
 
     public SlackInteractionController(SlackProperties props, AdminGuard guard, IssueService issues, CorrectionService corrections,
                                       ReportRepository reports, IssueCardFactory cards, SlackWebApi web,
-                                      ObjectMapper mapper, Clock clock, SlackResponder responder) {
+                                      ObjectMapper mapper, Clock clock, SlackResponder responder,
+                                      com.ljh.gameops.classify.RuleChangeService rules, SlackMessageStore store) {
+        this.rules = rules;
+        this.store = store;
         this.props = props;
         this.guard = guard;
         this.issues = issues;
@@ -109,6 +114,12 @@ public class SlackInteractionController {
         String channel = firstText(payload.path("container").path("channel_id"), payload.path("channel").path("id"));
         String messageTs = firstText(payload.path("container").path("message_ts"), payload.path("message").path("ts"));
         try {
+            if (actionId.equals(SlackCards.ACTION_RULES_REVERT)) {
+                // 누른 카드를 기억해 두면, 되돌림이 커밋된 뒤 공통 갱신(SlackCardRefresher)이 이 카드를 바꾼다
+                store.remember(SlackMessageStore.Kind.RULES, Long.parseLong(value), channel, messageTs);
+                rules.revert(Long.parseLong(value), "slack:" + userId);
+                return ResponseEntity.ok(Map.of("text", "규칙 #" + value + " 되돌림"));
+            }
             if (actionId.equals(SlackCards.ACTION_RECLASSIFY) || actionId.equals(SlackCards.ACTION_DETACH)) {
                 long issueId = Long.parseLong(value);
                 return openFixView(actionId, issueId, payload.path("trigger_id").asText(null), channel, messageTs, responseUrl);
@@ -117,13 +128,11 @@ public class SlackInteractionController {
             if (parts.length != 2) return ResponseEntity.badRequest().body(Map.of("error", "버튼 값 형식 오류"));
             long issueId = Long.parseLong(parts[0]);
             IssueStatus next = IssueStatus.valueOf(parts[1]);
+            // 이 기능 전에 올린 카드도 바뀌게 누른 카드 위치를 기억해 둔다. 카드 바꾸기는 공통 갱신이 한다(API·AI 로 바꿔도 같은 길)
+            store.remember(SlackMessageStore.Kind.ISSUE, issueId, channel, messageTs);
             issues.changeStatus(issueId, next, "slack:" + userId, "slack");
             String done = "이슈 #" + issueId + " → " + next;
-            if (channel != null && messageTs != null) {
-                web.updateCard(channel, messageTs, cards.current(issueId).withLastAction(actionLine(statusVerb(next), userId)));
-            } else {
-                responder.reply(responseUrl, done);
-            }
+            if (channel == null || messageTs == null) responder.reply(responseUrl, done);
             return ResponseEntity.ok(Map.of("text", done));
         } catch (ConflictException | DataIntegrityViolationException e) {
             // 예: 같은 내용의 열린 이슈가 이미 있어 다시 열 수 없음(E8)
@@ -191,21 +200,17 @@ public class SlackInteractionController {
         String actor = "slack:" + userId;
         try {
             if (callback.equals(SlackCards.VIEW_RECLASSIFY)) {
-                IssueCard before = cards.current(meta.issueId());
+                store.remember(SlackMessageStore.Kind.ISSUE, meta.issueId(), meta.channel(), meta.ts());
                 String catV = selected(values, "category"), sevV = selected(values, "severity");
                 if (catV == null || sevV == null) return errors("category", "분류와 심각도를 골라 주세요.");
                 Category cat = Category.valueOf(catV);
                 Severity sev = Severity.valueOf(sevV);
                 corrections.reclassify(meta.issueId(), cat, sev, actor, reason);
-                String what = "🏷️ 분류 고침 " + SlackCards.CATEGORY.get(before.category()) + "/" + SlackCards.SEVERITY.get(before.severity())
-                        + " → " + SlackCards.CATEGORY.get(cat) + "/" + SlackCards.SEVERITY.get(sev);
-                web.updateCard(meta.channel(), meta.ts(), cards.current(meta.issueId()).withLastAction(actionLine(what, userId)));
             } else if (callback.equals(SlackCards.VIEW_DETACH)) {
                 String picked = selected(values, "report");
                 if (picked == null) return errors("report", "떼어낼 제보를 골라 주세요.");
-                var result = corrections.detach(meta.issueId(), Long.parseLong(picked), actor, reason);
-                String what = "✂️ 제보 1건을 #" + result.created().getId() + "(으)로 떼어냄";
-                web.updateCard(meta.channel(), meta.ts(), cards.current(meta.issueId()).withLastAction(actionLine(what, userId)));
+                store.remember(SlackMessageStore.Kind.ISSUE, meta.issueId(), meta.channel(), meta.ts());
+                corrections.detach(meta.issueId(), Long.parseLong(picked), actor, reason);
             } else {
                 return ResponseEntity.badRequest().body(Map.of("error", "모르는 입력 창: " + callback));
             }
@@ -227,14 +232,6 @@ public class SlackInteractionController {
 
     // ── 문구 ──
 
-    private static String statusVerb(IssueStatus next) {
-        return switch (next) {
-            case RESOLVED -> "✅ 해결됨";
-            case WONT_FIX -> "⏸️ 보류";
-            case IN_PROGRESS -> "🛠️ 진행 중";
-            case OPEN -> "↩️ 다시 열림";
-        };
-    }
 
     /** 「무엇 · 누가 · 언제」. 누가는 슬랙 멘션 형식(이름으로 보임), 서명된 요청의 ID 라도 모양을 확인하고 넣는다. */
     String actionLine(String what, String userId) {

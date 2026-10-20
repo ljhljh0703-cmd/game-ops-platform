@@ -2,6 +2,7 @@
 package com.ljh.gameops.classify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -14,11 +15,22 @@ import java.time.Duration;
 @Configuration
 public class ClassifierConfig {
     @Bean
-    RuleBasedClassifier ruleBasedClassifier(ClassifierProperties props) {
+    ManagedRuleSource ruleSource(ClassifierProperties props, ObjectProvider<RuleVersionRepository> versions) {
         RuleSource bundled = new BundledRuleSource();
         String file = props.rulesFile();
-        RuleSource source = (file == null || file.isBlank()) ? bundled : new FileRuleSource(Path.of(file), bundled, EvalRuleGate.fromClasspath());
+        RuleSource fileOrBundled = (file == null || file.isBlank()) ? bundled : new FileRuleSource(Path.of(file), bundled, EvalRuleGate.fromClasspath());
+        // 파일(사람) 위에 API 로 반영한 수정(AI)을 얹는다 — 사람이 파일을 고치면 파일이 이긴다
+        return new ManagedRuleSource(fileOrBundled, versions);
+    }
+
+    @Bean
+    RuleBasedClassifier ruleBasedClassifier(ManagedRuleSource source) {
         return new RuleBasedClassifier(source);
+    }
+
+    @Bean
+    RuleGate ruleGate() {
+        return EvalRuleGate.fromClasspath();
     }
 
     @Bean

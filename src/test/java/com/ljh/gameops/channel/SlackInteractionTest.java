@@ -37,11 +37,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SlackInteractionTest extends IntegrationTest {
     /** 슬랙 Web API 대신 부른 내용을 받아 적는다 */
     static class FakeWeb implements SlackWebApi {
-        final List<View> opened = new ArrayList<>();
-        final List<String[]> updatedAt = new ArrayList<>();
-        final List<IssueCard> updated = new ArrayList<>();
+        // 카드 바꾸기는 커밋 뒤 다른 스레드에서 온다
+        final List<View> opened = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final List<String[]> updatedAt = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final List<IssueCard> updated = new java.util.concurrent.CopyOnWriteArrayList<>();
         public boolean openView(String triggerId, View view) { opened.add(view); return true; }
         public void updateCard(String channel, String ts, IssueCard card) { updatedAt.add(new String[]{channel, ts}); updated.add(card); }
+        final List<com.ljh.gameops.notify.RuleChangeCard> rulesUpdated = new java.util.concurrent.CopyOnWriteArrayList<>();
+        public void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card) { rulesUpdated.add(card); }
     }
 
     @TestConfiguration
@@ -53,7 +56,15 @@ class SlackInteractionTest extends IntegrationTest {
     @Autowired CorrectionRepository corrections;
 
     @BeforeEach
-    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); }
+    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); web.rulesUpdated.clear(); }
+
+    /** 뒤에서 오는 카드 바꾸기를 기다린다(최대 5초) */
+    static void await(java.util.function.BooleanSupplier ok) {
+        long until = System.currentTimeMillis() + 5000;
+        while (!ok.getAsBoolean() && System.currentTimeMillis() < until) {
+            try { Thread.sleep(20); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+        }
+    }
 
     @Autowired TestRestTemplate http;
     @Autowired IntakeService intake;
@@ -178,6 +189,7 @@ class SlackInteractionTest extends IntegrationTest {
         long id = issue();
         assertThat(signed(action("U_ADMIN", "issue_status_resolved", id + ":RESOLVED")).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(issues.findById(id).orElseThrow().getStatus()).isEqualTo(IssueStatus.RESOLVED);
+        await(() -> web.updatedAt.size() >= 1);
         assertThat(web.updatedAt).hasSize(1);
         assertThat(web.updatedAt.get(0)).containsExactly("C_CARD", "111.222");
         IssueCard c = web.updated.get(0);
@@ -189,8 +201,10 @@ class SlackInteractionTest extends IntegrationTest {
     void 다시_열기() {
         long id = issue();
         signed(action("U_ADMIN", "issue_status_resolved", id + ":RESOLVED"));
+        await(() -> web.updated.size() >= 1);
         signed(action("U_ADMIN", "issue_status_open", id + ":OPEN"));
         assertThat(issues.findById(id).orElseThrow().getStatus()).isEqualTo(IssueStatus.OPEN);
+        await(() -> web.updated.size() >= 2);
         assertThat(web.updated.get(1).lastAction()).startsWith("↩️ 다시 열림");
     }
 
@@ -214,6 +228,7 @@ class SlackInteractionTest extends IntegrationTest {
         assertThat(issue.getSeverity().name()).isEqualTo("LOW");
         assertThat(corrections.findAll()).singleElement()
                 .satisfies(c -> assertThat(c.getActor()).isEqualTo("slack:U_ADMIN"));
+        await(() -> !web.updated.isEmpty());
         assertThat(web.updated).singleElement().satisfies(c ->
                 assertThat(c.lastAction()).startsWith("🏷️ 분류 고침 버그/보통 → 불편/낮음 · <@U_ADMIN>"));
     }
@@ -233,6 +248,7 @@ class SlackInteractionTest extends IntegrationTest {
         assertThat(signed(submission("U_ADMIN", "detach", v.getPrivateMetadata(), values)).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(issues.findById(a.issueId()).orElseThrow().getReportCount()).isEqualTo(1);
         assertThat(issues.count()).isEqualTo(2);
+        await(() -> !web.updated.isEmpty());
         assertThat(web.updated).singleElement().satisfies(c -> {
             assertThat(c.reportCount()).isEqualTo(1);
             assertThat(c.lastAction()).startsWith("✂️ 제보 1건을 #");
@@ -246,6 +262,7 @@ class SlackInteractionTest extends IntegrationTest {
         ResponseEntity<Map> r = signed(submission("U_SOMEONE", "reclassify", id + "|C_CARD|111.222", values));
         assertThat(r.getBody()).containsEntry("response_action", "errors");
         assertThat(issues.findById(id).orElseThrow().getCategory().name()).isEqualTo("BUG");
+        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
         assertThat(web.updated).isEmpty();
     }
 
@@ -257,5 +274,31 @@ class SlackInteractionTest extends IntegrationTest {
         ResponseEntity<Map> r = signed(submission("U_ADMIN", "detach", id + "|C_CARD|111.222", values));
         assertThat(r.getBody()).containsEntry("response_action", "errors");
         assertThat(((Map<?, ?>) r.getBody().get("errors")).get("report").toString()).contains("하나뿐");
+    }
+
+    @Test
+    void AI가_API로_바꿔도_기억해_둔_카드가_바뀐다() {
+        long id = issue();
+        jdbc.update("INSERT INTO slack_message (kind, ref_id, channel, ts) VALUES ('ISSUE', ?, 'C_GAME', '9.9')", id);
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.set("X-Api-Key", "test-agent-key");
+        var r = http.exchange("/api/issues/" + id + "/classification", HttpMethod.PATCH,
+                new HttpEntity<>("{\"category\":\"UX\",\"reason\":\"디자인 의견\"}", h), Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        await(() -> !web.updated.isEmpty());
+        assertThat(web.updatedAt.get(0)).containsExactly("C_GAME", "9.9");
+        assertThat(web.updated.get(0).category().name()).isEqualTo("UX");
+        assertThat(web.updated.get(0).lastAction()).startsWith("🏷️ 분류 고침 버그/보통 → 불편/보통 · 🤖 AI 에이전트 · ");
+    }
+
+    @Test
+    void 제보가_더_붙으면_카드의_제보_수가_새로_되고_마지막_한_일은_남는다() {
+        long id = issue();
+        jdbc.update("INSERT INTO slack_message (kind, ref_id, channel, ts, last_action) VALUES ('ISSUE', ?, 'C_GAME', '9.9', '🛠️ 진행 중 · <@U1> · 10/20 22:00')", id);
+        intake.submit(new SubmitReport("gemtower", SourceChannel.API, null, "b", "타워 설치가 안 돼요 버그요", null));
+        await(() -> !web.updated.isEmpty());
+        assertThat(web.updated.get(0).reportCount()).isEqualTo(2);
+        assertThat(web.updated.get(0).lastAction()).isEqualTo("🛠️ 진행 중 · <@U1> · 10/20 22:00");
     }
 }

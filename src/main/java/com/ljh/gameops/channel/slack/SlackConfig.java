@@ -13,11 +13,11 @@ import org.springframework.context.annotation.Configuration;
 public class SlackConfig {
     @Bean
     @ConditionalOnProperty(prefix = "gameops.slack", name = "enabled", havingValue = "true")
-    NotificationSender slackSender(SlackProperties props, ObjectProvider<GameCatalog> games) {
+    NotificationSender slackSender(SlackProperties props, ObjectProvider<GameCatalog> games, ObjectProvider<SlackMessageStore> store) {
         if (props.botToken() == null || props.botToken().isBlank()) {
             throw new IllegalStateException("gameops.slack.enabled=true 인데 bot-token 이 비어 있습니다");
         }
-        return new SlackSender(Slack.getInstance().methods(props.botToken()), new SlackMessageBuilder(props, games.getIfAvailable(GameCatalog::empty)));
+        return new SlackSender(Slack.getInstance().methods(props.botToken()), new SlackMessageBuilder(props, games.getIfAvailable(GameCatalog::empty)), store.getIfAvailable());
     }
 
     @Bean
@@ -29,6 +29,7 @@ public class SlackConfig {
         return new SlackWebApi() {
             public boolean openView(String triggerId, com.slack.api.model.view.View view) { return false; }
             public void updateCard(String channel, String ts, com.ljh.gameops.notify.IssueCard card) {}
+            public void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card) {}
         };
     }
 }

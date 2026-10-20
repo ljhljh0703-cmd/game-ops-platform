@@ -43,11 +43,13 @@ public class IntakeService {
     private final IssueProperties props;
     private final TransactionTemplate tx;
     private final EntityManager em;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public IntakeService(GameRepository games, ReportRepository reports, IssueRepository issues,
                          IssueReportRepository links, IssueClassifier classifier, OutboxService outbox,
                          AuthorHasher hasher, IssueProperties props, TransactionTemplate tx,
-                         EntityManager em) {
+                         EntityManager em, org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
         this.games = games;
         this.reports = reports;
         this.issues = issues;
@@ -154,6 +156,8 @@ public class IntakeService {
             if (best.getSeverity() != before) {
                 outbox.enqueue(NotificationType.SEVERITY_RAISED, Map.of("issueId", best.getId(), "from", before.name()));
             }
+            // 슬랙 카드의 제보 수를 새로(커밋된 뒤)
+            events.publishEvent(com.ljh.gameops.notify.IssueChanged.counts(best.getId()));
             return new IntakeResult(report.getId(), best.getId(), IntakeResult.Outcome.ATTACHED_TO_EXISTING, bestScore);
         }
 

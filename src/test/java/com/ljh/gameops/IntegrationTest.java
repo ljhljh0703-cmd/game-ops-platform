@@ -33,10 +33,12 @@ public abstract class IntegrationTest {
     }
 
     @Autowired protected JdbcTemplate jdbc;
+    @Autowired protected com.ljh.gameops.classify.ManagedRuleSource ruleSource;
 
     @BeforeEach
     void cleanTables() {
         sender.reset();
-        jdbc.execute("TRUNCATE notification_outbox, audit_log, correction, issue_report, issue, report RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE notification_outbox, audit_log, correction, issue_report, issue, report, classifier_rule_version, slack_message RESTART IDENTITY CASCADE");
+        ruleSource.invalidate();
     }
 }

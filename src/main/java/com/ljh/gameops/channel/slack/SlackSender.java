@@ -18,10 +18,15 @@ public class SlackSender implements NotificationSender {
     private static final Set<String> CHANNEL_ERRORS = Set.of("channel_not_found", "not_in_channel", "is_archived");
     private final MethodsClient client;
     private final SlackMessageBuilder builder;
+    private final SlackMessageStore store;
 
-    public SlackSender(MethodsClient client, SlackMessageBuilder builder) {
+    public SlackSender(MethodsClient client, SlackMessageBuilder builder) { this(client, builder, null); }
+
+    /** store 가 있으면 올린 카드 위치를 기억한다(나중에 어디서 바꿔도 그 카드를 바꾸려고) */
+    public SlackSender(MethodsClient client, SlackMessageBuilder builder, SlackMessageStore store) {
         this.client = client;
         this.builder = builder;
+        this.store = store;
     }
 
     @Override
@@ -39,6 +44,14 @@ public class SlackSender implements NotificationSender {
         if (r == null || !r.isOk()) {
             throw new IllegalStateException("슬랙 응답 오류: " + (r == null ? "null" : r.getError()));
         }
+        if (store != null) {
+            try {
+                if (n.card() != null) store.remember(SlackMessageStore.Kind.ISSUE, n.card().issueId(), r.getChannel(), r.getTs());
+                else if (n.rules() != null) store.remember(SlackMessageStore.Kind.RULES, n.rules().versionId(), r.getChannel(), r.getTs());
+            } catch (RuntimeException e) {
+                log.warn("슬랙 카드 위치 기억 실패(카드는 보냄): {}", e.getMessage()); // 보낸 걸 다시 보내지 않게 예외는 안 던진다
+            }
+        }
     }
 
     private ChatPostMessageResponse post(String channel, RenderedNotification n, String text, String note) {
@@ -46,6 +59,7 @@ public class SlackSender implements NotificationSender {
             var req = ChatPostMessageRequest.builder().channel(channel).text(text);
             // 이슈 알림은 카드(색 띠 첨부), 그 밖의 알림(주간 보고·운영 알림)은 글 블록
             if (n.card() != null) req.attachments(List.of(SlackCards.card(n.card(), note)));
+            else if (n.rules() != null) req.attachments(List.of(SlackCards.rulesCard(n.rules())));
             else req.blocks(builder.blocks(n.withText(text)));
             return client.chatPostMessage(req.build());
         } catch (Exception e) {
