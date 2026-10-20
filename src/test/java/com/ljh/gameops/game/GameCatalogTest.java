@@ -15,6 +15,9 @@ class GameCatalogTest {
         assertThat(c.forDiscordChannel("1561709173522178068", "아무 이름")).map(GameSpec::code).hasValue("jelly-panic");
         assertThat(c.forDiscordChannel("123", "젤리패닉-버그제보")).map(GameSpec::code).hasValue("jelly-panic");
         assertThat(c.forDiscordChannel("123", "잡담")).isEmpty();
+        // 2026-10-20 실제로 「젤리패닉-버그-제보」로 만든 채널이 「젤리패닉-버그제보」와 안 맞아 제보가 무시될 뻔했다
+        assertThat(c.forDiscordChannel("123", "젤리패닉-버그-제보")).map(GameSpec::code).hasValue("jelly-panic");
+        assertThat(c.forDiscordChannel("123", "젤리패닉 버그_제보")).map(GameSpec::code).hasValue("jelly-panic");
         assertThat(c.byCode("jelly-panic")).map(GameSpec::slackChannel).hasValue("C1");
     }
 

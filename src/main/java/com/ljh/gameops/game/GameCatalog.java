@@ -62,7 +62,7 @@ public final class GameCatalog {
         return v == null || v.isNull() || v.asText().isBlank() ? null : v.asText().trim();
     }
 
-    /** 채널 ID 로 먼저, 없으면 채널 이름으로 찾는다(이름은 # 와 대소문자 무시). */
+    /** 채널 ID 로 먼저, 없으면 채널 이름으로 찾는다(이름은 #·대소문자·띄어쓰기·-·_ 무시: 「보석타워-버그-제보」=「보석타워-버그제보」). */
     public Optional<GameSpec> forDiscordChannel(String channelId, String channelName) {
         GameSpec g = channelId == null ? null : byDiscordChannel.get(normalize(channelId));
         if (g == null && channelName != null) g = byDiscordChannel.get(normalize(channelName));
@@ -78,6 +78,7 @@ public final class GameCatalog {
     static String normalize(String channel) {
         String s = channel == null ? "" : channel.trim();
         if (s.startsWith("#")) s = s.substring(1);
-        return s.toLowerCase(Locale.ROOT);
+        // 디스코드는 채널 이름의 띄어쓰기를 - 로 바꾸므로, 사람이 「버그 제보」「버그-제보」「버그제보」 어느 쪽으로 만들어도 같게 본다
+        return s.toLowerCase(Locale.ROOT).replaceAll("[\\s_-]", "");
     }
 }
