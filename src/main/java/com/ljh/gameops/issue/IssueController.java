@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import com.ljh.gameops.report.ReportRepository;
 
 import com.ljh.gameops.common.AdminGuard;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
@@ -37,7 +39,7 @@ public class IssueController {
 
     public record IssueDetail(IssueView issue, List<Long> reportIds) {}
 
-    public record StatusRequest(@NotNull IssueStatus status) {}
+    public record StatusRequest(@NotNull IssueStatus status, @Size(max = 300) String reason) {}
 
     public record ReportView(long reportId, String body, String sourceChannel, double similarity, OffsetDateTime receivedAt) {}
 
@@ -67,12 +69,13 @@ public class IssueController {
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "이슈 상태 바꾸기", description = "OPEN·IN_PROGRESS·RESOLVED·WONT_FIX. 감사 기록에 키 이름이 남는다")
+    @Operation(summary = "이슈 상태 바꾸기", description = "OPEN·IN_PROGRESS·RESOLVED·WONT_FIX. 감사 기록에 키 이름과 reason(선택)이 남는다")
     @SecurityRequirement(name = "adminKey")
-    public IssueView changeStatus(@PathVariable long id, @RequestBody StatusRequest req,
+    public IssueView changeStatus(@PathVariable long id, @Valid @RequestBody StatusRequest req,
                                   @RequestHeader(value = "X-Api-Key", required = false) String apiKey) {
         String actor = guard.requireAdmin(apiKey);
         if (req == null || req.status() == null) throw new IllegalArgumentException("status 가 필요합니다");
-        return IssueView.of(service.changeStatus(id, req.status(), actor, "api"));
+        String via = req.reason() == null || req.reason().isBlank() ? "api" : "api: " + req.reason().strip();
+        return IssueView.of(service.changeStatus(id, req.status(), actor, via));
     }
 }

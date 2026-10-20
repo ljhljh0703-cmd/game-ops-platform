@@ -1,0 +1,23 @@
+{
+  "name": "game-ops",
+  "version": "0.1.0",
+  "description": "게임 운영 플랫폼을 Claude 에서 운영한다 — 아침 이슈 정리, 분류 규칙 고치기 제안, 주간 보고. 바꾸는 일은 사람 확인 후에.",
+  "author": { "name": "이주형" },
+  "repository": "https://github.com/ljhljh0703-cmd/game-ops-platform",
+  "license": "MIT",
+  "keywords": ["game-ops", "discord", "slack", "triage", "mcp"],
+  "userConfig": {
+    "server_url": {
+      "type": "string",
+      "title": "운영 서버 주소",
+      "description": "게임 운영 플랫폼 서버 주소. 내 컴퓨터 Docker 면 기본값 그대로",
+      "default": "http://127.0.0.1:8080"
+    },
+    "agent_key": {
+      "type": "string",
+      "title": "에이전트 키",
+      "description": "서버 .env 의 AGENT_API_KEY 와 같은 값. 비우면 조회만 된다",
+      "sensitive": true
+    }
+  }
+}

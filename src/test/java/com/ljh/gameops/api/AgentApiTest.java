@@ -63,7 +63,9 @@ class AgentApiTest extends IntegrationTest {
     @Test
     void 에이전트_키로_바꾸면_감사_기록에_ai_agent() {
         long id = report("jelly-panic", "결제했는데 보석이 안 들어와요");
-        http.exchange("/api/issues/" + id + "/status", HttpMethod.PATCH, withKey("test-agent-key", Map.of("status", "IN_PROGRESS")), Map.class);
-        assertThat(jdbc.queryForList("select actor from audit_log where target = ?", String.class, "issue:" + id)).contains("ai-agent");
+        http.exchange("/api/issues/" + id + "/status", HttpMethod.PATCH, withKey("test-agent-key", Map.of("status", "IN_PROGRESS", "reason", "결제 문제라 바로 확인")), Map.class);
+        var row = jdbc.queryForMap("select actor, detail from audit_log where target = ?", "issue:" + id);
+        assertThat(row.get("actor")).isEqualTo("ai-agent");
+        assertThat((String) row.get("detail")).contains("결제 문제라 바로 확인");
     }
 }

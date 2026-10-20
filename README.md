@@ -87,6 +87,24 @@ curl -H 'Content-Type: application/json' \
 
 [API 안내](docs/API.md) · 명세 [`docs/api/openapi.json`](docs/api/openapi.json) · 서버를 켠 뒤 `http://127.0.0.1:8080/swagger-ui.html`
 
+## AI 에이전트로 운영하기 (Claude 플러그인)
+
+운영 도구(MCP 서버)와 운영 스킬 3종을 Claude 플러그인 하나로 묶었다. 플러그인은 `agent/plugin/game-ops`, MCP 서버 원본은 `agent/mcp-server` 에 있다.
+
+```
+/plugin install game-ops --marketplace ljhljh0703-cmd/game-ops-platform
+```
+
+켤 때 서버 주소와 에이전트 키(`.env` 의 `AGENT_API_KEY`)를 묻는다. 키를 비우면 조회만 된다.
+
+| 스킬 | 하는 일 |
+|---|---|
+| `ops-morning` | 모든 게임의 미해결 이슈를 훑어 급한 것·잘못 묶인 것·분류가 틀린 것을 표로 제안 → 사람이 고른 것만 반영 |
+| `ops-rules` | 고친 기록에서 자주 틀리는 키워드 규칙을 찾아 수정안을 만들고 평가 하네스로 전후 정확도 비교 |
+| `ops-weekly` | 게임별 주간 보고 미리보기에 재발·몰린 증상을 붙여 요약 |
+
+에이전트가 바꾼 것은 감사 기록에 `ai-agent` 로 남는다. 바꾸는 도구 3개(상태·분류·떼어내기)는 이유(`reason`)가 필수이고, 해결 처리는 제안하지 않는다(고쳤는지는 개발팀이 안다). 자세한 경계는 [운영 설계서 5장](docs/OPERATIONS.md).
+
 ## 설정 키
 
 `.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.

@@ -1,0 +1,21 @@
+{
+  "name": "game-ops-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "게임 운영 플랫폼을 AI 에이전트가 쓰게 하는 MCP 서버 (stdio)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --minify --outfile=../plugin/game-ops/server/index.mjs --banner:js=\"// 빌드 결과물 — 고치지 말고 agent/mcp-server/src 를 고친 뒤 npm run build\"",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

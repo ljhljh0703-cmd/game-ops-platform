@@ -1,0 +1,11 @@
+{
+  "name": "game-ops-platform",
+  "owner": { "name": "이주형" },
+  "plugins": [
+    {
+      "name": "game-ops",
+      "source": "./agent/plugin/game-ops",
+      "description": "게임 운영 플랫폼 운영 도구(MCP)와 운영 스킬 3종"
+    }
+  ]
+}
