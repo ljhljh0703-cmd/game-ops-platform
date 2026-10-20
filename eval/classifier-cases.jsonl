@@ -1,0 +1,90 @@
+{"id": 1, "split": "dev", "game": "jelly-panic", "body": "스테이지 12에서 게임이 튕겨요", "category": "CRASH", "severity": "HIGH"}
+{"id": 2, "split": "dev", "game": "jelly-panic", "body": "젤리 3개 맞췄는데 안 터지는 버그 있어요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 3, "split": "dev", "game": "jelly-panic", "body": "결제했는데 보석이 안 들어왔어요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 4, "split": "dev", "game": "jelly-panic", "body": "환불 요청합니다 실수로 두 번 구매했어요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 5, "split": "dev", "game": "jelly-panic", "body": "스테이지 넘어갈 때 로딩이 길어요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 6, "split": "dev", "game": "jelly-panic", "body": "폭탄 젤리 너무 사기 아닌가요 밸런스 좀", "category": "BALANCE", "severity": "LOW"}
+{"id": 7, "split": "dev", "game": "jelly-panic", "body": "설정 메뉴가 어디 있는지 헷갈려요", "category": "UX", "severity": "LOW"}
+{"id": 8, "split": "dev", "game": "jelly-panic", "body": "결제 화면 글씨가 너무 작아요", "category": "UX", "severity": "LOW", "note": "함정: 결제라는 낱말만 있고 돈 문제가 아님"}
+{"id": 9, "split": "dev", "game": "jelly-panic", "body": "환불 정책이 어떻게 되나요?", "category": "OTHER", "severity": "LOW", "note": "함정: 문의일 뿐 결제 사고가 아님"}
+{"id": 10, "split": "dev", "game": "jelly-panic", "body": "앱이 그냥 꺼져요 실행하자마자", "category": "CRASH", "severity": "HIGH", "note": "「꺼져요」는 규칙에 없음"}
+{"id": 11, "split": "dev", "game": "jelly-panic", "body": "세이브가 날아갔어요 50스테이지까지 했는데", "category": "BUG", "severity": "HIGH", "note": "진행 손실은 심각"}
+{"id": 12, "split": "dev", "game": "jelly-panic", "body": "광고 보고 보상을 못 받았어요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 13, "split": "dev", "game": "jelly-panic", "body": "하트 충전이 안 돼요 시간 지났는데", "category": "BUG", "severity": "MEDIUM", "note": "함정: 「충전」이 결제 아님(게임 내 하트)"}
+{"id": 14, "split": "dev", "game": "jelly-panic", "body": "화면이 멈춤 상태로 아무것도 안 눌려요", "category": "CRASH", "severity": "HIGH"}
+{"id": 15, "split": "dev", "game": "jelly-panic", "body": "렉이 심해서 콤보가 끊겨요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 16, "split": "dev", "game": "jelly-panic", "body": "캐릭터 너무 귀여워요 다음 업데이트 언제", "category": "OTHER", "severity": "LOW"}
+{"id": 17, "split": "dev", "game": "jelly-panic", "body": "버튼을 눌러도 반응이 없어요", "category": "BUG", "severity": "MEDIUM", "note": "함정: 「버튼」이 불편 규칙에 걸림"}
+{"id": 18, "split": "dev", "game": "jelly-panic", "body": "친구 초대 코드 입력이 오류 나요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 19, "split": "dev", "game": "jelly-panic", "body": "프레임 드랍이 생겨요 갤럭시 S21", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 20, "split": "dev", "game": "jelly-panic", "body": "이벤트 보스 너무 쎄요 깰 수가 없음", "category": "BALANCE", "severity": "LOW"}
+{"id": 21, "split": "dev", "game": "gemtower", "body": "보석타워 3층에서 강제 종료돼요", "category": "CRASH", "severity": "HIGH"}
+{"id": 22, "split": "dev", "game": "gemtower", "body": "타워 올릴 때 보석 개수가 이상해요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 23, "split": "dev", "game": "gemtower", "body": "패키지 구매했는데 아이템이 없어요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 24, "split": "dev", "game": "gemtower", "body": "충전 내역에는 있는데 보석이 0개예요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 25, "split": "dev", "game": "gemtower", "body": "접속이 안 돼요 서버 점검인가요", "category": "CRASH", "severity": "HIGH"}
+{"id": 26, "split": "dev", "game": "gemtower", "body": "버벅거려서 못하겠어요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 27, "split": "dev", "game": "gemtower", "body": "빨간 보석 효과 너프 좀 해주세요", "category": "BALANCE", "severity": "LOW"}
+{"id": 28, "split": "dev", "game": "gemtower", "body": "상점 버튼이 너무 구석에 있어서 못 찾겠어요", "category": "UX", "severity": "LOW"}
+{"id": 29, "split": "dev", "game": "gemtower", "body": "랭킹이 갱신이 안 됨", "category": "BUG", "severity": "MEDIUM"}
+{"id": 30, "split": "dev", "game": "gemtower", "body": "보석 합치기 하면 가끔 사라져요", "category": "BUG", "severity": "MEDIUM", "note": "「사라져요」는 규칙에 없음"}
+{"id": 31, "split": "dev", "game": "gemtower", "body": "튜토리얼 스킵 기능 있었으면 좋겠어요", "category": "UX", "severity": "LOW"}
+{"id": 32, "split": "dev", "game": "gemtower", "body": "게임 켜면 검은 화면에서 안 넘어가요", "category": "CRASH", "severity": "HIGH"}
+{"id": 33, "split": "dev", "game": "gemtower", "body": "배터리가 너무 빨리 닳아요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 34, "split": "dev", "game": "gemtower", "body": "결제 버튼 눌렀는데 아무 반응 없고 돈만 빠져나감", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 35, "split": "dev", "game": "gemtower", "body": "타워 디자인 바뀐 거 별로예요", "category": "OTHER", "severity": "LOW"}
+{"id": 36, "split": "dev", "game": "gemtower", "body": "오프라인 보상이 계산이 틀려요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 37, "split": "dev", "game": "gemtower", "body": "10층 보스 너무 약해요 재미없음", "category": "BALANCE", "severity": "LOW"}
+{"id": 38, "split": "dev", "game": "gemtower", "body": "글씨 크기 조절 옵션 주세요", "category": "UX", "severity": "LOW"}
+{"id": 39, "split": "dev", "game": "gemtower", "body": "업데이트 후 계속 튕김", "category": "CRASH", "severity": "HIGH"}
+{"id": 40, "split": "dev", "game": "gemtower", "body": "구독 해지했는데 또 결제됐어요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 41, "split": "dev", "game": "movefu", "body": "점프하면 캐릭터가 벽에 끼어요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 42, "split": "dev", "game": "movefu", "body": "대시 쓰면 맵 밖으로 떨어져요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 43, "split": "dev", "game": "movefu", "body": "보스전에서 게임이 크래시 나요", "category": "CRASH", "severity": "HIGH"}
+{"id": 44, "split": "dev", "game": "movefu", "body": "조작감이 너무 미끄러워요", "category": "UX", "severity": "LOW"}
+{"id": 45, "split": "dev", "game": "movefu", "body": "fps가 30에서 안 올라가요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 46, "split": "dev", "game": "movefu", "body": "2단 점프 스킬 너무 사기임", "category": "BALANCE", "severity": "LOW"}
+{"id": 47, "split": "dev", "game": "movefu", "body": "스킨 샀는데 적용이 안 됨 환불해주세요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 48, "split": "dev", "game": "movefu", "body": "패드 연결하면 키가 안 먹어요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 49, "split": "dev", "game": "movefu", "body": "멀티플레이 들어가면 먹통", "category": "CRASH", "severity": "HIGH"}
+{"id": 50, "split": "dev", "game": "movefu", "body": "가상 패드 위치를 바꿀 수 있으면 좋겠어요", "category": "UX", "severity": "LOW"}
+{"id": 51, "split": "dev", "game": "movefu", "body": "체크포인트 저장이 안 돼서 처음부터 다시 했어요", "category": "BUG", "severity": "HIGH", "note": "진행 손실"}
+{"id": 52, "split": "dev", "game": "movefu", "body": "맵 3 너무 어려워요 난이도 조정 부탁", "category": "BALANCE", "severity": "LOW"}
+{"id": 53, "split": "dev", "game": "movefu", "body": "소리가 안 나요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 54, "split": "dev", "game": "movefu", "body": "렉 때문에 점프 타이밍이 안 맞아요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 55, "split": "dev", "game": "movefu", "body": "트레일러 영상 어디서 봐요?", "category": "OTHER", "severity": "LOW"}
+{"id": 56, "split": "dev", "game": "movefu", "body": "로그인하면 바로 튕겨요", "category": "CRASH", "severity": "HIGH"}
+{"id": 57, "split": "dev", "game": "movefu", "body": "적 히트박스가 이상해요 안 맞았는데 맞음", "category": "BUG", "severity": "MEDIUM"}
+{"id": 58, "split": "dev", "game": "movefu", "body": "결제 수단에 카카오페이 추가해주세요", "category": "OTHER", "severity": "LOW", "note": "함정: 기능 요청"}
+{"id": 59, "split": "dev", "game": "movefu", "body": "폰이 뜨거워져요 발열 심함", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 60, "split": "dev", "game": "movefu", "body": "메뉴 글씨가 영어로만 나와요", "category": "UX", "severity": "LOW"}
+{"id": 61, "split": "holdout", "game": "jelly-panic", "body": "게임 시작하면 바로 꺼짐", "category": "CRASH", "severity": "HIGH"}
+{"id": 62, "split": "holdout", "game": "jelly-panic", "body": "구매한 패키지가 안 들어왔어요 영수증 있습니다", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 63, "split": "holdout", "game": "jelly-panic", "body": "젤리 색깔 구분이 어려워요 색약 모드 주세요", "category": "UX", "severity": "LOW"}
+{"id": 64, "split": "holdout", "game": "jelly-panic", "body": "콤보 점수 계산이 틀린 것 같아요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 65, "split": "holdout", "game": "jelly-panic", "body": "화면 넘어갈 때마다 버벅임", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 66, "split": "holdout", "game": "jelly-panic", "body": "무지개 젤리 확률 너무 낮아요", "category": "BALANCE", "severity": "LOW"}
+{"id": 67, "split": "holdout", "game": "jelly-panic", "body": "하트 충전 시간 너무 길어요", "category": "BALANCE", "severity": "LOW", "note": "함정: 충전"}
+{"id": 68, "split": "holdout", "game": "jelly-panic", "body": "진행 기록이 초기화됐어요", "category": "BUG", "severity": "HIGH"}
+{"id": 69, "split": "holdout", "game": "jelly-panic", "body": "결제 내역 확인은 어디서 하나요", "category": "OTHER", "severity": "LOW", "note": "함정: 결제"}
+{"id": 70, "split": "holdout", "game": "jelly-panic", "body": "광고가 너무 자주 나와요", "category": "UX", "severity": "LOW"}
+{"id": 71, "split": "holdout", "game": "gemtower", "body": "보석 상점에서 튕겨요", "category": "CRASH", "severity": "HIGH"}
+{"id": 72, "split": "holdout", "game": "gemtower", "body": "월정액 결제 후 보상 미지급", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 73, "split": "holdout", "game": "gemtower", "body": "탑 쌓기 애니메이션이 끊겨요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 74, "split": "holdout", "game": "gemtower", "body": "보석 정렬 버튼이 있었으면", "category": "UX", "severity": "LOW"}
+{"id": 75, "split": "holdout", "game": "gemtower", "body": "출석 보상이 두 번 들어왔어요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 76, "split": "holdout", "game": "gemtower", "body": "초록 보석 너무 쎄요", "category": "BALANCE", "severity": "LOW"}
+{"id": 77, "split": "holdout", "game": "gemtower", "body": "앱 실행이 안 됩니다 아이폰 15", "category": "CRASH", "severity": "HIGH"}
+{"id": 78, "split": "holdout", "game": "gemtower", "body": "길드 기능 언제 나와요", "category": "OTHER", "severity": "LOW"}
+{"id": 79, "split": "holdout", "game": "gemtower", "body": "타워 높이 표시가 이상하게 깨져 보여요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 80, "split": "holdout", "game": "gemtower", "body": "충전한 거 환불 가능한가요", "category": "PAYMENT", "severity": "CRITICAL", "note": "환불 요청은 결제로 본다"}
+{"id": 81, "split": "holdout", "game": "movefu", "body": "벽 타기 하다가 멈춤", "category": "CRASH", "severity": "HIGH"}
+{"id": 82, "split": "holdout", "game": "movefu", "body": "인앱 결제 실패했는데 돈은 나갔어요", "category": "PAYMENT", "severity": "CRITICAL"}
+{"id": 83, "split": "holdout", "game": "movefu", "body": "카메라가 캐릭터를 놓쳐요", "category": "BUG", "severity": "MEDIUM"}
+{"id": 84, "split": "holdout", "game": "movefu", "body": "로딩이 길어서 지루해요", "category": "PERFORMANCE", "severity": "MEDIUM"}
+{"id": 85, "split": "holdout", "game": "movefu", "body": "적이 너무 많이 나와요 난이도 밸런스 이상", "category": "BALANCE", "severity": "LOW"}
+{"id": 86, "split": "holdout", "game": "movefu", "body": "진동 끄는 옵션이 안 보여요", "category": "UX", "severity": "LOW"}
+{"id": 87, "split": "holdout", "game": "movefu", "body": "보스 패턴이 가끔 무한 반복돼서 진행 불가", "category": "BUG", "severity": "HIGH"}
+{"id": 88, "split": "holdout", "game": "movefu", "body": "음악 너무 좋아요 OST 나오나요", "category": "OTHER", "severity": "LOW"}
+{"id": 89, "split": "holdout", "game": "movefu", "body": "온라인 대전 접속 불가", "category": "CRASH", "severity": "HIGH"}
+{"id": 90, "split": "holdout", "game": "movefu", "body": "프레임이 뚝뚝 끊겨요", "category": "PERFORMANCE", "severity": "MEDIUM"}

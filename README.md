@@ -120,9 +120,13 @@ curl -H 'Content-Type: application/json' \
 - 디스코드: 봇이 들어간 서버에 `무브퓨-버그제보` 채널을 만들면 그 채널 글은 무브퓨 제보가 된다. 채널 이름 대신 채널 ID 를 적어도 된다(이름을 바꿔도 안 끊기니 운영에서는 ID 권장). 그 채널 안 스레드 글도 같은 게임으로 받는다. `/report` 는 게임을 고를 수 있고, 안 고르면 쓴 채널의 게임.
 - 슬랙: 게임 알림은 `slackChannel` 로, 심각한 알림은 `slackUrgentChannel` → 공용 긴급(`SLACK_CHANNEL_URGENT`) 순. 비우면 공용 채널(`SLACK_CHANNEL_DEFAULT`). 게임 채널이 없거나 봇이 못 들어가면 공용 채널로 대신 보내고 그 사실을 알림에 적는다.
 
+## 평가 하네스
+
+`./gradlew evalClassifier` — 정답 붙인 제보 90건으로 분류 정확도, 40쌍으로 묶기 기준값을 잰다. 규칙 v1→v2 에서 분류 정확도 dev 65→98%, 처음 보는 글(holdout) 50→83%. 묶기는 지금 기준이 같은 문제의 5%만 묶는다는 걸 찾았다. 자세한 것은 [docs/EVAL.md](docs/EVAL.md).
+
 ## 분류 키워드 고치기
 
-`config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
+`config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 고치기 전후로 `./gradlew evalClassifier -Prules=수정안` 으로 재 보고, 정확도가 바닥값 밑이면 테스트가 막는다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
 
 ## 슬랙 버튼
 

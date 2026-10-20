@@ -1,11 +1,154 @@
 {
   "_설명": "분류 키워드 규칙. 위에서부터 먼저 걸리는 규칙 하나를 쓴다. 더 심각한 규칙을 위에 둔다. 분류는 CRASH·BUG·PERFORMANCE·BALANCE·PAYMENT·UX·OTHER, 심각도는 LOW·MEDIUM·HIGH·CRITICAL 중에서 고른다.",
   "rules": [
-    {"category": "PAYMENT", "severity": "CRITICAL", "keywords": ["결제", "환불", "충전", "구매했는데", "payment", "refund", "purchase"]},
-    {"category": "CRASH", "severity": "HIGH", "keywords": ["튕", "크래시", "강제 종료", "강종", "멈춤", "먹통", "접속 불가", "접속이 안", "crash", "freeze"]},
-    {"category": "PERFORMANCE", "severity": "MEDIUM", "keywords": ["렉", "느려", "프레임", "버벅", "로딩이 길", "lag", "fps"]},
-    {"category": "BUG", "severity": "MEDIUM", "keywords": ["버그", "오류", "안 돼", "안돼", "안 됨", "안됨", "이상해", "깨져", "bug", "error"]},
-    {"category": "BALANCE", "severity": "LOW", "keywords": ["밸런스", "너무 쎄", "너무 세", "너무 약", "사기", "너프", "버프", "op ", "balance"]},
-    {"category": "UX", "severity": "LOW", "keywords": ["불편", "헷갈", "못 찾", "ui", "버튼", "글씨"]}
+    {
+      "category": "PAYMENT",
+      "severity": "CRITICAL",
+      "keywords": [
+        "결제했",
+        "결제 했",
+        "결제됐",
+        "결제 됐",
+        "결제 실패",
+        "결제하려",
+        "결제하는",
+        "결제 중",
+        "결제하다",
+        "결제 후",
+        "돈만",
+        "돈은",
+        "환불해",
+        "환불 요청",
+        "환불 받",
+        "구매했는데",
+        "구매한",
+        "샀는데",
+        "충전했는데",
+        "충전한",
+        "패키지",
+        "월정액",
+        "구독",
+        "영수증",
+        "인앱",
+        "payment",
+        "refund",
+        "purchase"
+      ]
+    },
+    {
+      "category": "CRASH",
+      "severity": "HIGH",
+      "keywords": [
+        "튕",
+        "크래시",
+        "강제 종료",
+        "강종",
+        "멈춤",
+        "멈춰",
+        "먹통",
+        "접속 불가",
+        "접속이 안",
+        "꺼져",
+        "꺼짐",
+        "검은 화면",
+        "실행이 안",
+        "실행 안",
+        "안 넘어가",
+        "crash",
+        "freeze"
+      ]
+    },
+    {
+      "category": "BUG",
+      "severity": "HIGH",
+      "keywords": [
+        "날아갔",
+        "초기화",
+        "처음부터 다시",
+        "진행 불가",
+        "저장이 안",
+        "저장 안"
+      ]
+    },
+    {
+      "category": "PERFORMANCE",
+      "severity": "MEDIUM",
+      "keywords": [
+        "렉",
+        "느려",
+        "프레임",
+        "버벅",
+        "로딩이 길",
+        "배터리",
+        "발열",
+        "뜨거",
+        "끊겨",
+        "lag",
+        "fps"
+      ]
+    },
+    {
+      "category": "BUG",
+      "severity": "MEDIUM",
+      "keywords": [
+        "버그",
+        "오류",
+        "안 돼",
+        "안돼",
+        "안 됨",
+        "안됨",
+        "이상해",
+        "깨져",
+        "사라져",
+        "끼어",
+        "떨어져",
+        "안 나요",
+        "안 먹",
+        "틀려",
+        "틀린",
+        "반응이 없",
+        "미지급",
+        "못 받",
+        "안 들어",
+        "무한",
+        "bug",
+        "error"
+      ]
+    },
+    {
+      "category": "BALANCE",
+      "severity": "LOW",
+      "keywords": [
+        "밸런스",
+        "너무 쎄",
+        "너무 세",
+        "너무 약",
+        "사기",
+        "너프",
+        "버프",
+        "어려워",
+        "난이도",
+        "확률",
+        "op ",
+        "balance"
+      ]
+    },
+    {
+      "category": "UX",
+      "severity": "LOW",
+      "keywords": [
+        "불편",
+        "헷갈",
+        "못 찾",
+        "ui",
+        "버튼",
+        "글씨",
+        "있었으면",
+        "옵션",
+        "조작감",
+        "미끄러",
+        "위치를 바꿀"
+      ]
+    }
   ]
 }

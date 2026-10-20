@@ -141,8 +141,8 @@ class CorrectionApiTest extends IntegrationTest {
 
     @Test
     void 사람은_심각도를_내릴_수_있고_기록이_남는다() {
-        IntakeResult a = submit("결제 화면 글씨가 작아요"); // 「결제」 키워드로 PAYMENT/CRITICAL 오분류
-        ResponseEntity<Map> r = reclassify(a.issueId(), Map.of("category", "UX", "severity", "LOW", "reason", "결제 문제 아님"));
+        IntakeResult a = submit("버튼 색이 이상해요"); // 「이상해」 키워드로 BUG/MEDIUM 오분류(디자인 의견)
+        ResponseEntity<Map> r = reclassify(a.issueId(), Map.of("category", "UX", "severity", "LOW", "reason", "버그 아님, 디자인 의견"));
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(r.getBody().get("category")).isEqualTo("UX");
         assertThat(r.getBody().get("severity")).isEqualTo("LOW");
@@ -150,7 +150,7 @@ class CorrectionApiTest extends IntegrationTest {
 
         Correction c = corrections.findAll().get(0);
         assertThat(c.getKind()).isEqualTo(CorrectionKind.RECLASSIFY);
-        assertThat(c.getBeforeValue()).isEqualTo("PAYMENT/CRITICAL");
+        assertThat(c.getBeforeValue()).isEqualTo("BUG/MEDIUM");
         assertThat(c.getAfterValue()).isEqualTo("UX/LOW");
         assertThat(c.getAutoBy()).isEqualTo("rules");
     }
@@ -178,8 +178,8 @@ class CorrectionApiTest extends IntegrationTest {
         IntakeResult a = submit(CRASH);
         IntakeResult b = submit(SLOW);
         detach(a.issueId(), b.reportId(), admin());
-        reclassify(submit("결제 화면 글씨가 작아요").issueId(), Map.of("category", "UX", "severity", "LOW"));
-        reclassify(submit("결제 버튼 위치가 헷갈려요").issueId(), Map.of("category", "UX", "severity", "LOW"));
+        reclassify(submit("버튼 색이 이상해요").issueId(), Map.of("category", "UX", "severity", "LOW"));
+        reclassify(submit("메뉴 글자 배치가 이상해요").issueId(), Map.of("category", "UX", "severity", "LOW"));
 
         ResponseEntity<Map> r = http.exchange("/api/corrections/summary?game=jelly-panic", HttpMethod.GET,
                 new HttpEntity<>(admin()), Map.class);
@@ -187,7 +187,7 @@ class CorrectionApiTest extends IntegrationTest {
         assertThat(s.get("total")).isEqualTo(3);
         assertThat(s.get("severityLowered")).isEqualTo(2);
         List<?> fixes = (List<?>) s.get("categoryFixes");
-        assertThat((Map<String, Object>) fixes.get(0)).containsEntry("from", "PAYMENT").containsEntry("to", "UX").containsEntry("count", 2);
+        assertThat((Map<String, Object>) fixes.get(0)).containsEntry("from", "BUG").containsEntry("to", "UX").containsEntry("count", 2);
         Map<?, ?> d = (Map<?, ?>) s.get("detaches");
         assertThat(d.get("count")).isEqualTo(1);
         assertThat(((Number) d.get("avgSimilarity")).doubleValue()).isBetween(0.55, 0.65);
