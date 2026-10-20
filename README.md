@@ -126,11 +126,11 @@ curl -H 'Content-Type: application/json' \
 
 ## 분류 키워드 고치기
 
-`config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 고치기 전후로 `./gradlew evalClassifier -Prules=수정안` 으로 재 보고, 정확도가 바닥값 밑이면 테스트가 막는다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
+`config/classifier-rules.json` 을 열어 고치고 저장하면 다음 제보부터 반영된다(재시작 필요 없음). 형식이 틀리거나 평가 관문(회귀 문장 전부 · dev 정확도 95% 이상)을 못 넘으면 그 파일은 받지 않고 직전 규칙을 계속 쓴다. 고치기 전후로 `./gradlew evalClassifier -Prules=수정안` 으로 재 보고, 깃에 올릴 때는 테스트가 holdout 까지 한 번 더 막는다. 들어갔는지는 `GET /api/admin/classifier/rules` 로 확인.
 
 ## 슬랙 버튼
 
-`.env` 에 `SLACK_SIGNING_SECRET`(슬랙 앱 Basic Information > Signing Secret)과 `SLACK_ADMIN_USER_IDS`(버튼을 누를 수 있는 슬랙 멤버 ID, 쉼표로 여러 명)를 넣고 `start.sh` 를 다시 실행하면, 끝에 슬랙 버튼 주소가 나온다(`slack-request-url.txt` 에도 저장). 슬랙 앱 설정 Interactivity & Shortcuts 의 Request URL 에 넣는다. 인터넷에는 이 주소 하나만 열리고(`deploy/slack-gateway.conf`), 껐다 켜면 주소가 바뀐다.
+`.env` 에 `SLACK_SIGNING_SECRET`(슬랙 앱 Basic Information > Signing Secret)과 `SLACK_ADMIN_USER_IDS`(버튼을 누를 수 있는 슬랙 멤버 ID, 쉼표로 여러 명)를 넣고 `start.sh` 를 다시 실행하면, 끝에 슬랙 버튼 주소가 나온다(`slack-request-url.txt` 에도 저장). 슬랙 앱 설정 Interactivity & Shortcuts 의 Request URL 에 넣는다. 인터넷에는 이 주소 하나만 열리고(`deploy/slack-gateway.conf`), 껐다 켜면 주소가 바뀐다. 바뀌면 서버가 1분 안에 공용 긴급 채널(`SLACK_CHANNEL_URGENT`)로 새 주소를 알린다.
 
 ## 테스트
 

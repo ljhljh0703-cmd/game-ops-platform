@@ -89,4 +89,4 @@ LLM_API_KEY=... ./gradlew evalClassifier -Pllm=true          # AI 분류(키가 
 1. 운영자나 AI 에이전트가 틀린 분류를 고친다. 고친 기록이 쌓인다(`/api/corrections/summary`).
 2. 플러그인 `ops-rules` 스킬이 자주 틀리는 방향을 보고 규칙 수정안을 만든다.
 3. `./gradlew evalClassifier -Prules=수정안` 으로 dev 와 회귀 문장을 잰다. 떨어지거나 회귀가 하나라도 틀리면 버린다. 틀린 적 있는 문장은 회귀 묶음에 더한다.
-4. 사람이 승인하면 `config/classifier-rules.json` 에 저장한다(다음 제보부터 반영). 깃에 커밋해 관문 테스트를 통과시킨다.
+4. 사람이 승인하면 `config/classifier-rules.json` 에 저장한다(다음 제보부터 반영). 서버도 받기 전에 dev·회귀를 다시 재서 미달이면 거절한다(`EvalRuleGate`). 깃에 커밋해 관문 테스트를 통과시킨다.

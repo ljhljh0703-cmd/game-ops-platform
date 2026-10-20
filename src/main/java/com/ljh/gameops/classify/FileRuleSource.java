@@ -1,5 +1,5 @@
 // 운영자가 고치는 규칙 파일 — 파일이 바뀌면 다음 제보부터 새 규칙을 쓴다.
-// 고친 파일에 오류가 있으면 받지 않고 직전 규칙을 계속 쓴다(분류가 멈추지 않게).
+// 고친 파일에 오류가 있거나 평가 관문(RuleGate)을 못 넘으면 받지 않고 직전 규칙을 계속 쓴다(분류가 멈추지 않게).
 package com.ljh.gameops.classify;
 
 import org.slf4j.Logger;
@@ -18,6 +18,7 @@ public class FileRuleSource implements RuleSource {
     private static final Logger log = LoggerFactory.getLogger(FileRuleSource.class);
 
     private final Path path;
+    private final RuleGate gate;
     private volatile RuleSet current;
 
     // 파일 시각+크기가 그대로이고 마지막 읽기가 성공했으면 다시 읽지 않는다.
@@ -29,7 +30,12 @@ public class FileRuleSource implements RuleSource {
     private boolean missingLogged;
 
     public FileRuleSource(Path path, RuleSource fallback) {
+        this(path, fallback, RuleGate.NONE);
+    }
+
+    public FileRuleSource(Path path, RuleSource fallback, RuleGate gate) {
         this.path = path;
+        this.gate = gate;
         this.current = fallback.current();
         reloadIfChanged();
     }
@@ -72,6 +78,8 @@ public class FileRuleSource implements RuleSource {
         }
         try {
             var rules = RuleParser.parse(new String(bytes, StandardCharsets.UTF_8));
+            String rejected = gate.reject(rules);
+            if (rejected != null) throw new IllegalArgumentException(rejected);
             current = new RuleSet(rules, "파일: " + path, OffsetDateTime.now(), null);
             loadedHash = hash;
             failedHash = null;

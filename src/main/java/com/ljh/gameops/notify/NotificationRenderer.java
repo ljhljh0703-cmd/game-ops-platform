@@ -33,6 +33,8 @@ public class NotificationRenderer {
             case SEVERITY_RAISED -> issueLine(m.getType(), p.path("issueId").asLong(),
                     "심각도 상승(" + p.path("from").asText() + "→)");
             case WEEKLY_REPORT -> new RenderedNotification(m.getType(), p.path("gameCode").asText(null), Severity.LOW, null, p.path("text").asText());
+            // 게임이 없는 운영 알림 — 높음으로 두어 공용 긴급 채널로 간다
+            case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
         };
     }
 

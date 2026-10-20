@@ -36,6 +36,8 @@ services:
       CLASSIFIER_RULES_FILE: /app/config/classifier-rules.json
       # 게임 목록(게임별 디스코드 제보 채널·슬랙 알림 채널). 고친 뒤 서버를 다시 켜면 반영된다.
       GAMES_FILE: /app/config/games.json
+      # 슬랙 버튼 주소가 바뀌면 슬랙 긴급 채널에 알린다(터널을 안 켰으면 조용히 쉰다)
+      TUNNEL_METRICS_URL: http://tunnel:2000/quicktunnel
     volumes:
       # 파일 하나가 아니라 폴더를 연결한다(편집기가 저장할 때 파일을 새로 만들어도 반영되게)
       - ./config:/app/config:ro
@@ -56,13 +58,14 @@ services:
 
   tunnel:
     image: cloudflare/cloudflared:2025.1.0
-    # 저절로 다시 켜지면 임시 주소가 바뀐다 → start.sh 를 다시 실행해 새 주소를 슬랙에 넣는다
+    # 저절로 다시 켜지면 임시 주소가 바뀐다 → 서버가 1분 안에 슬랙 긴급 채널로 새 주소를 알린다(TunnelUrlWatcher)
     restart: unless-stopped
     profiles: ["slack-buttons"]
     depends_on:
       - slack-gateway
     # 계정 없이 쓰는 임시 주소(https://<무작위>.trycloudflare.com). 껐다 켜면 주소가 바뀐다.
-    command: tunnel --no-autoupdate --url http://slack-gateway:8081
+    # --metrics: 서버가 지금 주소를 물어보는 창구(/quicktunnel). 밖으로 열지 않는다(ports 없음)
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 --url http://slack-gateway:8081
 
 volumes:
   db-data:

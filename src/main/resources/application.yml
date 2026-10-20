@@ -59,6 +59,9 @@ gameops:
     channels:
       default-channel: ${SLACK_CHANNEL_DEFAULT:}
       urgent: ${SLACK_CHANNEL_URGENT:}
+    # 슬랙 버튼 주소 지킴이(TunnelUrlWatcher) — 터널의 주소 창구. 비우면 끈다. docker-compose 가 채운다
+    tunnel-metrics-url: ${TUNNEL_METRICS_URL:}
+    tunnel-check-ms: 60000
   discord:
     enabled: ${DISCORD_ENABLED:false}
     bot-token: ${DISCORD_BOT_TOKEN:}

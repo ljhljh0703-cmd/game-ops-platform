@@ -17,7 +17,7 @@ public class ClassifierConfig {
     RuleBasedClassifier ruleBasedClassifier(ClassifierProperties props) {
         RuleSource bundled = new BundledRuleSource();
         String file = props.rulesFile();
-        RuleSource source = (file == null || file.isBlank()) ? bundled : new FileRuleSource(Path.of(file), bundled);
+        RuleSource source = (file == null || file.isBlank()) ? bundled : new FileRuleSource(Path.of(file), bundled, EvalRuleGate.fromClasspath());
         return new RuleBasedClassifier(source);
     }
 

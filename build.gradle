@@ -37,6 +37,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// 운영 중 규칙 파일 관문(EvalRuleGate)이 쓸 평가 묶음을 서버에 함께 묶는다 — 정본은 eval/ 하나
+tasks.named('processResources') {
+    from('eval') {
+        include 'classifier-cases.jsonl', 'classifier-regression.jsonl'
+        into 'gate'
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'updateOpenApi', System.getProperty('updateOpenApi', 'false')

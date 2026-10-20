@@ -96,4 +96,31 @@ class FileRuleSourceTest {
         write(f, good, 1000); // 글자 수도 시각도 같다
         assertThat(c.classify("g", "abc 문제").category()).isEqualTo(Category.UX);
     }
+
+    @Test
+    void 관문을_못_넘는_규칙은_받지_않고_직전_규칙을_쓴다() throws Exception {
+        Path f = dir.resolve("rules.json");
+        String bundled = Files.readString(Path.of("src/main/resources/classifier-rules.json"));
+        write(f, bundled, 1000);
+        var gate = EvalRuleGate.fromClasspath();
+        assertThat(gate).isInstanceOf(EvalRuleGate.class);
+        var c = new RuleBasedClassifier(new FileRuleSource(f, new BundledRuleSource(), gate));
+        assertThat(c.rules().source()).startsWith("파일:");
+        assertThat(c.rules().lastError()).isNull();
+
+        // 결제 규칙을 빼 버린 파일: 형식은 맞지만 회귀 문장(결제가 두 번 됐어요)이 다시 틀린다
+        write(f, "{\"rules\":[{\"category\":\"BUG\",\"severity\":\"MEDIUM\",\"keywords\":[\"버그\"]}]}", 2000);
+        assertThat(c.classify("g", "결제가 두 번 됐어요").category()).isEqualTo(Category.PAYMENT);
+        assertThat(c.rules().lastError()).contains("평가 관문 미달").contains("회귀 문장");
+
+        // 다시 통과하는 파일로 고치면 오류 표시가 사라진다
+        write(f, bundled + " ", 3000);
+        c.classify("g", "아무 글");
+        assertThat(c.rules().lastError()).isNull();
+    }
+
+    @Test
+    void 관문은_내장_규칙을_통과시킨다() {
+        assertThat(EvalRuleGate.fromClasspath().reject(new BundledRuleSource().current().rules())).isNull();
+    }
 }
