@@ -122,7 +122,7 @@ curl -H 'Content-Type: application/json' \
 
 ## 평가 하네스
 
-`./gradlew evalClassifier` — 정답 붙인 제보 90건으로 분류 정확도, 40쌍으로 묶기 기준값을 잰다. 규칙 v1→v2 에서 분류 정확도 dev 65→98%, 처음 보는 글(holdout) 50→83%. 묶기는 지금 기준이 같은 문제의 5%만 묶는다는 걸 찾았다. 자세한 것은 [docs/EVAL.md](docs/EVAL.md).
+`./gradlew evalClassifier` — 정답 붙인 제보 90건으로 분류 정확도, 40쌍으로 묶기 기준값을 잰다. 규칙 v1→v3 에서 분류 정확도 dev 65→100%, 처음 보는 글(holdout) 50→83%, 한 번 틀렸던 결제 문장 16개는 회귀 묶음으로 고정. 묶기는 지금 기준이 같은 문제의 5%만 묶는다는 걸 찾았다. 자세한 것은 [docs/EVAL.md](docs/EVAL.md).
 
 ## 분류 키워드 고치기
 

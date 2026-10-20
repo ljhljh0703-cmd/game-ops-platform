@@ -19,29 +19,35 @@ import java.util.Locale;
 public final class EvalMain {
     public static final Path CASES = Path.of("eval/classifier-cases.jsonl");
     public static final Path PAIRS = Path.of("eval/duplicate-pairs.jsonl");
+    /** 고정 회귀 문장 — 한 번 틀렸던 문장. 규칙을 고칠 때 봐도 된다 */
+    public static final Path REGRESSION = Path.of("eval/classifier-regression.jsonl");
     public static final double CURRENT_THRESHOLD = 0.55;
 
     public static void main(String[] args) throws Exception {
         String rules = System.getProperty("eval.rules", "");
         boolean llm = Boolean.getBoolean("eval.llm");
+        // holdout 은 규칙 후보를 고르는 데 쓰면 dev 가 되어 버린다. 릴리스 때 한 번만 -Pholdout=true 로 본다
+        boolean showHoldout = Boolean.getBoolean("eval.holdout");
         String label = System.getProperty("eval.label", llm ? "llm" : (rules.isBlank() ? "rules" : "rules-candidate"));
 
         IssueClassifier classifier = classifier(rules, llm);
         var cases = EvalData.cases(CASES);
         var dev = ClassifierEvaluator.run(classifier, cases, "dev");
-        var hold = ClassifierEvaluator.run(classifier, cases, "holdout");
+        var hold = showHoldout ? ClassifierEvaluator.run(classifier, cases, "holdout") : null;
+        var reg = ClassifierEvaluator.run(classifier, EvalData.cases(REGRESSION), "regression");
         var pairs = EvalData.pairs(PAIRS);
         var scored = DuplicateEvaluator.score(pairs);
         var sweep = DuplicateEvaluator.sweep(scored, 0.10, 0.80, 0.05);
 
-        String md = Report.markdown(label, rules.isBlank() ? "기본 규칙(classifier-rules.json)" : rules, dev, hold, scored, sweep)
+        String md = Report.markdown(label, rules.isBlank() ? "기본 규칙(classifier-rules.json)" : rules, dev, hold, reg, scored, sweep)
                 + Report.methods(pairs, classifier);
         Path out = Path.of("eval/results/" + LocalDate.now() + "-" + label + ".md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, md, StandardCharsets.UTF_8);
-        System.out.printf(Locale.ROOT, "[%s] 분류 정확도 dev %.1f%% · holdout %.1f%% | 분류+심각도 dev %.1f%% · holdout %.1f%% → %s%n",
-                label, dev.categoryAccuracy() * 100, hold.categoryAccuracy() * 100,
-                dev.bothAccuracy() * 100, hold.bothAccuracy() * 100, out);
+        System.out.printf(Locale.ROOT, "[%s] 분류 정확도 dev %.1f%% · 회귀 %d/%d%s | 분류+심각도 dev %.1f%% → %s%n",
+                label, dev.categoryAccuracy() * 100, reg.bothOk(), reg.total(),
+                hold == null ? "" : String.format(Locale.ROOT, " · holdout %.1f%%", hold.categoryAccuracy() * 100),
+                dev.bothAccuracy() * 100, out);
     }
 
     static IssueClassifier classifier(String rulesFile, boolean llm) throws Exception {
@@ -67,12 +73,14 @@ public final class EvalMain {
     /** 결과 문서 */
     static final class Report {
         static String markdown(String label, String rulesSource, ClassifierEvaluator.Result dev, ClassifierEvaluator.Result hold,
-                               List<DuplicateEvaluator.Scored> scored, List<DuplicateEvaluator.Row> sweep) {
+                               ClassifierEvaluator.Result reg, List<DuplicateEvaluator.Scored> scored, List<DuplicateEvaluator.Row> sweep) {
             StringBuilder s = new StringBuilder();
             s.append("# 평가 결과 — ").append(label).append(" (").append(LocalDate.now()).append(")\n\n");
             s.append("규칙: ").append(rulesSource).append("\n\n");
             s.append("## 분류\n\n| 묶음 | 건수 | 분류 정확도 | 심각도 정확도 | 둘 다 |\n|---|---|---|---|---|\n");
-            for (var r : List.of(dev, hold)) {
+            var shown = new java.util.ArrayList<ClassifierEvaluator.Result>(List.of(dev, reg));
+            if (hold != null) shown.add(hold);
+            for (var r : shown) {
                 s.append(String.format(Locale.ROOT, "| %s | %d | %.1f%% | %.1f%% | %.1f%% |%n", r.split(), r.total(),
                         r.categoryAccuracy() * 100, r.severityAccuracy() * 100, r.bothAccuracy() * 100));
             }
@@ -96,7 +104,12 @@ public final class EvalMain {
                 s.append(String.format("| %d | %s | %s/%s | %s/%s | %s |%n", m.c().id(), m.c().body(), m.c().category(), m.c().severity(),
                         m.got().category(), m.got().severity(), m.c().note() == null ? "" : m.c().note()));
             }
-            s.append("\nholdout 틀린 사례는 일부러 적지 않는다(규칙을 holdout 에 맞추지 않기 위해). 건수만 본다.\n");
+            for (var m : reg.misses()) {
+                s.append(String.format("| %d | %s | %s/%s | %s/%s | 회귀 |%n", m.c().id(), m.c().body(), m.c().category(), m.c().severity(),
+                        m.got().category(), m.got().severity()));
+            }
+            s.append(hold == null ? "\nholdout 은 이번에 재지 않았다(-Pholdout=true 는 릴리스 때 한 번만).\n"
+                    : "\nholdout 틀린 사례는 일부러 적지 않는다(규칙을 holdout 에 맞추지 않기 위해). 건수만 본다.\n");
 
             s.append("\n## 묶기 기준값\n\n같은 문제 20쌍 · 다른 문제 20쌍. 현재 기준 ").append(CURRENT_THRESHOLD).append(".\n\n");
             s.append("| 기준 | 묶음 정밀도 | 묶음 재현율 | F1 | 엉뚱하게 묶음 | 못 묶음 |\n|---|---|---|---|---|---|\n");

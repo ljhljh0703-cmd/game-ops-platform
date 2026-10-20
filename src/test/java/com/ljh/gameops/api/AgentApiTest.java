@@ -68,4 +68,15 @@ class AgentApiTest extends IntegrationTest {
         assertThat(row.get("actor")).isEqualTo("ai-agent");
         assertThat((String) row.get("detail")).contains("결제 문제라 바로 확인");
     }
+
+    @Test
+    void 에이전트_키로는_해결_보류로_닫을_수_없다() {
+        long id = report("gemtower", "타워 3층에서 튕겨요");
+        for (String st : new String[]{"RESOLVED", "WONT_FIX"}) {
+            assertThat(http.exchange("/api/issues/" + id + "/status", HttpMethod.PATCH, withKey("test-agent-key", Map.of("status", st)), Map.class)
+                    .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+        assertThat(http.exchange("/api/issues/" + id + "/status", HttpMethod.PATCH, withKey("test-admin-key", Map.of("status", "RESOLVED")), Map.class)
+                .getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
 }

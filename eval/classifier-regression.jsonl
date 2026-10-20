@@ -1,0 +1,16 @@
+{"id": 1001, "split": "regression", "game": "any", "body": "결제가 두 번 됐어요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1002, "split": "regression", "game": "any", "body": "결제가 중복으로 됐어요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1003, "split": "regression", "game": "any", "body": "환불 해주세요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1004, "split": "regression", "game": "any", "body": "환불받고 싶어요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1005, "split": "regression", "game": "any", "body": "결제창이 안 떠요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1006, "split": "regression", "game": "any", "body": "결제 되었는데 아이템 안 옴", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1007, "split": "regression", "game": "any", "body": "결제 오류", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1008, "split": "regression", "game": "any", "body": "결제가 안 돼요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1009, "split": "regression", "game": "any", "body": "보석 충전이 안 돼요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1010, "split": "regression", "game": "any", "body": "결제완료 됐는데 지급 안됨", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1011, "split": "regression", "game": "any", "body": "결제 오류로 튕김", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1012, "split": "regression", "game": "any", "body": "결제하다 튕겼어요", "category": "PAYMENT", "severity": "CRITICAL", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1013, "split": "regression", "game": "any", "body": "패키지 가격 너무 비싸요", "category": "OTHER", "severity": "LOW", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1014, "split": "regression", "game": "any", "body": "구독 해지 어떻게 해요", "category": "OTHER", "severity": "LOW", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1015, "split": "regression", "game": "any", "body": "패키지 상품 이미지가 깨져요", "category": "BUG", "severity": "MEDIUM", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}
+{"id": 1016, "split": "regression", "game": "any", "body": "quit 버튼이 안 눌려요", "category": "BUG", "severity": "MEDIUM", "note": "독립 검토(2026-10-20)에서 v2 가 놓친 문장"}

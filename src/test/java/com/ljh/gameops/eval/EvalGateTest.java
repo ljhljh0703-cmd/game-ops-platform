@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EvalGateTest {
-    // 2026-10-20 v2 규칙 결과(dev 98.3%, holdout 83.3%)에서 한 건 정도 여유를 둔 바닥값
+    // 2026-10-20 v3 규칙 결과에서 한두 건 여유를 둔 바닥값. 회귀 문장(한 번 틀렸던 문장)은 전부 맞아야 한다
     static final double DEV_FLOOR = 0.95;
     static final double HOLDOUT_FLOOR = 0.80;
 
@@ -20,6 +20,8 @@ class EvalGateTest {
         var classifier = new RuleBasedClassifier();
         assertThat(ClassifierEvaluator.run(classifier, cases, "dev").categoryAccuracy()).isGreaterThanOrEqualTo(DEV_FLOOR);
         assertThat(ClassifierEvaluator.run(classifier, cases, "holdout").categoryAccuracy()).isGreaterThanOrEqualTo(HOLDOUT_FLOOR);
+        var reg = ClassifierEvaluator.run(classifier, EvalData.cases(EvalMain.REGRESSION), "regression");
+        assertThat(reg.misses()).as("회귀 문장이 다시 틀림").isEmpty();
     }
 
     @Test

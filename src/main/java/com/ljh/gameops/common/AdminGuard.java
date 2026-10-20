@@ -9,6 +9,9 @@ import java.util.Map;
 
 @Component
 public class AdminGuard {
+    /** AI 에이전트 키의 이름(application.yml api-keys). 이 이름으로 들어오면 할 수 있는 일을 줄인다 */
+    public static final String AGENT = "ai-agent";
+
     private final AdminProperties props;
 
     public AdminGuard(AdminProperties props) { this.props = props; }

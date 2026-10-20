@@ -43,7 +43,7 @@ tasks.named('test') {
     testLogging { events 'passed', 'skipped', 'failed'; exceptionFormat 'full' }
 }
 
-// 분류·묶기 평가 하네스 — ./gradlew evalClassifier [-Prules=파일] [-Pllm=true] [-Plabel=이름]
+// 분류·묶기 평가 하네스 — ./gradlew evalClassifier [-Prules=파일] [-Pllm=true] [-Plabel=이름] [-Pholdout=true: 릴리스 때만]
 // 결과: eval/results/<날짜>-<이름>.md (평가 묶음: eval/*.jsonl)
 tasks.register('evalClassifier', JavaExec) {
     group = 'verification'
@@ -54,5 +54,6 @@ tasks.register('evalClassifier', JavaExec) {
     jvmArgs '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8'
     systemProperty 'eval.rules', project.findProperty('rules') ?: ''
     systemProperty 'eval.llm', project.findProperty('llm') ?: 'false'
+    systemProperty 'eval.holdout', project.findProperty('holdout') ?: 'false'
     if (project.hasProperty('label')) systemProperty 'eval.label', project.property('label')
 }
