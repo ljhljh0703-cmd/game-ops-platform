@@ -45,6 +45,9 @@ class SlackInteractionTest extends IntegrationTest {
         public void updateCard(String channel, String ts, IssueCard card) { updatedAt.add(new String[]{channel, ts}); updated.add(card); }
         final List<com.ljh.gameops.notify.RuleChangeCard> rulesUpdated = new java.util.concurrent.CopyOnWriteArrayList<>();
         public void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card) { rulesUpdated.add(card); }
+        final List<String> homes = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final List<View> homeViews = new java.util.concurrent.CopyOnWriteArrayList<>();
+        public boolean publishHome(String userId, View view) { homes.add(userId); homeViews.add(view); return true; }
     }
 
     @TestConfiguration
@@ -56,7 +59,7 @@ class SlackInteractionTest extends IntegrationTest {
     @Autowired CorrectionRepository corrections;
 
     @BeforeEach
-    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); web.rulesUpdated.clear(); }
+    void resetWeb() { web.opened.clear(); web.updated.clear(); web.updatedAt.clear(); web.rulesUpdated.clear(); web.homes.clear(); web.homeViews.clear(); }
 
     /** 뒤에서 오는 카드 바꾸기를 기다린다(최대 5초) */
     static void await(java.util.function.BooleanSupplier ok) {
@@ -300,5 +303,39 @@ class SlackInteractionTest extends IntegrationTest {
         await(() -> !web.updated.isEmpty());
         assertThat(web.updated.get(0).reportCount()).isEqualTo(2);
         assertThat(web.updated.get(0).lastAction()).isEqualTo("🛠️ 진행 중 · <@U1> · 10/20 22:00");
+    }
+
+    // ── 홈 현황판 ──
+
+    private ResponseEntity<Map> event(String json) {
+        long ts = Instant.now().getEpochSecond();
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.set("X-Slack-Request-Timestamp", String.valueOf(ts));
+        h.set("X-Slack-Signature", signer.sign(String.valueOf(ts), json));
+        return http.exchange("/slack/events", HttpMethod.POST, new HttpEntity<>(json, h), Map.class);
+    }
+
+    @Test
+    void 이벤트_주소_확인에_답한다_서명이_틀리면_401() {
+        assertThat(event("{\"type\":\"url_verification\",\"challenge\":\"abc123\"}").getBody()).containsEntry("challenge", "abc123");
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.set("X-Slack-Request-Timestamp", String.valueOf(Instant.now().getEpochSecond()));
+        h.set("X-Slack-Signature", "v0=bad");
+        assertThat(http.exchange("/slack/events", HttpMethod.POST, new HttpEntity<>("{\"type\":\"url_verification\"}", h), Map.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void 홈_탭을_열면_현황판을_올린다_새로고침은_누구나() {
+        issue();
+        event("{\"type\":\"event_callback\",\"event\":{\"type\":\"app_home_opened\",\"user\":\"U_ANY\",\"tab\":\"home\"}}");
+        await(() -> !web.homes.isEmpty());
+        assertThat(web.homes).containsExactly("U_ANY");
+        String json = com.slack.api.util.json.GsonFactory.createSnakeCase().toJson(web.homeViews.get(0));
+        assertThat(json).contains("게임 운영 현황").contains("보석타워").contains("#1 타워 설치가 안 돼요 버그");
+        signed(action("U_SOMEONE", "home_refresh", "refresh"));
+        assertThat(web.homes).hasSize(2);
     }
 }

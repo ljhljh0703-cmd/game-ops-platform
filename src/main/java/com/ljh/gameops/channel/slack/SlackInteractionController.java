@@ -55,11 +55,14 @@ public class SlackInteractionController {
     private final SlackResponder responder;
     private final com.ljh.gameops.classify.RuleChangeService rules;
     private final SlackMessageStore store;
+    private final SlackHomeService home;
 
     public SlackInteractionController(SlackProperties props, AdminGuard guard, IssueService issues, CorrectionService corrections,
                                       ReportRepository reports, IssueCardFactory cards, SlackWebApi web,
                                       ObjectMapper mapper, Clock clock, SlackResponder responder,
-                                      com.ljh.gameops.classify.RuleChangeService rules, SlackMessageStore store) {
+                                      com.ljh.gameops.classify.RuleChangeService rules, SlackMessageStore store,
+                                      SlackHomeService home) {
+        this.home = home;
         this.rules = rules;
         this.store = store;
         this.props = props;
@@ -103,6 +106,11 @@ public class SlackInteractionController {
         }
 
         String responseUrl = payload.path("response_url").asText(null);
+        // 홈 현황판 「새로고침」은 보기만 하는 것이라 누구나
+        if (SlackHome.ACTION_REFRESH.equals(payload.path("actions").path(0).path("action_id").asText(""))) {
+            if (userId != null) home.publish(userId);
+            return ResponseEntity.ok().build();
+        }
         if (!admin) {
             log.info("슬랙 비관리자 버튼 무시 user={}", userId);
             responder.reply(responseUrl, "상태 변경 권한이 없어요.");

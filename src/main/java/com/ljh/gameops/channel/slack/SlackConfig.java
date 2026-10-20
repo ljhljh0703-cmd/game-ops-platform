@@ -30,6 +30,7 @@ public class SlackConfig {
             public boolean openView(String triggerId, com.slack.api.model.view.View view) { return false; }
             public void updateCard(String channel, String ts, com.ljh.gameops.notify.IssueCard card) {}
             public void updateRulesCard(String channel, String ts, com.ljh.gameops.notify.RuleChangeCard card) {}
+            public boolean publishHome(String userId, com.slack.api.model.view.View view) { return false; }
         };
     }
 }

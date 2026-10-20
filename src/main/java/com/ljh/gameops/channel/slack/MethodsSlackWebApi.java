@@ -45,6 +45,18 @@ public class MethodsSlackWebApi implements SlackWebApi {
         update(channel, ts, "분류 규칙 #" + card.versionId(), SlackCards.rulesCard(card));
     }
 
+    @Override
+    public boolean publishHome(String userId, View view) {
+        try {
+            var r = client.viewsPublish(com.slack.api.methods.request.views.ViewsPublishRequest.builder().userId(userId).view(view).build());
+            if (!r.isOk()) log.warn("슬랙 홈 올리기 실패: {} {}", r.getError(), r.getResponseMetadata());
+            return r.isOk();
+        } catch (Exception e) {
+            log.warn("슬랙 홈 올리기 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
     private void update(String channel, String ts, String text, com.slack.api.model.Attachment attachment) {
         if (channel == null || ts == null) return;
         pool.submit(() -> {
