@@ -28,7 +28,9 @@ management:
 gameops:
   author-hash-salt: ${AUTHOR_HASH_SALT:change-me-local-only}
   issue:
-    duplicate-threshold: ${DUPLICATE_THRESHOLD:0.55}
+    # 분류가 같은 이슈끼리만 비교하므로 기준이 낮다(P9). 되돌리려면 DUPLICATE_SAME_CATEGORY_ONLY=false, DUPLICATE_THRESHOLD=0.55
+    duplicate-threshold: ${DUPLICATE_THRESHOLD:0.20}
+    same-category-only: ${DUPLICATE_SAME_CATEGORY_ONLY:true}
     recurrence-window-days: ${RECURRENCE_WINDOW_DAYS:30}
   outbox:
     batch-size: 20

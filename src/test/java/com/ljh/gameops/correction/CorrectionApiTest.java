@@ -11,19 +11,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+// 떼어내기·분류 고치기는 묶기 방식과 상관없는 기능이다. 「잘못 묶인」 상황을 쉽게 만들려고 예전 묶기(글자만, 0.55)로 돌린다.
+// 지금 운영 묶기(분류가 같을 때만, P9)는 IntakeServiceTest 가 따로 지킨다.
+@TestPropertySource(properties = {"gameops.issue.same-category-only=false", "gameops.issue.duplicate-threshold=0.55"})
 class CorrectionApiTest extends IntegrationTest {
     @Autowired TestRestTemplate http;
     @Autowired IntakeService intake;
     @Autowired IssueRepository issues;
     @Autowired CorrectionRepository corrections;
 
-    // 「튕겨요」와 「느려요」는 글자가 0.6만큼 겹쳐 자동으로 한 이슈에 묶인다(기준 0.55). 사람이 보면 다른 문제다.
+    // 「튕겨요」와 「느려요」는 글자가 0.6만큼 겹쳐 예전 묶기에서 한 이슈에 묶였다(기준 0.55). 사람이 보면 다른 문제다.
     static final String CRASH = "스테이지 3에서 게임이 튕겨요";
     static final String SLOW = "스테이지 3에서 게임이 느려요";
 

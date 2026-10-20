@@ -47,4 +47,20 @@ class EvalGateTest {
         assertThat(cases.stream().filter(c -> c.split().equals("holdout"))).hasSize(30);
         assertThat(EvalData.pairs(EvalMain.PAIRS)).hasSize(40);
     }
+
+    @Test
+    void 운영_묶기_기준에서_엉뚱하게_묶음_0건() throws Exception {
+        var scored = DuplicateEvaluator.score(EvalData.pairs(EvalMain.PAIRS), EvalMain.CURRENT_METHOD, new RuleBasedClassifier());
+        var row = DuplicateEvaluator.sweep(scored, EvalMain.CURRENT_THRESHOLD, EvalMain.CURRENT_THRESHOLD, 0.05).get(0);
+        assertThat(row.fp()).as("다른 문제를 한 이슈로 묶음").isZero();
+        // 2026-10-20 P9 반영 시점 45%. 규칙을 고쳐 분류가 흔들리면 묶기도 같이 떨어지므로 함께 지킨다
+        assertThat(row.recall()).isGreaterThanOrEqualTo(0.40);
+    }
+
+    @Test
+    void 평가_기준과_운영_설정이_같다() throws Exception {
+        String yml = Files.readString(Path.of("src/main/resources/application.yml"));
+        assertThat(yml).contains("DUPLICATE_THRESHOLD:" + String.format(java.util.Locale.ROOT, "%.2f", EvalMain.CURRENT_THRESHOLD));
+        assertThat(yml).contains("DUPLICATE_SAME_CATEGORY_ONLY:true");
+    }
 }

@@ -12,6 +12,8 @@ public class Issue {
     private Long gameId;
     private String title;
     @Enumerated(EnumType.STRING) private Category category;
+    /** 처음 자동 분류. 사람이 고쳐도 바뀌지 않는다(묶기 비교용, V5) */
+    @Enumerated(EnumType.STRING) private Category autoCategory;
     @Enumerated(EnumType.STRING) private Severity severity;
     @Enumerated(EnumType.STRING) private IssueStatus status;
     private String normalizedKey;
@@ -33,6 +35,7 @@ public class Issue {
         this.gameId = gameId;
         this.title = title;
         this.category = category;
+        this.autoCategory = category;
         this.severity = severity;
         this.status = IssueStatus.OPEN;
         this.normalizedKey = normalizedKey;
@@ -96,6 +99,7 @@ public class Issue {
     public Long getGameId() { return gameId; }
     public String getTitle() { return title; }
     public Category getCategory() { return category; }
+    public Category getAutoCategory() { return autoCategory; }
     public Severity getSeverity() { return severity; }
     public IssueStatus getStatus() { return status; }
     public String getNormalizedKey() { return normalizedKey; }

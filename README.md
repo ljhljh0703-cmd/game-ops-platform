@@ -107,7 +107,7 @@ curl -H 'Content-Type: application/json' \
 
 ## 설정 키
 
-`.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.
+`.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.20 — 분류가 같은 이슈끼리만 비교) · `DUPLICATE_SAME_CATEGORY_ONLY`(기본 true) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.
 
 ## 게임 추가·채널 정하기
 

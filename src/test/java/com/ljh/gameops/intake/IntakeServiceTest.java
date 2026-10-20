@@ -60,7 +60,8 @@ class IntakeServiceTest extends IntegrationTest {
         IntakeResult a = intake.submit(report("보석 합성 버그 있어요 합성 버튼 눌러도 안 돼요", "m1", "u1"));
         assertThat(issues.findById(a.issueId()).orElseThrow().getSeverity()).isEqualTo(Severity.MEDIUM);
 
-        intake.submit(report("보석 합성 버그 있어요 합성 버튼 눌러도 안 돼요 튕겨요", "m2", "u2"));
+        // 같은 분류(BUG) 안에서 더 심각한 말(진행 불가)이 붙는다. 「튕겨요」면 분류가 CRASH 로 달라 새 이슈가 된다(P9)
+        intake.submit(report("보석 합성 버그 있어요 합성 버튼 눌러도 안 돼요 진행 불가", "m2", "u2"));
         assertThat(issues.findById(a.issueId()).orElseThrow().getSeverity()).isEqualTo(Severity.HIGH);
         assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.SEVERITY_RAISED)).hasSize(1);
     }
@@ -100,5 +101,38 @@ class IntakeServiceTest extends IntegrationTest {
         assertThat(issues.count()).isEqualTo(1);
         assertThat(issues.findAll().get(0).getReportCount()).isEqualTo(n);
         assertThat(jdbc.queryForObject("select count(*) from issue_report", Long.class)).isEqualTo((long) n);
+    }
+
+    // ── 분류가 같을 때만 묶기 (P9, docs/EVAL.md §3) ──
+
+    @Test
+    void 글자가_많이_겹쳐도_분류가_다르면_묶지_않는다() {
+        IntakeResult crash = intake.submit(report("스테이지 3에서 게임이 튕겨요", "m1", "u1"));
+        IntakeResult slow = intake.submit(report("스테이지 3에서 게임이 느려요", "m2", "u2"));
+        assertThat(slow.issueId()).isNotEqualTo(crash.issueId());
+    }
+
+    @Test
+    void 분류가_같으면_표현이_달라도_묶는다() {
+        IntakeResult a = intake.submit(report("로그인하면 바로 튕겨요", "m1", "u1"));
+        IntakeResult b = intake.submit(report("로그인 후 바로 튕김", "m2", "u2"));
+        assertThat(b.issueId()).isEqualTo(a.issueId());
+        assertThat(b.similarity()).isBetween(0.20, 0.55); // 예전 기준(0.55)이면 못 묶던 쌍
+    }
+
+    @Test
+    void 사람이_분류를_고친_이슈에도_처음_분류가_같은_제보는_붙는다() {
+        IntakeResult a = intake.submit(report("상점에서 결제 버튼 위치가 헷갈려요", "m1", "u1"));
+        var issue = issues.findById(a.issueId()).orElseThrow();
+        assertThat(issue.getCategory().name()).isEqualTo("PAYMENT");
+        issue.reclassify(com.ljh.gameops.issue.Category.UX, Severity.LOW);
+        issues.saveAndFlush(issue);
+
+        // 새 글은 자동으로 다시 PAYMENT 로 분류되지만, 이슈의 처음 분류도 PAYMENT 라 붙는다
+        IntakeResult b = intake.submit(report("상점에서 결제 버튼 위치가 너무 헷갈려요", "m2", "u2"));
+        assertThat(b.issueId()).isEqualTo(a.issueId());
+        var after = issues.findById(a.issueId()).orElseThrow();
+        assertThat(after.getCategory().name()).isEqualTo("UX");
+        assertThat(after.getSeverity()).isEqualTo(Severity.LOW);
     }
 }

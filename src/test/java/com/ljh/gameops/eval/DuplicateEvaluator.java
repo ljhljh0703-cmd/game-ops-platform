@@ -23,10 +23,10 @@ public final class DuplicateEvaluator {
 
     public record Scored(EvalData.Pair pair, double score) {}
 
-    /** 비교할 유사도 방식. 운영은 JACCARD. 나머지는 바꿀지 판단하려고 재 보는 후보. */
+    /** 비교할 유사도 방식. 운영은 JACCARD_SAME_CATEGORY(P9). 나머지는 비교용 후보. */
     public enum Method {
-        JACCARD("글자 2개 묶음 자카드(운영)"),
-        JACCARD_SAME_CATEGORY("자카드 + 분류가 같을 때만"),
+        JACCARD("글자 2개 묶음 자카드(2026-10-20 까지 운영)"),
+        JACCARD_SAME_CATEGORY("자카드 + 분류가 같을 때만(운영, P9)"),
         OVERLAP("겹침 계수 — 겹친 묶음 ÷ 짧은 쪽 묶음 수"),
         OVERLAP_SAME_CATEGORY("겹침 계수 + 분류가 같을 때만");
 

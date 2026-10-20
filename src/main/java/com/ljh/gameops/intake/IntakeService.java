@@ -97,11 +97,11 @@ public class IntakeService {
      * 최근 해결한 이슈 중 이 글과 비슷한 것이 있으면 재발로 본다. 닫힌 이슈에 다시 붙이지는 않는다
      * (고친 뒤 다시 생긴 건 새 사건이고, 원인이 다를 수 있다). 묶기와 같은 기준값을 쓴다.
      */
-    private Optional<Match> findRecurrence(Long gameId, String key, String normalized) {
+    private Optional<Match> findRecurrence(Long gameId, String key, String normalized, Category category) {
         OffsetDateTime since = OffsetDateTime.now().minusDays(props.recurrenceWindowDays());
         Match best = null;
         for (Issue i : issues.findByGameIdAndStatusAndResolvedAtAfter(gameId, IssueStatus.RESOLVED, since)) {
-            double s = i.getNormalizedKey().equals(key) ? 1.0 : Similarity.jaccard(normalized, i.getNormalizedText());
+            double s = i.getNormalizedKey().equals(key) ? 1.0 : similarity(normalized, category, i);
             if (s >= props.duplicateThreshold() && (best == null || s > best.score()
                     || (s == best.score() && i.getResolvedAt().isAfter(best.issue().getResolvedAt())))) {
                 best = new Match(i, s);
@@ -129,7 +129,7 @@ public class IntakeService {
                 bestScore = 1.0;
             } else {
                 for (Issue i : issues.findByGameIdAndStatusIn(game.getId(), OPEN)) {
-                    double s = Similarity.jaccard(normalized, i.getNormalizedText());
+                    double s = similarity(normalized, c.category(), i);
                     if (s > bestScore) { bestScore = s; best = i; }
                 }
             }
@@ -142,8 +142,8 @@ public class IntakeService {
             if (!best.getStatus().isOpen()) {
                 best = null;
             } else if (!best.getNormalizedKey().equals(key)) {
-                // 잠그기 전에 사람이 대표 제보를 바꿨을 수 있다. 최신 대표 글로 다시 잰다.
-                bestScore = Similarity.jaccard(normalized, best.getNormalizedText());
+                // 잠그기 전에 사람이 대표 제보나 분류를 바꿨을 수 있다. 최신 값으로 다시 잰다.
+                bestScore = similarity(normalized, c.category(), best);
             }
         }
         if (best != null && bestScore >= props.duplicateThreshold()) {
@@ -159,7 +159,7 @@ public class IntakeService {
 
         Issue fresh = new Issue(game.getId(), c.title(), c.category(), c.severity(),
                 key, normalized, report.getId(), c.classifiedBy());
-        if (!empty) findRecurrence(game.getId(), key, normalized).ifPresent(m -> fresh.markRecurrenceOf(m.issue().getId(), m.score()));
+        if (!empty) findRecurrence(game.getId(), key, normalized, c.category()).ifPresent(m -> fresh.markRecurrenceOf(m.issue().getId(), m.score()));
         Issue created = issues.saveAndFlush(fresh);
         links.save(new IssueReport(created.getId(), report.getId(), 1.0));
         Map<String, Object> payload = new HashMap<>();
@@ -167,5 +167,16 @@ public class IntakeService {
         if (created.getRecurrenceOf() != null) payload.put("recurrenceOf", created.getRecurrenceOf());
         outbox.enqueue(NotificationType.NEW_ISSUE, payload);
         return new IntakeResult(report.getId(), created.getId(), IntakeResult.Outcome.NEW_ISSUE, 1.0);
+    }
+
+    /**
+     * 이 글과 이슈가 얼마나 비슷한가. 분류가 다르면 0(같은 문제로 보지 않는다).
+     * 이슈의 지금 분류(사람이 고친 값) 또는 처음 자동 분류 중 하나와 같으면 비교한다 — 사람이 「결제→불편」으로 고친 뒤에도
+     * 같은 글은 자동으로 「결제」가 나오므로, 처음 분류를 함께 보지 않으면 고친 이슈에 비슷한 제보가 안 붙는다.
+     * 글이 똑같은 경우(정규화 키 일치)는 이 함수를 거치지 않고 분류와 상관없이 묶는다.
+     */
+    private double similarity(String normalized, Category category, Issue issue) {
+        if (props.sameCategoryOnly() && issue.getCategory() != category && issue.getAutoCategory() != category) return 0.0;
+        return Similarity.jaccard(normalized, issue.getNormalizedText());
     }
 }

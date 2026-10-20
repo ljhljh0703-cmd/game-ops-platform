@@ -21,7 +21,9 @@ public final class EvalMain {
     public static final Path PAIRS = Path.of("eval/duplicate-pairs.jsonl");
     /** 고정 회귀 문장 — 한 번 틀렸던 문장. 규칙을 고칠 때 봐도 된다 */
     public static final Path REGRESSION = Path.of("eval/classifier-regression.jsonl");
-    public static final double CURRENT_THRESHOLD = 0.55;
+    /** 운영 묶기 방식과 기준(application.yml 과 같아야 한다 — EvalGateTest 가 확인) */
+    public static final double CURRENT_THRESHOLD = 0.20;
+    public static final DuplicateEvaluator.Method CURRENT_METHOD = DuplicateEvaluator.Method.JACCARD_SAME_CATEGORY;
 
     public static void main(String[] args) throws Exception {
         String rules = System.getProperty("eval.rules", "");
@@ -36,7 +38,7 @@ public final class EvalMain {
         var hold = showHoldout ? ClassifierEvaluator.run(classifier, cases, "holdout") : null;
         var reg = ClassifierEvaluator.run(classifier, EvalData.cases(REGRESSION), "regression");
         var pairs = EvalData.pairs(PAIRS);
-        var scored = DuplicateEvaluator.score(pairs);
+        var scored = DuplicateEvaluator.score(pairs, CURRENT_METHOD, classifier);
         var sweep = DuplicateEvaluator.sweep(scored, 0.10, 0.80, 0.05);
 
         String md = Report.markdown(label, rules.isBlank() ? "기본 규칙(classifier-rules.json)" : rules, dev, hold, reg, scored, sweep)
@@ -111,7 +113,8 @@ public final class EvalMain {
             s.append(hold == null ? "\nholdout 은 이번에 재지 않았다(-Pholdout=true 는 릴리스 때 한 번만).\n"
                     : "\nholdout 틀린 사례는 일부러 적지 않는다(규칙을 holdout 에 맞추지 않기 위해). 건수만 본다.\n");
 
-            s.append("\n## 묶기 기준값\n\n같은 문제 20쌍 · 다른 문제 20쌍. 현재 기준 ").append(CURRENT_THRESHOLD).append(".\n\n");
+            s.append("\n## 묶기 기준값\n\n같은 문제 20쌍 · 다른 문제 20쌍. 운영 방식 = ").append(CURRENT_METHOD.label)
+                    .append(", 현재 기준 ").append(CURRENT_THRESHOLD).append(". 아래 유사도는 분류가 다르면 0.\n\n");
             s.append("| 기준 | 묶음 정밀도 | 묶음 재현율 | F1 | 엉뚱하게 묶음 | 못 묶음 |\n|---|---|---|---|---|---|\n");
             for (var r : sweep) {
                 boolean now = Math.abs(r.threshold() - CURRENT_THRESHOLD) < 1e-9;
