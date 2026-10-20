@@ -63,6 +63,11 @@ esac
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
 # shellcheck disable=SC2086
 docker compose $PROFILE up -d --build
+if [ -n "$PROFILE" ]; then
+  # 슬랙 관문의 주소 규칙 파일이 바뀌어도 관문이 이미 켜져 있으면 옛 규칙을 계속 쓴다(2026-10-21 홈 현황판 주소가 404). 매번 다시 읽게 한다.
+  # shellcheck disable=SC2086
+  docker compose $PROFILE restart slack-gateway >/dev/null
+fi
 
 echo "[4/4] 서버가 뜰 때까지 기다리는 중"
 for i in $(seq 1 60); do

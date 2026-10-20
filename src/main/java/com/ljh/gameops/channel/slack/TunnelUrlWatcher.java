@@ -8,6 +8,7 @@ import com.ljh.gameops.notify.NotificationType;
 import com.ljh.gameops.notify.OutboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -31,6 +32,8 @@ public class TunnelUrlWatcher {
     private final OutboxService outbox;
     private String lastSeen;
 
+    // 생성자가 둘이라 서버가 쓸 쪽을 꼭 표시한다(빠지면 서버가 켜지다 멈춘다, 2026-10-21 실제로 있었음)
+    @Autowired
     public TunnelUrlWatcher(@Value("${gameops.slack.tunnel-metrics-url}") String metricsUrl, OutboxService outbox, ObjectMapper mapper) {
         this(fetcher(metricsUrl, mapper), outbox);
     }
