@@ -30,6 +30,10 @@ public class DiscordReportHandler {
         this.issues = issues;
         this.props = props;
         this.games = games;
+        if (props.defaultGame() != null && games.byCode(props.defaultGame()).isEmpty() && !games.all().isEmpty()) {
+            log.warn("기본 게임 {} 이(가) 게임 목록(games.json)에 없습니다. 이 게임 제보는 게임별 슬랙 채널 없이 공용 채널로 갑니다",
+                    props.defaultGame());
+        }
     }
 
     /** 제보 채널에 올라온 일반 글. 봇 글·제보 채널이 아닌 곳의 글·빈 글은 답하지 않는다. */

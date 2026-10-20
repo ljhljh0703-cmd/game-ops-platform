@@ -44,6 +44,14 @@ public class SlackMessageBuilder {
         return normal;
     }
 
+    /** 게임 채널로 못 보냈을 때(채널 없음·봇이 못 들어감) 대신 보낼 공용 채널. 게임 채널과 같거나 없으면 null. */
+    public String sharedFallbackFor(RenderedNotification n, String failedChannel) {
+        boolean high = n.severity() == Severity.HIGH || n.severity() == Severity.CRITICAL;
+        String shared = firstNonBlank(high && props.channels() != null ? props.channels().urgent() : null,
+                props.channels() == null ? null : props.channels().defaultChannel());
+        return shared == null || shared.equals(failedChannel) ? null : shared;
+    }
+
     private static String firstNonBlank(String... values) {
         for (String v : values) if (v != null && !v.isBlank()) return v.trim();
         return null;

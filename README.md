@@ -2,7 +2,7 @@
 
 게임 운영 플랫폼. 플레이어가 디스코드에 올린 버그·불만을 서버가 받아 분류하고, 비슷한 제보를 하나의 이슈로 묶어 DB에 넣는다. 개발팀 슬랙에는 새 이슈 알림과 주간 보고가 가고, 알림의 버튼으로 이슈 상태를 바꾼다.
 
-테스트 대상 게임: 보석타워(`gemtower`), 젤리 패닉(`jelly-panic`).
+여러 게임을 한 서버로 운영한다. 기본 목록: 젤리 패닉(`jelly-panic`), 보석타워(`gemtower`), 무브퓨(`movefu`) — `config/games.json`.
 
 ## 흐름
 
@@ -86,6 +86,17 @@ curl -H 'Content-Type: application/json' \
 ## 설정 키
 
 `.env.example` 참고. 주요 값: `DUPLICATE_THRESHOLD`(중복 기준, 기본 0.55) · `RECURRENCE_WINDOW_DAYS`(재발로 볼 기간, 기본 30일) · `LLM_*` · `SLACK_*` · `DISCORD_*` · `ADMIN_API_KEY` · `AUTHOR_HASH_SALT`.
+
+## 게임 추가·채널 정하기
+
+`config/games.json` 에 게임마다 한 줄씩 적는다. 저장 후 서버를 다시 켜면 반영되고, DB 게임 표도 맞춰진다(지우지는 않음 — 지난 제보 보존). 틀린 목록(같은 코드, 한 채널을 두 게임에 걸기 등)이면 서버가 켜지지 않는다.
+
+```json
+{"code": "movefu", "name": "무브퓨", "discordChannels": ["무브퓨-버그제보"], "slackChannel": "#무브퓨-알림"}
+```
+
+- 디스코드: 봇이 들어간 서버에 `무브퓨-버그제보` 채널을 만들면 그 채널 글은 무브퓨 제보가 된다. 채널 이름 대신 채널 ID 를 적어도 된다(이름을 바꿔도 안 끊기니 운영에서는 ID 권장). 그 채널 안 스레드 글도 같은 게임으로 받는다. `/report` 는 게임을 고를 수 있고, 안 고르면 쓴 채널의 게임.
+- 슬랙: 게임 알림은 `slackChannel` 로, 심각한 알림은 `slackUrgentChannel` → 공용 긴급(`SLACK_CHANNEL_URGENT`) 순. 비우면 공용 채널(`SLACK_CHANNEL_DEFAULT`). 게임 채널이 없거나 봇이 못 들어가면 공용 채널로 대신 보내고 그 사실을 알림에 적는다.
 
 ## 분류 키워드 고치기
 

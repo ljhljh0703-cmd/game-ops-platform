@@ -23,6 +23,7 @@ public final class GameCatalog {
                 throw new IllegalArgumentException("게임 코드는 영문 소문자·숫자·- 로 40자 이내: " + g.code());
             }
             if (g.name() == null || g.name().isBlank()) throw new IllegalArgumentException("게임 이름이 비어 있습니다: " + g.code());
+            if (g.name().length() > 100) throw new IllegalArgumentException("게임 이름은 100자 이내: " + g.code());
             if (byCode.put(g.code(), g) != null) throw new IllegalArgumentException("같은 게임 코드가 두 번 있습니다: " + g.code());
             for (String ch : g.discordChannels()) {
                 String key = normalize(ch);

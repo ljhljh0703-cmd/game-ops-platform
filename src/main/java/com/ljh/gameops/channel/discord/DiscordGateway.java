@@ -5,6 +5,8 @@ import jakarta.annotation.PreDestroy;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 @Component
 @ConditionalOnProperty(prefix = "gameops.discord", name = "enabled", havingValue = "true")
 public class DiscordGateway extends ListenerAdapter {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DiscordGateway.class);
     private final DiscordProperties props;
     private final DiscordReportHandler handler;
     private final GameCatalog games;
@@ -59,6 +62,7 @@ public class DiscordGateway extends ListenerAdapter {
     /** 게임을 목록에서 고르게 한다(디스코드 선택지는 25개까지). 안 고르면 쓴 채널의 게임. */
     private OptionData gameOption() {
         OptionData o = new OptionData(OptionType.STRING, "game", "어느 게임인가요 (안 고르면 이 채널의 게임)", false);
+        if (games.all().size() > 25) log.warn("게임이 {}개라 /report 선택지에는 앞 25개만 보입니다(나머지는 채널로 구분)", games.all().size());
         games.all().stream().limit(25).forEach(g -> o.addChoice(g.name(), g.code()));
         return o;
     }
@@ -67,7 +71,8 @@ public class DiscordGateway extends ListenerAdapter {
     public void onMessageReceived(MessageReceivedEvent e) {
         Message m = e.getMessage();
         String attachments = m.getAttachments().stream().map(Message.Attachment::getUrl).collect(Collectors.joining("\n"));
-        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), e.getChannel().getId(), e.getChannel().getName(), e.getAuthor().getId(),
+        String[] ch = baseChannel(e.getChannel());
+        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
                         e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments))
                 .ifPresent(reply -> m.reply(reply).queue()));
     }
@@ -78,17 +83,34 @@ public class DiscordGateway extends ListenerAdapter {
         e.deferReply(true).queue(); // 3초 안에 응답해야 하므로 먼저 「처리 중」을 보낸다
         OptionMapping game = e.getOption("game");
         OptionMapping content = e.getOption("content");
-        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), e.getChannelId(), channelName(e), e.getUser().getId(),
+        String[] ch = slashChannel(e);
+        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), ch[0], ch[1], e.getUser().getId(),
                 false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null);
         workers.submit(() -> e.getHook().sendMessage(handler.onSlashCommand(in)).queue());
     }
 
-    // 명령을 쓴 채널 이름 — 캐시가 없어 못 얻으면 null(그때는 채널 ID 로만 게임을 찾는다)
-    private static String channelName(SlashCommandInteractionEvent e) {
+    /**
+     * 게임을 정할 채널의 [ID, 이름]. 스레드·포럼 글이면 스레드가 아니라 그 부모 채널로 본다
+     * (게임 채널 안 스레드에 쓴 제보가 무시되거나 기본 게임으로 잘못 들어가지 않게).
+     */
+    static String[] baseChannel(Channel c) {
+        if (c instanceof ThreadChannel t) {
+            try {
+                var parent = t.getParentChannel();
+                return new String[]{parent.getId(), parent.getName()};
+            } catch (RuntimeException ex) {
+                return new String[]{t.getId(), null}; // 부모를 모르면 스레드 자체(게임 채널로 안 잡혀 무시됨)
+            }
+        }
+        return new String[]{c.getId(), c.getName()};
+    }
+
+    // 명령을 쓴 채널 — 캐시가 없어 못 얻으면 ID 만(그때는 채널 ID 로만 게임을 찾는다)
+    private static String[] slashChannel(SlashCommandInteractionEvent e) {
         try {
-            return e.getChannel().getName();
+            return baseChannel(e.getChannel());
         } catch (RuntimeException ex) {
-            return null;
+            return new String[]{e.getChannelId(), null};
         }
     }
 

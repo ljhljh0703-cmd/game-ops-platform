@@ -4,6 +4,8 @@ package com.ljh.gameops.channel;
 import com.ljh.gameops.channel.slack.SlackMessageBuilder;
 import com.ljh.gameops.channel.slack.SlackProperties;
 import com.ljh.gameops.channel.slack.SlackSender;
+import com.ljh.gameops.game.GameCatalog;
+import com.ljh.gameops.game.GameSpec;
 import com.ljh.gameops.issue.Severity;
 import com.ljh.gameops.notify.NotificationType;
 import com.ljh.gameops.notify.RenderedNotification;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,5 +55,28 @@ class SlackSenderTest {
     void 네트워크가_끊기면_예외() throws Exception {
         when(client.chatPostMessage(any(ChatPostMessageRequest.class))).thenThrow(new IOException("connection reset"));
         assertThatThrownBy(() -> sender.send(n)).hasMessageContaining("connection reset");
+    }
+
+    private final SlackSender perGame = new SlackSender(client, new SlackMessageBuilder(
+            new SlackProperties(true, "x", "s", new SlackProperties.Channels("C_DEFAULT", "C_URGENT")),
+            new GameCatalog(List.of(new GameSpec("movefu", "무브퓨", List.of(), "#무브퓨-알림", null)))));
+    private final RenderedNotification movefuLow = new RenderedNotification(NotificationType.NEW_ISSUE, "movefu", Severity.LOW, 5L, "새 이슈 #5");
+
+    @Test
+    void 게임_채널이_없으면_공용_채널로_한_번_돌려_보낸다() throws Exception {
+        when(client.chatPostMessage(any(ChatPostMessageRequest.class)))
+                .thenReturn(response(false, "channel_not_found"), response(true, null));
+        perGame.send(movefuLow);
+        ArgumentCaptor<ChatPostMessageRequest> cap = ArgumentCaptor.forClass(ChatPostMessageRequest.class);
+        verify(client, times(2)).chatPostMessage(cap.capture());
+        assertThat(cap.getAllValues()).extracting(ChatPostMessageRequest::getChannel).containsExactly("#무브퓨-알림", "C_DEFAULT");
+        assertThat(cap.getAllValues().get(1).getText()).contains("#무브퓨-알림 로 못 보내");
+    }
+
+    @Test
+    void 다른_오류는_돌려_보내지_않고_재시도에_맡긴다() throws Exception {
+        when(client.chatPostMessage(any(ChatPostMessageRequest.class))).thenReturn(response(false, "ratelimited"));
+        assertThatThrownBy(() -> perGame.send(movefuLow)).hasMessageContaining("ratelimited");
+        verify(client, times(1)).chatPostMessage(any(ChatPostMessageRequest.class));
     }
 }

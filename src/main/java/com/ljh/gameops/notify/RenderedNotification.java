@@ -3,4 +3,8 @@ package com.ljh.gameops.notify;
 
 import com.ljh.gameops.issue.Severity;
 
-public record RenderedNotification(NotificationType type, String gameCode, Severity severity, Long issueId, String text) {}
+public record RenderedNotification(NotificationType type, String gameCode, Severity severity, Long issueId, String text) {
+    public RenderedNotification withText(String newText) {
+        return new RenderedNotification(type, gameCode, severity, issueId, newText);
+    }
+}
