@@ -37,6 +37,9 @@ public class NotificationRenderer {
                     "심각도 상승(" + p.path("from").asText() + "→)", null);
             case WEEKLY_REPORT -> new RenderedNotification(m.getType(), p.path("gameCode").asText(null), Severity.LOW, null, p.path("text").asText());
             // 게임이 없는 운영 알림 — 높음으로 두어 공용 긴급 채널로 간다
+            // 플레이어 답장은 대기열에서 디스코드로 바로 보낸다(OutboxDispatcher). 여기는 기록·로그용 한 줄
+            case PLAYER_RESOLVED -> new RenderedNotification(m.getType(), null, Severity.LOW, p.path("issueId").asLong(),
+                    "제보자에게 해결 답장 #" + p.path("issueId").asLong());
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
         };
     }

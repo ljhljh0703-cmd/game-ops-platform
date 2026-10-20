@@ -112,7 +112,7 @@ public class IntakeService {
 
     private IntakeResult store(Game game, SubmitReport cmd, Classification c) {
         Report report = reports.saveAndFlush(new Report(game.getId(), cmd.channel(), cmd.externalId(),
-                hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls()));
+                hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls(), cmd.replyTo()));
 
         String normalized = TextNormalizer.normalize(cmd.body());
         // 링크·이모지·감탄사만 있는 글은 정규화하면 빈 문자열이 된다. 빈 글끼리 묶으면 무관한 제보가 한 이슈로

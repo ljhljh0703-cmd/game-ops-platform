@@ -16,6 +16,8 @@ public class Report {
     private String authorHash;
     private String body;
     private String attachmentUrls;
+    /** 답장할 곳(디스코드: 「채널 ID:메시지 ID」). 없으면 답장하지 않는다(V6) */
+    private String replyTo;
     private OffsetDateTime receivedAt;
 
     protected Report() {}
@@ -30,6 +32,14 @@ public class Report {
         this.attachmentUrls = attachmentUrls;
         this.receivedAt = OffsetDateTime.now();
     }
+
+    public Report(Long gameId, SourceChannel sourceChannel, String externalId, String authorHash,
+                  String body, String attachmentUrls, String replyTo) {
+        this(gameId, sourceChannel, externalId, authorHash, body, attachmentUrls);
+        this.replyTo = replyTo;
+    }
+
+    public String getReplyTo() { return replyTo; }
 
     public Long getId() { return id; }
     public Long getGameId() { return gameId; }

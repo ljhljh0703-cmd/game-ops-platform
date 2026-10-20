@@ -72,9 +72,11 @@ public class DiscordGateway extends ListenerAdapter {
         Message m = e.getMessage();
         String attachments = m.getAttachments().stream().map(Message.Attachment::getUrl).collect(Collectors.joining("\n"));
         String[] ch = baseChannel(e.getChannel());
-        workers.submit(() -> handler.onChannelMessage(new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
-                        e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments))
-                .ifPresent(reply -> m.reply(reply).queue()));
+        // 답장할 곳은 실제 채널(스레드면 스레드) + 메시지. 해결되면 이 글에 「고쳤어요」를 단다
+        String replyTo = e.getChannel().getId() + ":" + m.getId();
+        workers.submit(() -> handler.onChannelMessageReply(new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
+                        e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments, replyTo))
+                .ifPresent(reply -> m.replyEmbeds(DiscordCards.intake(reply, true)).queue()));
     }
 
     @Override
@@ -86,7 +88,7 @@ public class DiscordGateway extends ListenerAdapter {
         String[] ch = slashChannel(e);
         DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), ch[0], ch[1], e.getUser().getId(),
                 false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null);
-        workers.submit(() -> e.getHook().sendMessage(handler.onSlashCommand(in)).queue());
+        workers.submit(() -> e.getHook().sendMessageEmbeds(DiscordCards.intake(handler.onSlashCommandReply(in), false)).queue());
     }
 
     /**
@@ -113,6 +115,9 @@ public class DiscordGateway extends ListenerAdapter {
             return new String[]{e.getChannelId(), null};
         }
     }
+
+    /** 해결 답장 등 다른 곳에서 봇으로 보낼 때. 아직 안 켜졌으면 null */
+    public JDA jda() { return jda; }
 
     @PreDestroy
     public void stop() {

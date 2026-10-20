@@ -3,6 +3,7 @@ package com.ljh.gameops.notify;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -18,14 +19,32 @@ public class OutboxDispatcher {
     private final NotificationSender sender;
     private final OutboxProperties props;
     private final TransactionTemplate tx;
+    private final ObjectProvider<PlayerNotifier> players;
 
     public OutboxDispatcher(OutboxRepository repository, NotificationRenderer renderer, NotificationSender sender,
-                            OutboxProperties props, TransactionTemplate tx) {
+                            OutboxProperties props, TransactionTemplate tx, ObjectProvider<PlayerNotifier> players) {
         this.repository = repository;
         this.renderer = renderer;
         this.sender = sender;
         this.props = props;
         this.tx = tx;
+        this.players = players;
+    }
+
+    /** 플레이어 답장은 슬랙이 아니라 디스코드로. 디스코드를 끈 채면 보낼 곳이 없으니 보낸 것으로 친다(쌓아 두지 않음). */
+    private void deliver(OutboxMessage m) {
+        if (m.getType() == NotificationType.PLAYER_RESOLVED) {
+            PlayerNotifier p = players.getIfAvailable();
+            if (p == null) {
+                log.debug("디스코드가 꺼져 있어 제보자 답장을 건너뜁니다 id={}", m.getId());
+                return;
+            }
+            long issueId = renderer.render(m).issueId();
+            int n = p.issueResolved(issueId);
+            log.info("이슈 #{} 해결 답장 {}건", issueId, n);
+            return;
+        }
+        sender.send(renderer.render(m));
     }
 
     @Scheduled(fixedDelayString = "${gameops.outbox.poll-ms}")
@@ -40,7 +59,7 @@ public class OutboxDispatcher {
             int ok = 0;
             for (OutboxMessage m : due) {
                 try {
-                    sender.send(renderer.render(m));
+                    deliver(m);
                     m.markSent();
                     ok++;
                 } catch (RuntimeException e) {
