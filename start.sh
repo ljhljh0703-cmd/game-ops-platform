@@ -6,13 +6,26 @@ cd "$(dirname "$0")"
 exec > >(tee start.log) 2>&1
 echo "시작: $(date)"
 
-echo "[1/4] Docker 확인"
+echo "[1/4] Docker 확인 (OrbStack 또는 Docker Desktop)"
 if ! command -v docker >/dev/null 2>&1; then
-  echo "  Docker 가 설치돼 있지 않습니다. https://www.docker.com/products/docker-desktop/ 에서 설치 후 다시 실행하세요."
+  echo "  docker 명령이 없습니다. OrbStack(https://orbstack.dev) 을 설치하고 한 번 켠 뒤 다시 실행하세요."
   exit 1
 fi
-if ! docker info >/dev/null 2>&1; then
-  echo "  Docker Desktop 이 꺼져 있습니다. 앱을 켜고 상단 고래 아이콘이 멈출 때까지 기다린 뒤 다시 실행하세요."
+# Docker 가 멈춰 있으면 docker info 가 끝없이 기다린다(2026-10-20 실제로 있었음). 20초 안에 답이 없으면 멈춘 것으로 본다.
+docker info >/dev/null 2>&1 &
+info_pid=$!
+docker_ok=""
+for _ in $(seq 1 20); do
+  if ! kill -0 "$info_pid" 2>/dev/null; then
+    wait "$info_pid" && docker_ok=1
+    break
+  fi
+  sleep 1
+done
+if [ -z "$docker_ok" ]; then
+  kill "$info_pid" 2>/dev/null || true
+  echo "  Docker 가 꺼져 있거나 응답하지 않습니다."
+  echo "  OrbStack(또는 Docker Desktop)을 켜고 1분쯤 기다린 뒤 다시 실행하세요. 계속 멈추면 그 앱을 완전히 끄고 다시 켜세요."
   exit 1
 fi
 
@@ -26,7 +39,6 @@ if [ ! -f .env ]; then
 else
   echo "  기존 .env 를 그대로 씁니다."
 fi
-ADMIN_KEY=$(grep '^ADMIN_API_KEY=' .env | cut -d= -f2-)
 # 값에 따옴표를 둘러 써도 Docker 와 같은 뜻으로 읽는다
 SLACK_ON=$( (grep '^SLACK_ENABLED=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
 SLACK_SECRET_LEN=$( (grep '^SLACK_SIGNING_SECRET=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'" | wc -c | tr -d ' ')
@@ -62,7 +74,7 @@ for i in $(seq 1 60); do
     echo "  curl -H 'Content-Type: application/json' -d '{\"game\":\"gemtower\",\"authorId\":\"me\",\"body\":\"보스 웨이브에서 튕겨요\"}' localhost:8080/api/reports"
     echo "이슈 목록 보기:"
     echo "  curl 'localhost:8080/api/issues?game=gemtower'"
-    echo "관리자 키(상태 변경용): ${ADMIN_KEY}"
+    echo "관리자 키(상태 변경용): .env 의 ADMIN_API_KEY (기록에 남지 않게 화면에는 안 씁니다)"
     if [ -n "$PROFILE" ]; then
       url=""
       rm -f slack-request-url.txt

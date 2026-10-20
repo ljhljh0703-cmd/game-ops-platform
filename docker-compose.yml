@@ -2,6 +2,8 @@
 services:
   db:
     image: postgres:16-alpine
+    # 맥을 다시 켜거나 OrbStack 이 다시 뜨면 저절로 다시 켠다(직접 끈 경우는 제외)
+    restart: unless-stopped
     environment:
       POSTGRES_DB: gameops
       POSTGRES_USER: gameops
@@ -20,6 +22,7 @@ services:
 
   app:
     build: .
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +47,7 @@ services:
   # gateway 는 /slack/interactions 하나만 서버로 넘기고, tunnel 은 그 문만 인터넷에 연결한다.
   slack-gateway:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     profiles: ["slack-buttons"]
     depends_on:
       - app
@@ -52,6 +56,8 @@ services:
 
   tunnel:
     image: cloudflare/cloudflared:2025.1.0
+    # 저절로 다시 켜지면 임시 주소가 바뀐다 → start.sh 를 다시 실행해 새 주소를 슬랙에 넣는다
+    restart: unless-stopped
     profiles: ["slack-buttons"]
     depends_on:
       - slack-gateway

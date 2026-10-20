@@ -44,7 +44,7 @@ Java 21 · Spring Boot 3.3 · PostgreSQL 16 · Flyway · JDA(디스코드) · Sl
 ./start.sh
 ```
 
-Docker 확인 → `.env` 자동 생성(관리자 키 무작위 생성) → 서버·DB 켜기 → 헬스체크까지 한 번에 한다. 직접 하려면 `cp .env.example .env` 뒤 `docker compose up -d --build`.
+Docker(맥에서는 OrbStack 권장, Docker Desktop 도 됨) 확인 → `.env` 자동 생성(관리자 키 무작위 생성) → 서버·DB 켜기 → 헬스체크까지 한 번에 한다. 직접 하려면 `cp .env.example .env` 뒤 `docker compose up -d --build`.
 
 제보 올리기:
 
