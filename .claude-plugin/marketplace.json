@@ -1,6 +1,11 @@
 {
   "name": "game-ops-platform",
-  "owner": { "name": "이주형" },
+  "owner": {
+    "name": "이주형"
+  },
+  "metadata": {
+    "description": "게임 운영 플랫폼(디스코드 제보 → 분류·묶기 → 슬랙) 운영 플러그인"
+  },
   "plugins": [
     {
       "name": "game-ops",
