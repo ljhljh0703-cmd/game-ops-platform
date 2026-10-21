@@ -111,6 +111,11 @@ public class SlackInteractionController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "payload 해석 실패"));
         }
+        return handle(payload);
+    }
+
+    /** 서명 확인이 끝난(또는 소켓 모드로 받은) 버튼·입력 창 하나. 돌려준 본문이 슬랙에 가는 답이다 */
+    public ResponseEntity<?> handle(JsonNode payload) {
         String userId = payload.path("user").path("id").asText(null);
         boolean admin = guard.isSlackAdmin(userId);
         if ("view_submission".equals(payload.path("type").asText())) {

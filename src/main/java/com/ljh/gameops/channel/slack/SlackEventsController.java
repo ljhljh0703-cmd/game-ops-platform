@@ -52,6 +52,12 @@ public class SlackEventsController {
         if ("url_verification".equals(p.path("type").asText())) {
             return ResponseEntity.ok(Map.of("challenge", p.path("challenge").asText("")));
         }
+        handle(p);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 서명 확인이 끝난(또는 소켓 모드로 받은) 이벤트 하나 */
+    public void handle(JsonNode p) {
         JsonNode e = p.path("event");
         if ("app_home_opened".equals(e.path("type").asText()) && "home".equals(e.path("tab").asText("home"))) {
             String user = e.path("user").asText(null);
@@ -63,6 +69,5 @@ public class SlackEventsController {
                 }
             });
         }
-        return ResponseEntity.ok().build();
     }
 }

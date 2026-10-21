@@ -70,7 +70,11 @@ public class SlackCommandController {
                 || !new SlackSignatureVerifier(props.signingSecret()).verify(ts, raw, sig, clock.instant())) {
             return ResponseEntity.status(401).body(Map.of("error", "서명 불일치"));
         }
-        Map<String, String> f = form(raw);
+        return handle(form(raw));
+    }
+
+    /** 서명 확인이 끝난(또는 소켓 모드로 받은) 명령 하나. f = 슬랙이 보낸 칸들(user_id·text·channel_id·response_url…) */
+    public ResponseEntity<?> handle(Map<String, String> f) {
         String user = f.getOrDefault("user_id", "");
         if (!guard.isSlackAdmin(user)) return reply("이 명령은 운영 담당만 쓸 수 있어요.");
 

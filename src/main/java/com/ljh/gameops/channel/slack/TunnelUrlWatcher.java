@@ -43,8 +43,12 @@ public class TunnelUrlWatcher {
         this.outbox = outbox;
     }
 
+    @org.springframework.beans.factory.annotation.Value("${gameops.slack.app-token:}")
+    String appToken = "";
+
     @Scheduled(initialDelayString = "${gameops.slack.tunnel-check-ms:60000}", fixedDelayString = "${gameops.slack.tunnel-check-ms:60000}")
     public void check() {
+        if (appToken != null && !appToken.isBlank()) return; // 소켓 모드면 공개 주소를 안 쓴다(결정 40)
         String host;
         try {
             host = hostname.get();

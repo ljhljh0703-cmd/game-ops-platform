@@ -43,8 +43,14 @@ fi
 SLACK_ON=$( (grep '^SLACK_ENABLED=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
 SLACK_SECRET_LEN=$( (grep '^SLACK_SIGNING_SECRET=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'" | wc -c | tr -d ' ')
 # macOS 기본 bash(3.2)에서도 돌도록 배열 대신 문자열을 쓴다
+SLACK_APP=$( (grep '^SLACK_APP_TOKEN=' .env || true) | tail -1 | cut -d= -f2- | tr -d "[:space:]\"'")
 PROFILE=""
-if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
+SOCKET=""
+if [ "${SLACK_ON}" = "true" ] && [ "${SLACK_APP#xapp-}" != "${SLACK_APP}" ]; then
+  # 소켓 모드(결정 40): 서버가 슬랙에 먼저 연결한다. 공개 주소·중계·터널이 필요 없고 슬랙 주소를 바꿀 일이 없다
+  SOCKET="yes"
+  echo "  슬랙은 소켓 모드로 연결합니다(공개 주소 없음, 슬랙 주소 설정 필요 없음)."
+elif [ "${SLACK_ON}" = "true" ] && [ "${SLACK_SECRET_LEN}" -gt 0 ]; then
   PROFILE="--profile slack-buttons"
   echo "  슬랙 버튼용 공개 주소도 함께 켭니다."
 fi
@@ -63,6 +69,10 @@ esac
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
 # shellcheck disable=SC2086
 docker compose $PROFILE up -d --build
+if [ -n "$SOCKET" ]; then
+  # 예전 방식으로 켜 둔 중계·터널이 남아 있으면 끈다(쓸 일이 없다)
+  docker compose --profile slack-buttons stop slack-gateway tunnel >/dev/null 2>&1 || true
+fi
 if [ -n "$PROFILE" ]; then
   # 슬랙 관문의 주소 규칙 파일이 바뀌어도 관문이 이미 켜져 있으면 옛 규칙을 계속 쓴다(2026-10-21 홈 현황판 주소가 404). 매번 다시 읽게 한다.
   # shellcheck disable=SC2086
@@ -103,6 +113,8 @@ for i in $(seq 1 60); do
       else
         echo "슬랙 버튼용 공개 주소를 받지 못했습니다: docker compose logs tunnel"
       fi
+    elif [ -n "$SOCKET" ]; then
+      echo "슬랙: 소켓 모드. 버튼·홈 현황판·/피드백정리가 주소 설정 없이 돌아갑니다."
     elif [ "${SLACK_ON}" = "true" ]; then
       echo "슬랙 버튼을 쓰려면 .env 의 SLACK_SIGNING_SECRET 을 채우고 다시 실행하세요(알림은 지금도 갑니다)."
     fi

@@ -29,6 +29,8 @@ dependencies {
 
     implementation('net.dv8tion:JDA:5.6.1') { exclude module: 'opus-java' }
     implementation 'com.slack.api:slack-api-client:1.45.3'
+    // 슬랙 소켓 모드(결정 40) — 공개 주소 없이 서버가 슬랙에 먼저 연결해 버튼·명령·이벤트를 받는다
+    implementation 'org.java-websocket:Java-WebSocket:1.6.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'

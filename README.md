@@ -279,6 +279,10 @@ QA 가 버그 제보를 받으면 먼저 묻는 네 가지를 같이 받는다. 
 
 카드마다 게임별 봇 이름·아이콘으로 온다(`config/games.json` 의 `botName`·`icon`, 공용 카드는 「게임 운영 봇」). 아이콘은 `docs/brand/` (보석타워·운영 봇은 웹 ChatGPT 생성, 젤리 패닉은 게임 출시 아이콘, 무브퓨는 글자 아이콘).
 
+### 슬랙 소켓 모드 (주소 설정 없이)
+
+`.env` 에 `SLACK_APP_TOKEN`(슬랙 앱 설정 > Basic Information > App-Level Tokens 에서 `connections:write` 로 만든 xapp-… 토큰)을 넣고, 슬랙 앱 설정 > Socket Mode 를 켠다. 그러면 서버가 슬랙에 먼저 연결해 버튼·홈 현황판·`/피드백정리`를 받는다. 공개 주소·중계·터널이 필요 없어서 서버를 껐다 켜도 슬랙 주소를 바꿀 일이 없다. 아래 「슬랙 앱 설정」의 주소 넣기는 토큰이 없을 때만 필요하다.
+
 ### 슬랙 앱 설정 (처음 한 번)
 
 1. OAuth & Permissions > Bot Token Scopes 에 `chat:write.customize` 추가(봇 얼굴용)
