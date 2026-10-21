@@ -1,5 +1,47 @@
 # game-ops-platform
 
+> 플레이어가 디스코드에 올린 버그 제보를 받아 분류하고, 비슷한 제보를 이슈 하나로 묶어 개발팀 슬랙에 카드로 올리는 게임 운영 서버.
+>
+> 작품 페이지: https://ljhljh0703-cmd.github.io/game-ops/
+
+**실행**
+
+```bash
+./start.sh                                        # Docker 확인 → .env 생성 → 서버·DB 켜기 → 헬스체크
+cp .env.example .env && docker compose up -d --build   # 직접 켤 때
+```
+
+키 없이도 켜진다(분류는 키워드 규칙, 알림은 서버 로그). 연동할 때 `.env`에 넣는 값: `SLACK_BOT_TOKEN` · `SLACK_SIGNING_SECRET` · `DISCORD_BOT_TOKEN` · `LLM_API_KEY` · `GITHUB_TOKEN` · `JIRA_API_TOKEN`. 관리자 키 `ADMIN_API_KEY`는 `start.sh`가 만든다.
+
+**시험**
+
+```bash
+./gradlew test                               # 서버 테스트. Docker 필요(테스트용 PostgreSQL)
+cd agent/mcp-server && npm ci && npm test    # AI 에이전트용 MCP 서버 테스트
+./gradlew evalClassifier                     # 정답 붙인 제보로 분류 정확도 평가
+```
+
+2026-10-21 컨테이너에서 돌린 결과: `./gradlew test` 214개 통과(실패 0) · `npm test` 15개 통과 · `evalClassifier` 분류 정확도 dev 100%, 회귀 문장 17/17.
+
+**구조**
+
+```
+src/main/java/com/ljh/gameops/   서버 본체(접수·분류·묶기·알림·슬랙·디스코드·Jira)
+src/test/java/                   JUnit 테스트
+agent/mcp-server/                AI 에이전트가 쓰는 MCP 서버(TypeScript)
+agent/plugin/game-ops/           Claude 플러그인(운영 스킬)
+eval/                            정답 붙인 제보·제보 쌍(평가용)
+config/ · docs/                  게임 목록·분류 규칙 / API·운영·설계 결정 기록
+```
+
+**누가 무엇을**
+
+- 내가 정한 것: 기획·설계·판정 (이주형)
+- AI가 짠 것: 코드 작성, AI 코딩 도구(Claude)와 함께. 커밋 54개 모두 `Co-Authored-By: Claude` 표기
+- 내가 확인한 것: 검증 (이주형)
+
+---
+
 게임 운영 플랫폼. 플레이어가 디스코드에 올린 버그·불만을 서버가 받아 분류하고, 비슷한 제보를 하나의 이슈로 묶어 DB에 넣는다. 개발팀 슬랙에는 새 이슈 카드와 주간 보고가 가고, 카드의 버튼으로 상태를 바꾸거나 분류 고치기·잘못 묶인 제보 떼어내기를 슬랙 안에서 바로 한다.
 
 여러 게임을 한 서버로 운영한다. 기본 목록: 젤리 패닉(`jelly-panic`), 보석타워(`gemtower`), 무브퓨(`movefu`) — `config/games.json`.
