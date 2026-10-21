@@ -16,6 +16,10 @@ public final class JiraBrief {
     private JiraBrief() {}
 
     public static Ticket build(String gameName, String gameCode, HandoffBrief.Row r, int days) {
+        return build(gameName, gameCode, r, days, List.of());
+    }
+
+    public static Ticket build(String gameName, String gameCode, HandoffBrief.Row r, int days, List<com.ljh.gameops.errors.ClientErrors.Row> errors) {
         var s = r.repro();
         List<Object> c = new ArrayList<>();
         c.add(p("디스코드 플레이어 제보 " + r.count() + "건(최근 " + days + "일)을 게임 운영 플랫폼이 같은 문제로 묶은 버그예요. "
@@ -28,6 +32,15 @@ public final class JiraBrief {
                 "스크린샷: " + (s.screenshots().isEmpty() ? "없음" : s.screenshots().size() + "장(첨부)"))));
         c.add(h("플레이어 글"));
         for (String q : r.quotes()) c.add(quote(cut(q, QUOTE_MAX)));
+        if (errors != null && !errors.isEmpty()) {
+            c.add(h("같은 시간대 게임 오류 기록"));
+            c.add(p("제보 앞뒤 30분에 게임이 보낸 오류예요. 관련 있을 수 있지만 확정은 아니에요."));
+            List<String> lines = new ArrayList<>();
+            for (var e : errors) lines.add(cut(e.line(), 300));
+            c.add(bullets(lines));
+            String frames = errors.get(0).topFrames(6);
+            if (frames != null) c.add(Map.of("type", "codeBlock", "content", List.of(text(cut(frames, 1500)))));
+        }
         c.add(h("분류"));
         c.add(bullets(List.of(
                 "분류 · 심각도: " + Labels.of(r.category(), r.severity()),

@@ -61,6 +61,7 @@ public class NotificationRenderer {
                         digestCards.current(d.id()));
             }
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
+            case AI_BUDGET -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
         };
     }
 

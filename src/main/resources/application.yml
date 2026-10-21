@@ -80,6 +80,18 @@ gameops:
     api-url: ${GITHUB_API_URL:https://api.github.com}
     # 고친 코드가 들어왔는지 보는 간격(합쳐진 PR·기본 브랜치 커밋의 ops-번호 → 자동 해결)
     watch-ms: ${GITHUB_WATCH_MS:20000}
+  ai:
+    # 서버가 부르는 AI(분류·보고서) 비용 계산 단가 — 백만 토큰당 달러(Anthropic 가격표 claude-haiku-5-5, 2026-10 확인). 모델을 바꾸면 같이 바꾼다
+    price-input-per-mtok: ${AI_PRICE_INPUT:0.10}
+    price-output-per-mtok: ${AI_PRICE_OUTPUT:0.50}
+    price-input-long-per-mtok: ${AI_PRICE_INPUT_LONG:0.50}
+    price-output-long-per-mtok: ${AI_PRICE_OUTPUT_LONG:2.50}
+    long-prompt-tokens: 100000
+    # 한 달 예산(달러). 넘으면 이번 달은 AI 를 안 부르고 규칙·기록만으로. 0 이면 제한 없음
+    monthly-budget-usd: ${AI_MONTHLY_BUDGET_USD:5}
+  intake:
+    # 도배 막기 — 한 사람이 10분에 이만큼 넘게 디스코드 제보를 올리면 받지 않는다. 0 이면 끔
+    max-per-10min: ${INTAKE_MAX_PER_10MIN:5}
   jira:
     # Jira 버그 티켓(결정 32) — Jira Cloud 주소(https://회사.atlassian.net)·계정 메일·API 토큰. 셋 중 하나라도 비면 Jira 버튼이 안 보인다
     base-url: ${JIRA_BASE_URL:}

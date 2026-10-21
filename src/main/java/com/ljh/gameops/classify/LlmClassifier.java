@@ -23,11 +23,18 @@ public class LlmClassifier implements IssueClassifier {
     private final RestClient client;
     private final String model;
     private final ObjectMapper mapper;
+    /** 사용량·예산(결정 34). 없으면 기록 안 함 */
+    private final com.ljh.gameops.ai.AiUsage usage;
 
     public LlmClassifier(RestClient client, String model, ObjectMapper mapper) {
+        this(client, model, mapper, null);
+    }
+
+    public LlmClassifier(RestClient client, String model, ObjectMapper mapper, com.ljh.gameops.ai.AiUsage usage) {
         this.client = client;
         this.model = model;
         this.mapper = mapper;
+        this.usage = usage;
     }
 
     @Override
@@ -38,6 +45,8 @@ public class LlmClassifier implements IssueClassifier {
                 "messages", List.of(
                         Map.of("role", "system", "content", SYSTEM_PROMPT),
                         Map.of("role", "user", "content", "game=" + gameCode + "\nreport:\n" + body)));
+        // 이번 달 예산을 다 썼으면 부르지 않는다 → 키워드 규칙으로(FallbackClassifier)
+        if (usage != null && !usage.allowed()) throw new ClassifierException("이번 달 AI 예산을 다 썼어요");
         JsonNode response;
         try {
             response = client.post().uri("/chat/completions")
@@ -46,8 +55,10 @@ public class LlmClassifier implements IssueClassifier {
                     .retrieve()
                     .body(JsonNode.class);
         } catch (RuntimeException e) {
+            if (usage != null) usage.record(com.ljh.gameops.ai.AiUsage.CLASSIFY, model, null, false);
             throw new ClassifierException("LLM 호출 실패", e);
         }
+        if (usage != null) usage.record(com.ljh.gameops.ai.AiUsage.CLASSIFY, model, response, true);
         return parse(response);
     }
 

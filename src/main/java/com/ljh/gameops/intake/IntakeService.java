@@ -62,6 +62,25 @@ public class IntakeService {
         this.em = em;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.errors.ClientErrors clientErrors;
+
+    /** 플레이어가 붙여 넣은 「게임진단」 줄에 오류가 있으면 게임 오류 기록에도 넣는다(결정 37). 실패해도 접수는 그대로 */
+    private void recordDiagError(Game game, SubmitReport cmd) {
+        if (clientErrors == null) return;
+        var d = com.ljh.gameops.report.ReproInfo.diag(cmd.body());
+        if (d == null || d.error() == null) return;
+        try {
+            clientErrors.record(game.getId(), new com.ljh.gameops.errors.ClientErrors.Incoming(d.error(), null, d.version(), d.device(), "제보 글의 게임진단"));
+        } catch (RuntimeException e) {
+            log.warn("게임진단 오류 기록 실패: {}", e.getMessage());
+        }
+    }
+
+    /** 도배 막기(결정 36): 한 사람이 10분에 이만큼 넘게 올리면 받지 않는다. 0 이면 끔. 디스코드 제보에만 */
+    @org.springframework.beans.factory.annotation.Value("${gameops.intake.max-per-10min:5}")
+    int maxPer10Min = 5;
+
     public IntakeResult submit(SubmitReport cmd) {
         Game game = games.findByCode(cmd.gameCode())
                 .orElseThrow(() -> new NotFoundException("등록되지 않은 게임: " + cmd.gameCode()));
@@ -69,12 +88,23 @@ public class IntakeService {
         Optional<IntakeResult> redelivered = findRedelivery(cmd);
         if (redelivered.isPresent()) return redelivered.get();
 
+        if (maxPer10Min > 0 && cmd.channel() == com.ljh.gameops.report.SourceChannel.DISCORD) {
+            long recent = reports.countByAuthorHashAndReceivedAtAfter(hasher.hash(cmd.channel().name(), cmd.authorId()),
+                    OffsetDateTime.now().minusMinutes(10));
+            if (recent >= maxPer10Min) {
+                log.info("도배 막기: 10분에 {}건 넘게 올린 작성자의 제보를 받지 않음", maxPer10Min);
+                throw new RateLimitedException("짧은 시간에 제보가 많아요. 10분쯤 뒤에 다시 올려 주세요. 같은 문제면 처음 글에 답글로 더해 주시면 돼요.");
+            }
+        }
+
         Classification c = classifier.classify(game.getCode(), cmd.body());
 
         // 동시 제보가 같은 이슈를 두 번 만들거나(고유 인덱스), 같은 이슈를 동시에 고치면(version) 다시 시도한다.
         for (int attempt = 1; ; attempt++) {
             try {
-                return tx.execute(status -> store(game, cmd, c));
+                IntakeResult r = tx.execute(status -> store(game, cmd, c));
+                recordDiagError(game, cmd);
+                return r;
             } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException
                      | PessimisticLockingFailureException e) {
                 Optional<IntakeResult> again = findRedelivery(cmd);

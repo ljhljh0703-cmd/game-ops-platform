@@ -53,7 +53,7 @@ public final class GameCatalog {
             g.path("discordChannels").forEach(c -> channels.add(c.asText()));
             out.add(new GameSpec(text(g, "code"), text(g, "name"), channels,
                     text(g, "slackChannel"), text(g, "slackUrgentChannel"), text(g, "botName"), text(g, "icon"), text(g, "repo"),
-                    g.path("qa").asBoolean(false), jiraKey(text(g, "jiraProject"))));
+                    g.path("qa").asBoolean(false), jiraKey(text(g, "jiraProject")), text(g, "errorKey")));
         }
         return new GameCatalog(out);
     }

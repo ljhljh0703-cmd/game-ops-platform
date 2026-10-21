@@ -23,8 +23,17 @@ public class SlackHomeService {
     private final JdbcTemplate jdbc;
     private final SlackWebApi web;
     private final Clock clock;
+    private final org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.metrics.OpsMetrics> metrics;
+    private final org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.ai.AiUsage> usage;
+    private final org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.ai.ApiQuota> quota;
 
-    public SlackHomeService(GameRepository games, IssueRepository issues, JdbcTemplate jdbc, SlackWebApi web, Clock clock) {
+    public SlackHomeService(GameRepository games, IssueRepository issues, JdbcTemplate jdbc, SlackWebApi web, Clock clock,
+                            org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.metrics.OpsMetrics> metrics,
+                            org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.ai.AiUsage> usage,
+                            org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.ai.ApiQuota> quota) {
+        this.metrics = metrics;
+        this.usage = usage;
+        this.quota = quota;
         this.games = games;
         this.issues = issues;
         this.jdbc = jdbc;
@@ -48,7 +57,15 @@ public class SlackHomeService {
                     .limit(SlackHome.TOP)
                     .map(i -> new SlackHome.IssueRow(i.getId(), i.getTitle(), i.getCategory(), i.getSeverity(), i.getStatus(), i.getReportCount()))
                     .toList();
-            return new SlackHome.GameBoard(g.getName(), open.size() - inProgress, inProgress, urgent, resolved, top);
+            long verifying = issues.countByGameIdAndStatusIn(g.getId(), EnumSet.of(IssueStatus.VERIFYING));
+            var m = metrics.getIfAvailable();
+            String line = null;
+            if (m != null) {
+                var x = m.of(g.getCode(), 30);
+                line = "최근 30일 · 고칠 때까지 " + com.ljh.gameops.metrics.OpsMetrics.short_(x.toFix(), x.fixedSamples())
+                        + " · 재현 정보 " + x.reproPercent() + "% · 묶인 제보 " + x.merged() + "건 · 재발 " + x.recurrences() + "건";
+            }
+            return new SlackHome.GameBoard(g.getName(), open.size() - inProgress, inProgress, urgent, resolved, top, verifying, line);
         }).toList();
         String digest = jdbc.query("""
                 SELECT d.created_at, g.name, d.report_count FROM feedback_digest d LEFT JOIN game g ON g.id = d.game_id
@@ -60,7 +77,10 @@ public class SlackHomeService {
                 """, (rs, n) -> "#" + rs.getLong(1) + " · " + SlackCards.when(rs.getObject(2, OffsetDateTime.class))
                 + ("REVERTED".equals(rs.getString(3)) ? " · 되돌림" : "") + " · " + SlackCards.cut(rs.getString(4).replace("\n", " / "), 80))
                 .stream().findFirst().orElse(null);
-        return new SlackHome.Board(boards, digest, rules, now);
+        var u = usage.getIfAvailable();
+        var q = quota.getIfAvailable();
+        String use = u == null ? null : u.month().line() + (q != null && q.github() != null ? " · " + q.github().line() : "");
+        return new SlackHome.Board(boards, digest, rules, now, use);
     }
 
     /** 이 사람의 홈 탭에 현황판을 올린다 */

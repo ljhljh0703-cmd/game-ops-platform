@@ -117,6 +117,7 @@ public final class SlackCards {
         if (c.recurrenceOf() != null) ctx.add(md("🔁 재발 의심 · 최근 고친 #" + c.recurrenceOf() + "과 비슷"));
         // QA가 먼저 보는 재현 정보 한 줄(버전·기기·재현 순서·스크린샷). 플레이어가 쓴 값이라 바꿔 쓴다
         ctx.add(md("🧪 " + escape(cut(c.repro().line(), 200))));
+        if (c.errors() != null) ctx.add(md("🐞 " + escape(cut(c.errors(), 200))));
         if (c.jiraKey() != null) ctx.add(md("🎫 Jira <" + c.jiraUrl() + "|" + escape(c.jiraKey()) + ">"));
         if (c.detachedFrom() != null) ctx.add(md("✂️ #" + c.detachedFrom() + "에서 떼어냄"));
         String src = c.source() == null ? "" : SOURCE.get(c.source()) + " · ";

@@ -182,6 +182,27 @@
         },
         "type" : "object"
       },
+      "GitHub" : {
+        "properties" : {
+          "limit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "remaining" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "resetAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "seenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "IntakeResult" : {
         "properties" : {
           "issueId" : {
@@ -315,6 +336,31 @@
       "JsonNode" : {
         "type" : "object"
       },
+      "Prices" : {
+        "properties" : {
+          "input" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "inputLong" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "longThreshold" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "output" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "outputLong" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "ProposalRequest" : {
         "properties" : {
           "reason" : {
@@ -444,6 +490,62 @@
           }
         },
         "required" : [ "status" ],
+        "type" : "object"
+      },
+      "UsageView" : {
+        "properties" : {
+          "aiCalls" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "aiFailed" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "allTimeUsd" : {
+            "type" : "number"
+          },
+          "budgetUsd" : {
+            "type" : "number"
+          },
+          "callsByPurpose" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
+          "costUsd" : {
+            "type" : "number"
+          },
+          "github" : {
+            "$ref" : "#/components/schemas/GitHub"
+          },
+          "inputTokens" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "outputTokens" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "percent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "prices" : {
+            "$ref" : "#/components/schemas/Prices"
+          },
+          "remainingUsd" : {
+            "type" : "number"
+          },
+          "summary" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "VersionView" : {
@@ -835,6 +937,87 @@
         "tags" : [ "피드백 정리" ]
       }
     },
+    "/api/admin/metrics" : {
+      "get" : {
+        "description" : "최근 days 일(기본 30, 최대 365). 중앙값은 표본 3건 이상일 때만(아니면 null). game 을 비우면 모든 게임",
+        "operationId" : "metrics",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "days",
+          "required" : false,
+          "schema" : {
+            "default" : 30,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/View"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "처리 지표",
+        "tags" : [ "처리 지표" ]
+      }
+    },
+    "/api/admin/usage" : {
+      "get" : {
+        "description" : "이번 달(한국 시간) 서버가 부른 AI 호출 수·토큰·비용(달러, 단가 설정으로 계산)·예산·남은 돈, 기록 시작 뒤 합계, 깃허브 남은 요청 수. Claude 플러그인·Codex 사용은 각자 구독이라 여기 없다",
+        "operationId" : "usage",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsageView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "API 사용량",
+        "tags" : [ "사용량" ]
+      }
+    },
     "/api/corrections" : {
       "get" : {
         "operationId" : "list_2",
@@ -993,6 +1176,50 @@
         },
         "summary" : "게임 목록",
         "tags" : [ "게임" ]
+      }
+    },
+    "/api/games/{code}/errors" : {
+      "post" : {
+        "description" : "본문 JSON {message, stack, version, device, context}. text/plain 으로 보내도 된다(sendBeacon). 16KB 까지. 같은 오류는 횟수만 늘린다",
+        "operationId" : "receive",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "게임 오류 보내기",
+        "tags" : [ "게임 오류" ]
       }
     },
     "/api/games/{code}/weekly-report" : {
@@ -1336,6 +1563,9 @@
     "description" : "운영 중인 게임 목록과 주간 보고",
     "name" : "게임"
   }, {
+    "description" : "QA·개발 리드가 보는 처리 지표(기록에서 계산)",
+    "name" : "처리 지표"
+  }, {
     "description" : "비슷한 제보를 묶은 단위. 조회는 키 없이, 상태 변경은 관리자 키",
     "name" : "이슈"
   }, {
@@ -1348,7 +1578,13 @@
     "description" : "최근 제보를 모아 AI 가 정리하고, 정리를 슬랙에 올린다",
     "name" : "피드백 정리"
   }, {
+    "description" : "게임에 넣은 코드 조각이 보내는 오류 기록",
+    "name" : "게임 오류"
+  }, {
     "description" : "디스코드 말고 게임 클라이언트·웹폼에서 직접 제보를 넣을 때",
     "name" : "제보"
+  }, {
+    "description" : "AI·깃허브 API 사용량과 남은 예산·한도",
+    "name" : "사용량"
   } ]
 }

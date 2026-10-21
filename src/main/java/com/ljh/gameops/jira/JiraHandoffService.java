@@ -42,6 +42,8 @@ public class JiraHandoffService {
     private final ApplicationEventPublisher events;
     /** 스크린샷 내려받기(시험에서 바꿔 끼운다). 못 받으면 null */
     Function<String, byte[]> download = JiraHandoffService::fetch;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.errors.ClientErrors clientErrors;
 
     public JiraHandoffService(FeedbackService feedback, GameCatalog games, JiraClient jira, JiraTickets tickets,
                               JdbcTemplate jdbc, AuditLogRepository audit, ApplicationEventPublisher events) {
@@ -79,7 +81,8 @@ public class JiraHandoffService {
                     already++;
                     continue;
                 }
-                JiraBrief.Ticket t = JiraBrief.build(g.name(), g.code(), r, d.days());
+                JiraBrief.Ticket t = JiraBrief.build(g.name(), g.code(), r, d.days(),
+                        clientErrors == null ? List.of() : clientErrors.forIssue(r.id(), 3));
                 JiraClient.Created c = jira.create(g.jiraProject(), t.summary(), t.description(), t.priority(), t.labels());
                 tickets.save(r.id(), c.key(), c.url(), digestId, actor);
                 attachShots(c.key(), r.repro().screenshots());

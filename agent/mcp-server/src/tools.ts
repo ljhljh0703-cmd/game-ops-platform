@@ -47,6 +47,27 @@ export function registerTools(server: McpServer, api: GameOpsApi): void {
     return ok(games.map((g) => `${g.name}(${g.code}) 미해결 ${g.openIssues}건`).join(" · "), games);
   }));
 
+  server.registerTool("ops_metrics", {
+    title: "처리 지표",
+    description: "게임별 처리 지표(최근 days 일): 고칠 때까지·QA 확인까지 중앙값(표본 3건 이상일 때만), 제보→이슈(묶인 제보), 재현 정보 있는 제보 비율, 재발, 지금 QA 확인 대기. 주간 보고·아침 정리에 쓴다. 표본이 적으면 null 이니 숫자를 지어내지 않는다.",
+    inputSchema: { game: gameCode.optional(), days: z.number().int().min(1).max(365).optional() },
+    annotations: READ,
+  }, ({ game, days }) => run(async () => {
+    const rows = await api.get<{ name: string; reports: number; issues: number; reproPercent: number; verifying: number }[]>(
+      `/api/admin/metrics?days=${days ?? 30}` + (game ? `&game=${q(game)}` : ""), true);
+    return ok(rows.map((r) => `${r.name} 제보 ${r.reports}→이슈 ${r.issues} · 재현 정보 ${r.reproPercent}% · QA 대기 ${r.verifying}`).join(" / "), rows);
+  }));
+
+  server.registerTool("api_usage", {
+    title: "API 사용량",
+    description: "이번 달 서버가 부른 AI(분류·보고서) 호출 수·토큰·비용(달러)·예산·남은 돈, 깃허브 남은 요청 수. 이 Claude 대화 자체의 사용량은 여기 없다.",
+    inputSchema: {},
+    annotations: READ,
+  }, () => run(async () => {
+    const u = await api.get<{ summary: string }>("/api/admin/usage", true);
+    return ok(u.summary, u);
+  }));
+
   server.registerTool("list_issues", {
     title: "이슈 목록",
     description: "한 게임의 이슈 목록. status 를 비우면 전부. 아침 정리라면 OPEN 과 IN_PROGRESS 를 각각 본다.",

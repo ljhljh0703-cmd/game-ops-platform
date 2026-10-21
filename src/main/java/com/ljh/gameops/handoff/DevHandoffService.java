@@ -31,6 +31,8 @@ public class DevHandoffService {
     private final JdbcTemplate jdbc;
     private final AuditLogRepository audit;
     private final ApplicationEventPublisher events;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.errors.ClientErrors clientErrors;
 
     public DevHandoffService(FeedbackService feedback, GameCatalog games, GameRepository gameRepo, GitHubIssues github,
                              JdbcTemplate jdbc, AuditLogRepository audit, ApplicationEventPublisher events) {
@@ -61,7 +63,8 @@ public class DevHandoffService {
                 continue;
             }
             List<FeedbackService.Item> items = feedback.recent(g.code(), d.days(), MAX_ITEMS);
-            HandoffBrief.Brief brief = HandoffBrief.build(g.name(), g.code(), digestId, d.days(), d.gameCode() == null ? null : d.text(), items);
+            HandoffBrief.Brief brief = HandoffBrief.build(g.name(), g.code(), digestId, d.days(), d.gameCode() == null ? null : d.text(), items,
+                    id -> clientErrors == null ? List.of() : clientErrors.forIssue(id, 3));
             if (brief == null) continue;
             if (g.repo() == null) {
                 skipped.add(g.name());

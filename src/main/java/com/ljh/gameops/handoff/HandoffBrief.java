@@ -27,6 +27,12 @@ public final class HandoffBrief {
 
     /** 열린 이슈가 없으면 null(넘길 게 없음) */
     public static Brief build(String gameName, String gameCode, long digestId, int days, String digestText, List<FeedbackService.Item> items) {
+        return build(gameName, gameCode, digestId, days, digestText, items, id -> List.of());
+    }
+
+    /** @param errorsOf 운영 이슈 번호 → 같은 시간대 게임 오류 기록(결정 37) */
+    public static Brief build(String gameName, String gameCode, long digestId, int days, String digestText, List<FeedbackService.Item> items,
+                              java.util.function.Function<Long, List<com.ljh.gameops.errors.ClientErrors.Row>> errorsOf) {
         List<Row> rows = rows(items);
         if (rows.isEmpty()) return null;
         String headline = headline(digestText);
@@ -44,6 +50,7 @@ public final class HandoffBrief {
                     .append("- 플레이어 글:\n");
             for (String q : r.quotes()) b.append("  > ").append(safe(q, QUOTE_MAX)).append('\n');
             reproLines(b, r.repro());
+            errorLines(b, errorsOf.apply(r.id()));
         }
         b.append("\n## 완료 기준\n")
                 .append("- 위 문제를 재현하고 고친 뒤 테스트를 붙여 주세요.\n")
@@ -96,6 +103,20 @@ public final class HandoffBrief {
             b.append("  - 스크린샷(디스코드 주소, 하루쯤 지나면 열리지 않을 수 있어요):");
             for (String u : shots) b.append(" [그림](").append(u.replace(")", "%29").replace(" ", "%20").replace("]", "%5D")).append(')');
             b.append('\n');
+        }
+    }
+
+    /** 같은 시간대 게임 오류 — 관련이 확정된 건 아니라고 적는다. 호출 위치는 게임이 보낸 값이라 코드 블록에 넣는다 */
+    static void errorLines(StringBuilder b, List<com.ljh.gameops.errors.ClientErrors.Row> errors) {
+        if (errors == null || errors.isEmpty()) return;
+        b.append("- 같은 시간대(제보 앞뒤 30분) 게임 오류 기록, 관련 있을 수 있음(확정 아님):\n");
+        for (var e : errors) {
+            b.append("  - ").append(safe(e.line(), 200)).append('\n');
+            String frames = e.topFrames(4);
+            if (frames == null) continue;
+            b.append("    ```\n");
+            for (String l : frames.replace("`", "'").split("\n")) b.append("    ").append(l).append('\n');
+            b.append("    ```\n");
         }
     }
 

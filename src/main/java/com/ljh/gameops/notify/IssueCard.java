@@ -18,10 +18,19 @@ import java.time.OffsetDateTime;
 public record IssueCard(long issueId, String gameName, String label, String title, String quote,
                         Category category, Severity severity, IssueStatus status, int reportCount,
                         Long recurrenceOf, Long detachedFrom, SourceChannel source, OffsetDateTime createdAt,
-                        String lastAction, com.ljh.gameops.report.ReproInfo.Summary repro, String jiraKey, String jiraUrl) {
+                        String lastAction, com.ljh.gameops.report.ReproInfo.Summary repro, String jiraKey, String jiraUrl,
+                        String errors) {
 
     public IssueCard {
         if (repro == null) repro = com.ljh.gameops.report.ReproInfo.Summary.EMPTY;
+    }
+
+    public IssueCard(long issueId, String gameName, String label, String title, String quote,
+                     Category category, Severity severity, IssueStatus status, int reportCount,
+                     Long recurrenceOf, Long detachedFrom, SourceChannel source, OffsetDateTime createdAt,
+                     String lastAction, com.ljh.gameops.report.ReproInfo.Summary repro, String jiraKey, String jiraUrl) {
+        this(issueId, gameName, label, title, quote, category, severity, status, reportCount, recurrenceOf, detachedFrom,
+                source, createdAt, lastAction, repro, jiraKey, jiraUrl, null);
     }
 
     public IssueCard(long issueId, String gameName, String label, String title, String quote,
@@ -33,6 +42,6 @@ public record IssueCard(long issueId, String gameName, String label, String titl
 
     public IssueCard withLastAction(String action) {
         return new IssueCard(issueId, gameName, label, title, quote, category, severity, status, reportCount,
-                recurrenceOf, detachedFrom, source, createdAt, action, repro, jiraKey, jiraUrl);
+                recurrenceOf, detachedFrom, source, createdAt, action, repro, jiraKey, jiraUrl, errors);
     }
 }

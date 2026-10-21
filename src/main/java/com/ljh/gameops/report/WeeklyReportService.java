@@ -22,10 +22,13 @@ public class WeeklyReportService {
 
     private final GameRepository games;
     private final IssueRepository issues;
+    private final org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.metrics.OpsMetrics> metrics;
 
-    public WeeklyReportService(GameRepository games, IssueRepository issues) {
+    public WeeklyReportService(GameRepository games, IssueRepository issues,
+                               org.springframework.beans.factory.ObjectProvider<com.ljh.gameops.metrics.OpsMetrics> metrics) {
         this.games = games;
         this.issues = issues;
+        this.metrics = metrics;
     }
 
     /** [from, to) 구간 보고. to 는 보고 기준 시각(보통 월요일 0시). */
@@ -48,6 +51,12 @@ public class WeeklyReportService {
                 sb.append("• #%d %s · %s/%s · 제보 %d건\n".formatted(
                         i.getId(), i.getTitle(), i.getCategory(), i.getSeverity(), i.getReportCount()));
             }
+        }
+        // 처리 지표(결정 35) — 고칠 때까지·QA 확인까지·재현 정보·재발
+        var m = metrics.getIfAvailable();
+        if (m != null) {
+            String t = m.of(gameCode, 7).text();
+            sb = new StringBuilder(sb.toString().stripTrailing()).append("\n처리 지표:\n").append(t.substring(t.indexOf('\n') + 1).replace("*", ""));
         }
         return sb.toString().stripTrailing();
     }

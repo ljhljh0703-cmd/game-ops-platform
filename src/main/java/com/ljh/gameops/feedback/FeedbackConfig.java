@@ -20,7 +20,7 @@ public class FeedbackConfig {
     static final int MAX_TOKENS = 1200;
 
     @Bean
-    DigestWriter digestWriter(ClassifierProperties props, ObjectMapper mapper) {
+    DigestWriter digestWriter(ClassifierProperties props, ObjectMapper mapper, com.ljh.gameops.ai.AiUsage usage) {
         ClassifierProperties.Llm llm = props.llm();
         if (llm == null || llm.apiKey() == null || llm.apiKey().isBlank()) return new DigestWriter(null, mapper);
         SimpleClientHttpRequestFactory rf = new SimpleClientHttpRequestFactory();
@@ -30,11 +30,20 @@ public class FeedbackConfig {
                 .defaultHeader("Authorization", "Bearer " + llm.apiKey()).build();
         String model = llm.model();
         DigestWriter.Ai ai = (system, user) -> {
-            JsonNode r = client.post().uri("/chat/completions").contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("model", model, "temperature", 0, "max_tokens", MAX_TOKENS, "messages", List.of(
-                            Map.of("role", "system", "content", system),
-                            Map.of("role", "user", "content", user))))
-                    .retrieve().body(JsonNode.class);
+            // 예산을 다 썼으면 부르지 않는다 → 보고서는 기록만으로 같은 모양(DigestWriter 가 실패를 그렇게 받는다)
+            if (!usage.allowed()) throw new IllegalStateException("이번 달 AI 예산을 다 썼어요");
+            JsonNode r;
+            try {
+                r = client.post().uri("/chat/completions").contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("model", model, "temperature", 0, "max_tokens", MAX_TOKENS, "messages", List.of(
+                                Map.of("role", "system", "content", system),
+                                Map.of("role", "user", "content", user))))
+                        .retrieve().body(JsonNode.class);
+            } catch (RuntimeException e) {
+                usage.record(com.ljh.gameops.ai.AiUsage.DIGEST, model, null, false);
+                throw e;
+            }
+            usage.record(com.ljh.gameops.ai.AiUsage.DIGEST, model, r, true);
             return r == null ? null : r.path("choices").path(0).path("message").path("content").asText(null);
         };
         return new DigestWriter(ai, mapper);

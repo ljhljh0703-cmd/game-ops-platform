@@ -22,10 +22,21 @@ public final class SlackHome {
 
     public record IssueRow(long id, String title, Category category, Severity severity, IssueStatus status, int reportCount) {}
 
-    public record GameBoard(String name, long open, long inProgress, long urgent, long resolvedWeek, List<IssueRow> top) {}
+    /** verifying = QA 확인 대기 · metrics = 처리 지표 한 줄(없으면 null) */
+    public record GameBoard(String name, long open, long inProgress, long urgent, long resolvedWeek, List<IssueRow> top,
+                            long verifying, String metrics) {
+        public GameBoard(String name, long open, long inProgress, long urgent, long resolvedWeek, List<IssueRow> top) {
+            this(name, open, inProgress, urgent, resolvedWeek, top, 0, null);
+        }
+    }
 
     /** @param lastDigest 「10/21 05:40 · 보석타워」 처럼, 없으면 null. @param lastRules 「#3 · 10/21 05:41 · 불편/낮음 + …」, 없으면 null */
-    public record Board(List<GameBoard> games, String lastDigest, String lastRules, OffsetDateTime at) {}
+    /** usage = 이번 달 AI 사용·예산 한 줄(결정 34). 없으면 null */
+    public record Board(List<GameBoard> games, String lastDigest, String lastRules, OffsetDateTime at, String usage) {
+        public Board(List<GameBoard> games, String lastDigest, String lastRules, OffsetDateTime at) {
+            this(games, lastDigest, lastRules, at, null);
+        }
+    }
 
     private SlackHome() {}
 
@@ -40,15 +51,17 @@ public final class SlackHome {
             b.add(DividerBlock.builder().build());
             b.add(SectionBlock.builder().text(SlackCards.md("*" + SlackCards.escape(g.name()) + "*")).fields(List.<TextObject>of(
                     SlackCards.md("*열림*\n" + g.open() + "건"),
-                    SlackCards.md("*진행 중*\n" + g.inProgress() + "건"),
+                    SlackCards.md("*진행 중*\n" + g.inProgress() + "건" + (g.verifying() > 0 ? " · 🧪 QA 대기 " + g.verifying() + "건" : "")),
                     SlackCards.md("*긴급·높음*\n" + (g.urgent() > 0 ? "🔴 " : "") + g.urgent() + "건"),
                     SlackCards.md("*이번 주 해결*\n" + g.resolvedWeek() + "건"))).build());
             b.add(SectionBlock.builder().text(SlackCards.md(rows(g.top()))).build());
+            if (g.metrics() != null) b.add(ContextBlock.builder().elements(List.of(SlackCards.md("📈 " + SlackCards.escape(g.metrics())))).build());
         }
         b.add(DividerBlock.builder().build());
         List<ContextBlockElement> foot = new ArrayList<>();
         foot.add(SlackCards.md("🧠 최근 피드백 정리 · " + (board.lastDigest() == null ? "아직 없음(Claude 에 「피드백 정리해」)" : SlackCards.escape(board.lastDigest()))));
         foot.add(SlackCards.md("🤖 최근 규칙 반영 · " + (board.lastRules() == null ? "아직 없음" : SlackCards.escape(board.lastRules()))));
+        if (board.usage() != null) foot.add(SlackCards.md("💸 " + SlackCards.escape(board.usage())));
         b.add(ContextBlock.builder().elements(foot).build());
         return View.builder().type("home").blocks(b).build();
     }

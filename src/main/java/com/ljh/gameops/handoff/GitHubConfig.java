@@ -20,7 +20,8 @@ import java.util.Map;
 public class GitHubConfig {
     @Bean
     GitHubIssues gitHubIssues(@Value("${gameops.github.token:}") String token,
-                              @Value("${gameops.github.api-url:https://api.github.com}") String apiUrl) {
+                              @Value("${gameops.github.api-url:https://api.github.com}") String apiUrl,
+                              com.ljh.gameops.ai.ApiQuota quota) {
         if (token == null || token.isBlank()) {
             return new GitHubIssues() {
                 public Created create(String repo, String title, String body, List<String> labels) {
@@ -35,7 +36,12 @@ public class GitHubConfig {
         RestClient client = RestClient.builder().baseUrl(apiUrl).requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + token.strip())
                 .defaultHeader("Accept", "application/vnd.github+json")
-                .defaultHeader("X-GitHub-Api-Version", "2022-11-28").build();
+                .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+                .requestInterceptor((req, body, exec) -> { // 응답마다 남은 요청 수를 기록(사용량 화면)
+                    var resp = exec.execute(req, body);
+                    quota.updateGitHub(resp.getHeaders());
+                    return resp;
+                }).build();
         return new GitHubIssues() {
             public Created create(String repo, String title, String body, List<String> labels) {
                 if (repo == null || !repo.matches("[\\w.-]+/[\\w.-]+")) throw new IllegalArgumentException("저장소 이름 형식 오류: " + repo);
@@ -58,7 +64,8 @@ public class GitHubConfig {
 
     @Bean
     GitHubRepoReader gitHubRepoReader(@Value("${gameops.github.token:}") String token,
-                                      @Value("${gameops.github.api-url:https://api.github.com}") String apiUrl) {
+                                      @Value("${gameops.github.api-url:https://api.github.com}") String apiUrl,
+                                      com.ljh.gameops.ai.ApiQuota quota) {
         if (token == null || token.isBlank()) {
             return new GitHubRepoReader() {
                 public List<Merged> recentlyMerged(String repo) { return List.of(); }
@@ -73,7 +80,12 @@ public class GitHubConfig {
         RestClient client = RestClient.builder().baseUrl(apiUrl).requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + token.strip())
                 .defaultHeader("Accept", "application/vnd.github+json")
-                .defaultHeader("X-GitHub-Api-Version", "2022-11-28").build();
+                .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+                .requestInterceptor((req, body, exec) -> { // 응답마다 남은 요청 수를 기록(사용량 화면)
+                    var resp = exec.execute(req, body);
+                    quota.updateGitHub(resp.getHeaders());
+                    return resp;
+                }).build();
         return new GitHubRepoReader() {
             public List<Merged> recentlyMerged(String repo) {
                 JsonNode arr = client.get().uri("/repos/" + repo + "/pulls?state=closed&sort=updated&direction=desc&per_page=20")

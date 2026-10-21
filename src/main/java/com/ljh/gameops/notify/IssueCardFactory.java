@@ -17,6 +17,8 @@ public class IssueCardFactory {
     private final ReportRepository reports;
     private final com.ljh.gameops.issue.IssueReportRepository links;
     private final com.ljh.gameops.jira.JiraTickets jira;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.errors.ClientErrors clientErrors;
 
     public IssueCardFactory(IssueRepository issues, GameRepository games, ReportRepository reports,
                             com.ljh.gameops.issue.IssueReportRepository links, com.ljh.gameops.jira.JiraTickets jira) {
@@ -43,7 +45,8 @@ public class IssueCardFactory {
                 i.getCategory(), i.getSeverity(), i.getStatus(), i.getReportCount(), i.getRecurrenceOf(), detachedFrom,
                 rep == null ? null : rep.getSourceChannel(), i.getCreatedAt(), null, repro(issueId),
                 jira.of(issueId).map(com.ljh.gameops.jira.JiraTickets.Ticket::key).orElse(null),
-                jira.of(issueId).map(com.ljh.gameops.jira.JiraTickets.Ticket::url).orElse(null));
+                jira.of(issueId).map(com.ljh.gameops.jira.JiraTickets.Ticket::url).orElse(null),
+                clientErrors == null ? null : com.ljh.gameops.errors.ClientErrors.cardLine(clientErrors.forIssue(issueId, 3)));
     }
 
     /** 사람이 버튼을 누른 뒤 다시 그릴 때 — 알림 종류 대신 이슈 번호만 제목에 둔다 */

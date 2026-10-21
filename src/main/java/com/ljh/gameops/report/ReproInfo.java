@@ -30,9 +30,38 @@ public record ReproInfo(String version, String device, String steps) {
         return new ReproInfo(version, device, steps);
     }
 
-    /** 글에서 버전·기기만 찾는다. 재현 순서는 글 자체라 따로 뽑지 않는다 */
+    /**
+     * 게임 안 「제보용 정보 복사」 버튼이 만드는 한 줄(결정 37):
+     * 「[게임진단 v1.2.3 · Chrome 130 · iPhone · 오류: TypeError: x is undefined]」. 플레이어가 글에 붙여 넣으면 버전·기기·오류를 그대로 받는다
+     */
+    public record Diag(String version, String device, String error) {}
+
+    private static final Pattern DIAG = Pattern.compile("\\[게임진단 ([^\\]\\n]{1,600})\\]");
+
+    public static Diag diag(String text) {
+        if (text == null) return null;
+        Matcher m = DIAG.matcher(text);
+        if (!m.find()) return null;
+        String version = null, error = null;
+        List<String> device = new ArrayList<>();
+        for (String part : m.group(1).split(" · ")) {
+            String p = part.strip();
+            if (error != null) { error = error + " · " + p; continue; } // 오류 글 안의 「 · 」
+            if (p.startsWith("오류:")) error = p.substring(3).strip();
+            else if (version == null && p.matches("v\\d+(\\.\\d+){0,3}[a-z0-9-]*")) version = p.substring(1);
+            else if (!p.isEmpty()) device.add(p);
+        }
+        return new Diag(version, device.isEmpty() ? null : String.join(", ", device), error == null || error.isBlank() ? null : error);
+    }
+
+    /** 글에서 버전·기기만 찾는다. 재현 순서는 글 자체라 따로 뽑지 않는다. 「게임진단」 줄이 있으면 그 값이 먼저 */
     public static ReproInfo parse(String text) {
         if (text == null || text.isBlank()) return NONE;
+        Diag dg = diag(text);
+        if (dg != null && (dg.version() != null || dg.device() != null)) {
+            ReproInfo rest = parse(DIAG.matcher(text).replaceAll(" "));
+            return new ReproInfo(dg.version() != null ? dg.version() : rest.version, dg.device() != null ? dg.device() : rest.device, null);
+        }
         Matcher v = VERSION.matcher(text);
         String version = v.find() ? v.group(1) : null;
         LinkedHashSet<String> devices = new LinkedHashSet<>();

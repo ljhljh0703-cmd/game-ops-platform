@@ -35,7 +35,8 @@ public class ClassifierConfig {
 
     @Bean
     @Primary
-    IssueClassifier issueClassifier(ClassifierProperties props, RuleBasedClassifier rules, ObjectMapper mapper) {
+    IssueClassifier issueClassifier(ClassifierProperties props, RuleBasedClassifier rules, ObjectMapper mapper,
+                                    com.ljh.gameops.ai.AiUsage usage) {
         ClassifierProperties.Llm llm = props.llm();
         if (llm == null || !llm.enabled()) return rules;
         if (llm.apiKey() == null || llm.apiKey().isBlank()) {
@@ -50,6 +51,6 @@ public class ClassifierConfig {
                 .requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + llm.apiKey())
                 .build();
-        return new FallbackClassifier(new LlmClassifier(client, llm.model(), mapper), rules);
+        return new FallbackClassifier(new LlmClassifier(client, llm.model(), mapper, usage), rules);
     }
 }

@@ -1,5 +1,6 @@
 // 슬랙 명령 /피드백정리 — 슬랙에서 한 줄로 「최근 피드백 정리 보고서」를 올린다(결정 28).
 // 쓰는 법: /피드백정리 [게임] [기간]  예) /피드백정리 · /피드백정리 젤리패닉 3 · /피드백정리 보석타워 14일
+//         /피드백정리 지표 [게임] [기간] — 처리 지표(결정 35) · /피드백정리 사용량 — 이번 달 AI 비용·예산·깃허브 남은 요청(결정 34)
 // 게임을 안 적으면 명령을 친 채널의 게임(게임 알림 채널이면), 그것도 아니면 전체 게임. 기간 기본 7일(최대 31).
 // 서명 확인 → 관리자만 → 3초 안에 「정리 중」 답 → 뒤에서 정리해 카드로 올림(실패·제보 없음은 친 사람에게만 알림).
 package com.ljh.gameops.channel.slack;
@@ -38,6 +39,9 @@ public class SlackCommandController {
     private final SlackResponder responder;
     private final Clock clock;
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.metrics.OpsMetrics metrics;
+    @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.ai.AiUsage usage;
+    @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.ai.ApiQuota quota;
 
     public SlackCommandController(SlackProperties props, AdminGuard guard, AutoDigest digest, GameCatalog games,
                                   SlackResponder responder, Clock clock) {
@@ -68,7 +72,23 @@ public class SlackCommandController {
         String user = f.getOrDefault("user_id", "");
         if (!guard.isSlackAdmin(user)) return reply("이 명령은 운영 담당만 쓸 수 있어요.");
 
-        Scope scope = scope(f.getOrDefault("text", ""), f.get("channel_id"), f.get("channel_name"));
+        String text = f.getOrDefault("text", "").strip();
+        if (text.equals("사용량") && usage != null) {
+            String q = quota != null && quota.github() != null ? "\n" + quota.github().line() : "";
+            return reply("💸 " + usage.month().line() + q + "\n(서버가 부른 AI 만 셉니다. 맥의 Claude·Codex 는 각자 구독이라 따로예요)");
+        }
+        if ((text.equals("지표") || text.startsWith("지표 ")) && metrics != null) {
+            Scope s = scope(text.substring(2), f.get("channel_id"), f.get("channel_name"));
+            if (s.error() != null) return reply(s.error());
+            int days = text.matches(".*\\d.*") ? s.days() : 30;
+            StringBuilder out = new StringBuilder("📈 처리 지표\n");
+            for (var m : s.game() == null ? metrics.all(days) : java.util.List.of(metrics.of(s.game().code(), days))) {
+                out.append(m.text()).append("\n\n");
+            }
+            return reply(out.toString().strip());
+        }
+
+        Scope scope = scope(text, f.get("channel_id"), f.get("channel_name"));
         if (scope.error() != null) return reply(scope.error());
 
         String code = scope.game() == null ? null : scope.game().code();
