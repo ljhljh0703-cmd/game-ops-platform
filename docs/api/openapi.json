@@ -176,6 +176,46 @@
         },
         "type" : "object"
       },
+      "Draft" : {
+        "properties" : {
+          "byAi" : {
+            "type" : "boolean"
+          },
+          "changes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fixed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "DraftRequest" : {
+        "properties" : {
+          "days" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "game" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EditRequest" : {
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "GameView" : {
         "properties" : {
           "code" : {
@@ -352,6 +392,54 @@
         "type" : "object"
       },
       "JsonNode" : {
+        "type" : "object"
+      },
+      "PatchCard" : {
+        "properties" : {
+          "actor" : {
+            "type" : "string"
+          },
+          "byAi" : {
+            "type" : "boolean"
+          },
+          "channelLabel" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "editedBy" : {
+            "type" : "string"
+          },
+          "fixedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "gameName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "publishedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "publishedBy" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "Prices" : {
@@ -1011,6 +1099,183 @@
         "tags" : [ "처리 지표" ]
       }
     },
+    "/api/admin/patch-notes" : {
+      "get" : {
+        "description" : "최근 것부터",
+        "operationId" : "list_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "game",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 10,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PatchCard"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "패치노트 목록",
+        "tags" : [ "패치노트" ]
+      },
+      "post" : {
+        "description" : "마지막 공지 뒤(최대 days 일, 기본 14) 해결된 버그와 게임 저장소에 합쳐진 PR 로 초안을 쓰고 게임 슬랙 채널에 카드로 올린다. 알릴 게 없으면 id 가 null",
+        "operationId" : "draft",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Draft"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "패치노트 초안",
+        "tags" : [ "패치노트" ]
+      }
+    },
+    "/api/admin/patch-notes/{id}" : {
+      "put" : {
+        "description" : "초안일 때만",
+        "operationId" : "edit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EditRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PatchCard"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "패치노트 고치기",
+        "tags" : [ "패치노트" ]
+      }
+    },
+    "/api/admin/patch-notes/{id}/publish" : {
+      "post" : {
+        "description" : "사람만(AI 에이전트 키는 403). 바깥에 나가는 글이라 사람이 확인하고 누른다",
+        "operationId" : "publish",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PatchCard"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "디스코드에 공지",
+        "tags" : [ "패치노트" ]
+      }
+    },
     "/api/admin/usage" : {
       "get" : {
         "description" : "이번 달(한국 시간) 서버가 부른 AI 호출 수·토큰·비용(달러, 단가 설정으로 계산)·예산·남은 돈, 기록 시작 뒤 합계, 깃허브 남은 요청 수. 잔액을 적어 두면(AI_CREDIT_BALANCE_USD) 남은 크레딧 추정(관리 키가 있으면 Anthropic 공식 집계로). Claude 플러그인·Codex 사용은 각자 구독이라 여기 없다",
@@ -1592,6 +1857,9 @@
   }, {
     "description" : "비슷한 제보를 묶은 단위. 조회는 키 없이, 상태 변경은 관리자 키",
     "name" : "이슈"
+  }, {
+    "description" : "고친 버그·바뀐 점을 플레이어에게 알리는 글: 초안 → 고치기 → 디스코드 공지",
+    "name" : "패치노트"
   }, {
     "description" : "잘못 묶인 제보 떼어내기·분류 고치기와 그 기록. 모두 관리자 키",
     "name" : "자동 판단 고치기"

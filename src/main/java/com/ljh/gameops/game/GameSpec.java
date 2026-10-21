@@ -13,14 +13,21 @@ import java.util.List;
  * @param qa      true 면 고친 코드가 합쳐져도 바로 해결로 두지 않고 「QA 확인 대기」로 둔다. QA가 슬랙에서 확인하면 해결(결정 31)
  * @param jiraProject 버그 티켓을 만들 Jira 프로젝트 키(예: GEM). 비우면 Jira 로 안 보냄(결정 33)
  * @param errorKey 게임이 오류를 보낼 때 붙이는 값(?key=). 비우면 키 없이 받는다(결정 37)
+ * @param announceChannel 패치노트를 올릴 디스코드 채널 ID. 비우면 버그 제보 채널(discordChannels 중 ID)(결정 39)
  */
 public record GameSpec(String code, String name, List<String> discordChannels,
                        String slackChannel, String slackUrgentChannel, String botName, String icon, String repo,
-                       Boolean qa, String jiraProject, String errorKey) {
+                       Boolean qa, String jiraProject, String errorKey, String announceChannel) {
     public GameSpec {
         discordChannels = discordChannels == null ? List.of() : List.copyOf(discordChannels);
         if (jiraProject != null && jiraProject.isBlank()) jiraProject = null;
         if (errorKey != null && errorKey.isBlank()) errorKey = null;
+        if (announceChannel != null && announceChannel.isBlank()) announceChannel = null;
+    }
+
+    public GameSpec(String code, String name, List<String> discordChannels, String slackChannel, String slackUrgentChannel,
+                    String botName, String icon, String repo, Boolean qa, String jiraProject, String errorKey) {
+        this(code, name, discordChannels, slackChannel, slackUrgentChannel, botName, icon, repo, qa, jiraProject, errorKey, null);
     }
 
     public GameSpec(String code, String name, List<String> discordChannels, String slackChannel, String slackUrgentChannel,

@@ -58,6 +58,16 @@ export function registerTools(server: McpServer, api: GameOpsApi): void {
     return ok(rows.map((r) => `${r.name} 제보 ${r.reports}→이슈 ${r.issues} · 재현 정보 ${r.reproPercent}% · QA 대기 ${r.verifying}`).join(" / "), rows);
   }));
 
+  server.registerTool("draft_patch_note", {
+    title: "패치노트 초안",
+    description: "한 게임의 패치노트 초안을 만든다(마지막 공지 뒤 해결된 버그 + 게임 저장소에 합쳐진 PR). 게임 슬랙 채널에 카드로 올라가고, 디스코드 공지는 사람이 카드에서 누른다(에이전트는 공지 못 함). 알릴 게 없으면 id 가 null.",
+    inputSchema: { game: gameCode, days: z.number().int().min(1).max(90).optional(), reason },
+    annotations: { ...WRITE, idempotentHint: false },
+  }, ({ game, days, reason: why }) => run(async () => {
+    const r = await api.request("POST", "/api/admin/patch-notes", { game, days: days ?? 14 }, true) as { id: number | null; fixed: number; changes: number };
+    return ok(r.id == null ? `${game} 알릴 변경 없음` : `${game} 패치노트 초안 #${r.id} (고친 버그 ${r.fixed} · 바뀐 점 ${r.changes}) — 슬랙 카드에서 사람이 공지 (${why})`, r);
+  }));
+
   server.registerTool("api_usage", {
     title: "API 사용량",
     description: "이번 달 서버가 부른 AI(분류·보고서) 호출 수·토큰·비용(달러)·예산·남은 돈, 깃허브 남은 요청 수. 이 Claude 대화 자체의 사용량은 여기 없다.",

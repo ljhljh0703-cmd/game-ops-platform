@@ -256,6 +256,50 @@ public final class SlackCards {
         return s.append(" · ").append(actorLabel(last.actor())).append(" · ").append(when(last.at())).toString();
     }
 
+    // ── 패치노트 카드 ──
+
+    public static final String ACTION_PATCH_PUBLISH = "patch_publish";
+    public static final String ACTION_PATCH_EDIT = "patch_edit";
+    public static final String VIEW_PATCH_EDIT = "patch_edit";
+
+    /** 남색 띠. 초안이면 디스코드에 나갈 글 그대로 보여 주고 [📢 디스코드에 공지]·[✏️ 고치기]. 공지했으면 누가·언제·어디. 5블록 */
+    public static Attachment patchCard(com.ljh.gameops.notify.PatchCard p) {
+        List<LayoutBlock> b = new ArrayList<>();
+        String state = switch (p.status()) {
+            case "PUBLISHED" -> "📢 공지함";
+            case "PUBLISHING" -> "⏳ 공지 보내는 중";
+            default -> "초안";
+        };
+        b.add(HeaderBlock.builder().text(plain(cut(p.title(), 150))).build());
+        b.add(ContextBlock.builder().elements(List.of(md(escape(p.gameName() + " · " + state + " · 고친 버그 " + p.fixedCount() + "건 · 디스코드 "
+                + (p.channelLabel() == null ? "채널 없음" : p.channelLabel()))))).build());
+        // 디스코드 굵게(**)를 슬랙 굵게(*)로 바꿔 보여 준다
+        b.add(SectionBlock.builder().text(md(cut(escape(p.text()).replace("**", "*"), 2900))).build());
+        List<ContextBlockElement> ctx = new ArrayList<>();
+        ctx.add(md((p.byAi() ? "🤖 AI 가 문장을 다듬은 초안" : "기록만으로 쓴 초안") + " · " + actorLabel(p.actor()) + " · " + when(p.createdAt())));
+        if (p.editedBy() != null) ctx.add(md("✏️ 고침 · " + actorLabel(p.editedBy())));
+        if (p.publishedBy() != null) ctx.add(md("📢 " + actorLabel(p.publishedBy()) + (p.publishedAt() == null ? "" : " · " + when(p.publishedAt()))));
+        b.add(ContextBlock.builder().elements(ctx).build());
+        if (p.draft()) {
+            b.add(ActionsBlock.builder().elements(List.<BlockElement>of(
+                    button(ACTION_PATCH_PUBLISH, "📢 디스코드에 공지", String.valueOf(p.id()), "primary"),
+                    button(ACTION_PATCH_EDIT, "✏️ 고치기", String.valueOf(p.id()), null))).build());
+        }
+        return Attachment.builder().color("#5865F2").fallback(p.title()).blocks(b).build();
+    }
+
+    /** 패치노트 고치기 창 — 디스코드에 나갈 글 그대로(굵게는 **) */
+    public static View patchEditView(com.ljh.gameops.notify.PatchCard p, String meta) {
+        return View.builder().type("modal").callbackId(VIEW_PATCH_EDIT).privateMetadata(meta)
+                .title(ViewTitle.builder().type("plain_text").text("패치노트 고치기").build())
+                .submit(ViewSubmit.builder().type("plain_text").text("저장").build())
+                .close(ViewClose.builder().type("plain_text").text("취소").build())
+                .blocks(List.of(InputBlock.builder().blockId("text").label(plain("디스코드에 나갈 글"))
+                        .element(PlainTextInputElement.builder().actionId("v").multiline(true).maxLength(3500)
+                                .initialValue(cut(p.text(), 3000)).build()).build()))
+                .build();
+    }
+
     // ── 입력 창 ──
 
     /** 분류 고치기 창 — 지금 값을 처음 선택으로 둔다. meta = 이슈 번호와 원래 카드 위치 */

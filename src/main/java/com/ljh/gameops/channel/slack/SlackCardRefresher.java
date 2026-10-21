@@ -84,6 +84,25 @@ public class SlackCardRefresher {
         });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.notify.PatchNoteDelivery patches;
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onPatchChanged(com.ljh.gameops.notify.PatchChanged e) {
+        if (patches == null) return;
+        pool.submit(() -> {
+            try {
+                if (e.channel() != null) store.remember(SlackMessageStore.Kind.PATCH, e.patchId(), e.channel(), e.ts());
+                var locs = store.find(SlackMessageStore.Kind.PATCH, e.patchId());
+                if (locs.isEmpty()) return;
+                var card = patches.card(e.patchId());
+                for (var l : locs) web.updatePatchCard(l.channel(), l.ts(), card);
+            } catch (RuntimeException ex) {
+                log.warn("슬랙 패치노트 카드 새로 그리기 실패 #{}: {}", e.patchId(), ex.getMessage());
+            }
+        });
+    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onDigestChanged(DigestChanged e) {
         pool.submit(() -> {

@@ -58,6 +58,8 @@ public class SlackInteractionController {
     private final SlackHomeService home;
     private final com.ljh.gameops.handoff.DevHandoffService handoff;
     private final com.ljh.gameops.jira.JiraHandoffService jira;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.patch.PatchNoteService patches;
     // 깃허브 이슈 만들기는 3초를 넘길 수 있어 뒤에서
     private final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
 
@@ -152,6 +154,22 @@ public class SlackInteractionController {
                 });
                 return ResponseEntity.ok().build();
             }
+            if (actionId.equals(SlackCards.ACTION_PATCH_PUBLISH) && patches != null) {
+                patches.publish(Long.parseLong(value), "slack:" + userId, channel, messageTs);
+                return ResponseEntity.ok(Map.of("text", "패치노트 공지"));
+            }
+            if (actionId.equals(SlackCards.ACTION_PATCH_EDIT) && patches != null) {
+                long id = Long.parseLong(value);
+                var card = patches.card(id);
+                if (!card.draft()) {
+                    responder.reply(responseUrl, "이미 공지한 패치노트예요.");
+                    return ResponseEntity.ok().build();
+                }
+                if (!web.openView(payload.path("trigger_id").asText(null), SlackCards.patchEditView(card, new Meta(id, channel, messageTs).encode()))) {
+                    responder.reply(responseUrl, "입력 창을 열지 못했어요. 잠시 뒤 다시 눌러 주세요.");
+                }
+                return ResponseEntity.ok().build();
+            }
             if (actionId.equals(SlackCards.ACTION_DIGEST_JIRA)) {
                 long digestId = Long.parseLong(value);
                 pool.submit(() -> {
@@ -236,6 +254,7 @@ public class SlackInteractionController {
         JsonNode view = payload.path("view");
         String callback = view.path("callback_id").asText("");
         JsonNode values = view.path("state").path("values");
+        if (callback.equals(SlackCards.VIEW_PATCH_EDIT)) return patchEdit(view, userId, admin);
         if (!admin) return errors(callback.equals(SlackCards.VIEW_DETACH) ? "report" : "category", "고칠 권한이 없어요.");
         Meta meta;
         try {
@@ -265,6 +284,24 @@ public class SlackInteractionController {
             return errors(callback.equals(SlackCards.VIEW_DETACH) ? "report" : "category", e.getMessage());
         }
         // 빈 200 = 창 닫기
+        return ResponseEntity.ok().build();
+    }
+
+    private ResponseEntity<?> patchEdit(JsonNode view, String userId, boolean admin) {
+        if (!admin) return errors("text", "고칠 권한이 없어요.");
+        if (patches == null) return errors("text", "패치노트 기능이 꺼져 있어요.");
+        Meta meta;
+        try {
+            meta = Meta.decode(view.path("private_metadata").asText(null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "창 정보 형식 오류"));
+        }
+        String text = view.path("state").path("values").path("text").path("v").path("value").asText("");
+        try {
+            patches.edit(meta.issueId(), text, "slack:" + userId, meta.channel(), meta.ts());
+        } catch (ConflictException | IllegalArgumentException e) {
+            return errors("text", e.getMessage());
+        }
         return ResponseEntity.ok().build();
     }
 

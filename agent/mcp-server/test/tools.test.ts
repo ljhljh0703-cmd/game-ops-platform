@@ -40,7 +40,7 @@ describe("game-ops MCP 도구", () => {
     const byName = Object.fromEntries(tools.map((t) => [t.name, t]));
     expect(Object.keys(byName).sort()).toEqual([
       "api_usage", "apply_rule_change", "auto_digest", "change_issue_status", "classifier_rules", "corrections_summary", "detach_report",
-      "get_issue", "handoff_to_dev", "list_games", "list_issues", "ops_metrics", "post_digest", "recent_feedback", "reclassify_issue",
+      "draft_patch_note", "get_issue", "handoff_to_dev", "list_games", "list_issues", "ops_metrics", "post_digest", "recent_feedback", "reclassify_issue",
       "rule_versions", "weekly_report_preview",
     ]);
     for (const n of ["list_games", "list_issues", "get_issue", "weekly_report_preview", "corrections_summary", "classifier_rules",

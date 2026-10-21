@@ -49,6 +49,7 @@ public class SlackSender implements NotificationSender {
                 if (n.card() != null) store.remember(SlackMessageStore.Kind.ISSUE, n.card().issueId(), r.getChannel(), r.getTs());
                 else if (n.rules() != null) store.remember(SlackMessageStore.Kind.RULES, n.rules().versionId(), r.getChannel(), r.getTs());
                 else if (n.digest() != null) store.remember(SlackMessageStore.Kind.DIGEST, n.digest().digestId(), r.getChannel(), r.getTs());
+                else if (n.patch() != null) store.remember(SlackMessageStore.Kind.PATCH, n.patch().id(), r.getChannel(), r.getTs());
             } catch (RuntimeException e) {
                 log.warn("슬랙 카드 위치 기억 실패(카드는 보냄): {}", e.getMessage()); // 보낸 걸 다시 보내지 않게 예외는 안 던진다
             }
@@ -68,6 +69,7 @@ public class SlackSender implements NotificationSender {
             if (n.card() != null) req.attachments(List.of(SlackCards.card(n.card(), note)));
             else if (n.rules() != null) req.attachments(List.of(SlackCards.rulesCard(n.rules())));
             else if (n.digest() != null) req.attachments(List.of(SlackCards.digestCard(n.digest())));
+            else if (n.patch() != null) req.attachments(List.of(SlackCards.patchCard(n.patch())));
             else req.blocks(builder.blocks(n.withText(text)));
             return client.chatPostMessage(req.build());
         } catch (Exception e) {

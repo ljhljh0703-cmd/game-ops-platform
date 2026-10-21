@@ -20,6 +20,8 @@ public class OutboxDispatcher {
     private final OutboxProperties props;
     private final TransactionTemplate tx;
     private final ObjectProvider<PlayerNotifier> players;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    PatchNoteDelivery patches;
 
     public OutboxDispatcher(OutboxRepository repository, NotificationRenderer renderer, NotificationSender sender,
                             OutboxProperties props, TransactionTemplate tx, ObjectProvider<PlayerNotifier> players) {
@@ -33,6 +35,11 @@ public class OutboxDispatcher {
 
     /** 플레이어 답장은 슬랙이 아니라 디스코드로. 디스코드를 끈 채면 보낼 곳이 없으니 보낸 것으로 친다(쌓아 두지 않음). */
     private void deliver(OutboxMessage m) {
+        if (m.getType() == NotificationType.PATCH_PUBLISH) {
+            if (patches == null) throw new IllegalStateException("패치노트 기능이 없어요");
+            patches.deliver(renderer.patchId(m));
+            return;
+        }
         if (m.getType() == NotificationType.PLAYER_RESOLVED) {
             PlayerNotifier p = players.getIfAvailable();
             if (p == null) {

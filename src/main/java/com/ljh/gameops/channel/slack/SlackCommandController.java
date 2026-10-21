@@ -1,6 +1,7 @@
 // 슬랙 명령 /피드백정리 — 슬랙에서 한 줄로 「최근 피드백 정리 보고서」를 올린다(결정 28).
 // 쓰는 법: /피드백정리 [게임] [기간]  예) /피드백정리 · /피드백정리 젤리패닉 3 · /피드백정리 보석타워 14일
 //         /피드백정리 지표 [게임] [기간] — 처리 지표(결정 35) · /피드백정리 사용량 — 이번 달 AI 비용·예산·깃허브 남은 요청(결정 34)
+//         /피드백정리 패치노트 [게임] [기간] — 마지막 공지 뒤 고친 버그·바뀐 점으로 패치노트 초안 카드(결정 39)
 // 게임을 안 적으면 명령을 친 채널의 게임(게임 알림 채널이면), 그것도 아니면 전체 게임. 기간 기본 7일(최대 31).
 // 서명 확인 → 관리자만 → 3초 안에 「정리 중」 답 → 뒤에서 정리해 카드로 올림(실패·제보 없음은 친 사람에게만 알림).
 package com.ljh.gameops.channel.slack;
@@ -42,6 +43,7 @@ public class SlackCommandController {
     @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.metrics.OpsMetrics metrics;
     @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.ai.AiUsage usage;
     @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.ai.ApiQuota quota;
+    @org.springframework.beans.factory.annotation.Autowired(required = false) com.ljh.gameops.patch.PatchNoteService patches;
 
     public SlackCommandController(SlackProperties props, AdminGuard guard, AutoDigest digest, GameCatalog games,
                                   SlackResponder responder, Clock clock) {
@@ -86,6 +88,26 @@ public class SlackCommandController {
                 out.append(m.text()).append("\n\n");
             }
             return reply(out.toString().strip());
+        }
+
+        if ((text.equals("패치노트") || text.startsWith("패치노트 ")) && patches != null) {
+            Scope s = scope(text.substring(4), f.get("channel_id"), f.get("channel_name"));
+            if (s.error() != null) return reply(s.error());
+            if (s.game() == null) return reply("어느 게임 패치노트인지 적어 주세요. 예) /피드백정리 패치노트 보석타워 (게임 알림 채널에서 치면 그 게임)");
+            int days = text.matches(".*\\d.*") ? s.days() : 14;
+            String responseUrl = f.get("response_url");
+            String name = s.game().name();
+            String code = s.game().code();
+            pool.submit(() -> {
+                try {
+                    var d = patches.draft(code, days, "slack:" + user);
+                    if (d.id() == null) responder.reply(responseUrl, name + " 마지막 공지 뒤(최근 " + days + "일) 고친 버그나 합쳐진 변경이 없어요.");
+                } catch (RuntimeException e) {
+                    log.warn("패치노트 초안 실패: {}", e.getMessage());
+                    responder.reply(responseUrl, "패치노트 초안을 못 만들었어요: " + e.getMessage());
+                }
+            });
+            return reply("📝 " + name + " 패치노트 초안을 쓰고 있어요. 잠시 뒤 카드로 올라와요. 공지는 카드에서 확인하고 누르면 나가요.");
         }
 
         Scope scope = scope(text, f.get("channel_id"), f.get("channel_name"));

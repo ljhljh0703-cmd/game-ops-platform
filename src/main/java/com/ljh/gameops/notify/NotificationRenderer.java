@@ -18,6 +18,8 @@ public class NotificationRenderer {
     private final com.ljh.gameops.classify.RuleVersionRepository versions;
     private final com.ljh.gameops.feedback.FeedbackService feedback;
     private final DigestCardFactory digestCards;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    PatchNoteDelivery patches;
 
     public NotificationRenderer(ObjectMapper mapper, IssueRepository issues, GameRepository games, IssueCardFactory cards,
                                 com.ljh.gameops.classify.RuleVersionRepository versions, com.ljh.gameops.feedback.FeedbackService feedback,
@@ -29,6 +31,15 @@ public class NotificationRenderer {
         this.games = games;
         this.cards = cards;
         this.versions = versions;
+    }
+
+    /** 패치노트 공지 알림의 패치노트 번호 */
+    public long patchId(OutboxMessage m) {
+        try {
+            return mapper.readTree(m.getPayload()).path("patchId").asLong();
+        } catch (Exception e) {
+            throw new IllegalStateException("알림 내용 해석 실패: " + m.getId(), e);
+        }
     }
 
     public RenderedNotification render(OutboxMessage m) {
@@ -62,6 +73,13 @@ public class NotificationRenderer {
             }
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
             case AI_BUDGET -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
+            // 패치노트 초안 카드 — 그 게임 알림 채널로. 공지(PATCH_PUBLISH)는 슬랙이 아니라 디스코드로 간다(OutboxDispatcher)
+            case PATCH_NOTE, PATCH_PUBLISH -> {
+                if (patches == null) throw new IllegalStateException("패치노트 기능이 없어요");
+                PatchCard c = patches.card(p.path("patchId").asLong());
+                yield new RenderedNotification(m.getType(), p.path("gameCode").asText(null), Severity.LOW, null,
+                        "📝 " + c.title(), null, null, null, c);
+            }
         };
     }
 

@@ -8,7 +8,7 @@ import java.util.List;
 
 @Component
 public class SlackMessageStore {
-    public enum Kind { ISSUE, RULES, DIGEST }
+    public enum Kind { ISSUE, RULES, DIGEST, PATCH }
 
     public record Location(String channel, String ts, String lastAction) {}
 

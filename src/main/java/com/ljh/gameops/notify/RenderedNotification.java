@@ -5,7 +5,12 @@ package com.ljh.gameops.notify;
 import com.ljh.gameops.issue.Severity;
 
 public record RenderedNotification(NotificationType type, String gameCode, Severity severity, Long issueId, String text,
-                                   IssueCard card, RuleChangeCard rules, DigestCard digest) {
+                                   IssueCard card, RuleChangeCard rules, DigestCard digest, PatchCard patch) {
+    public RenderedNotification(NotificationType type, String gameCode, Severity severity, Long issueId, String text,
+                                IssueCard card, RuleChangeCard rules, DigestCard digest) {
+        this(type, gameCode, severity, issueId, text, card, rules, digest, null);
+    }
+
     public RenderedNotification(NotificationType type, String gameCode, Severity severity, Long issueId, String text) {
         this(type, gameCode, severity, issueId, text, null, null, null);
     }
@@ -20,6 +25,6 @@ public record RenderedNotification(NotificationType type, String gameCode, Sever
     }
 
     public RenderedNotification withText(String newText) {
-        return new RenderedNotification(type, gameCode, severity, issueId, newText, card, rules, digest);
+        return new RenderedNotification(type, gameCode, severity, issueId, newText, card, rules, digest, patch);
     }
 }
