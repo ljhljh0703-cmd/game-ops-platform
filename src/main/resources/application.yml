@@ -89,6 +89,11 @@ gameops:
     long-prompt-tokens: 100000
     # 한 달 예산(달러). 넘으면 이번 달은 AI 를 안 부르고 규칙·기록만으로. 0 이면 제한 없음
     monthly-budget-usd: ${AI_MONTHLY_BUDGET_USD:5}
+    # 남은 크레딧 추정(결정 38) — 콘솔 Billing 에서 본 잔액(달러)과 본 날(2026-10-21 또는 2026-10-21T10:50). 비우면 안 보인다
+    credit-balance-usd: ${AI_CREDIT_BALANCE_USD:}
+    credit-balance-at: ${AI_CREDIT_BALANCE_AT:}
+    # 있으면 그 뒤 쓴 돈을 Anthropic 공식 비용 보고(계정 전체)에서 읽는다. 조직 관리 키(sk-ant-admin…). 비우면 이 서버 기록으로
+    admin-key: ${ANTHROPIC_ADMIN_KEY:}
   intake:
     # 도배 막기 — 한 사람이 10분에 이만큼 넘게 디스코드 제보를 올리면 받지 않는다. 0 이면 끔
     max-per-10min: ${INTAKE_MAX_PER_10MIN:5}

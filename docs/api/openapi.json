@@ -111,6 +111,24 @@
         },
         "type" : "object"
       },
+      "Credit" : {
+        "properties" : {
+          "at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "balance" : {
+            "type" : "number"
+          },
+          "fromAnthropic" : {
+            "type" : "boolean"
+          },
+          "spent" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "DetachStats" : {
         "properties" : {
           "avgSimilarity" : {
@@ -516,6 +534,12 @@
             "type" : "object"
           },
           "costUsd" : {
+            "type" : "number"
+          },
+          "credit" : {
+            "$ref" : "#/components/schemas/Credit"
+          },
+          "creditRemainingUsd" : {
             "type" : "number"
           },
           "github" : {
@@ -989,7 +1013,7 @@
     },
     "/api/admin/usage" : {
       "get" : {
-        "description" : "이번 달(한국 시간) 서버가 부른 AI 호출 수·토큰·비용(달러, 단가 설정으로 계산)·예산·남은 돈, 기록 시작 뒤 합계, 깃허브 남은 요청 수. Claude 플러그인·Codex 사용은 각자 구독이라 여기 없다",
+        "description" : "이번 달(한국 시간) 서버가 부른 AI 호출 수·토큰·비용(달러, 단가 설정으로 계산)·예산·남은 돈, 기록 시작 뒤 합계, 깃허브 남은 요청 수. 잔액을 적어 두면(AI_CREDIT_BALANCE_USD) 남은 크레딧 추정(관리 키가 있으면 Anthropic 공식 집계로). Claude 플러그인·Codex 사용은 각자 구독이라 여기 없다",
         "operationId" : "usage",
         "parameters" : [ {
           "in" : "header",

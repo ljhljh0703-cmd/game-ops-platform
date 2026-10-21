@@ -111,5 +111,42 @@ class AiUsageTest extends IntegrationTest {
         assertThat(s.getBody().get("text").toString()).contains("💸 이번 달 AI 약 $0.0003 · 분류 1회 / 예산 $5.00", "Codex");
     }
 
+    @Test
+    void 적어_둔_잔액에서_쓴_돈을_빼_남은_크레딧을_보인다() throws Exception {
+        AiUsage u = new AiUsage(jdbc, outboxService, clock, 0.10, 0.50, 0.50, 2.50, 100_000, 0, "0.001", "2026-01-01");
+        u.record(AiUsage.DIGEST, "m", resp(2000, 100), true); // 이 서버 기록 $0.00025
+        var c = u.credit();
+        assertThat(c.fromAnthropic()).isFalse();
+        assertThat(c.remaining()).isEqualByComparingTo("0.00075");
+        assertThat(c.line()).isEqualTo("크레딧 약 $0.00 남음(1/1 잔액 $0.00 − 이후 $0.00, 이 서버 기록)");
+        assertThat(u.allowed()).isTrue();
+
+        // 관리 키가 있으면 Anthropic 공식 집계(계정 전체)로 뺀다 → 바닥나면 멈추고 알림
+        var cost = new AnthropicCost(clock, "", "https://api.anthropic.com");
+        cost.use(since -> new BigDecimal("0.002"));
+        u.anthropic = cost;
+        assertThat(u.credit().fromAnthropic()).isTrue();
+        assertThat(u.allowed()).isFalse();
+        u.alertIfNeeded();
+        assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.AI_BUDGET)).anySatisfy(o ->
+                assertThat(o.getPayload()).contains("크레딧이 바닥난 것 같아요", "Anthropic 집계"));
+    }
+
+    @Test
+    void 잔액을_안_적으면_크레딧_줄이_없다() {
+        assertThat(usage.credit()).isNull();
+        assertThat(usage.month().line()).doesNotContain("크레딧");
+    }
+
+    @Test
+    void 공식_집계를_못_읽으면_이_서버_기록으로() {
+        AiUsage u = new AiUsage(jdbc, outboxService, clock, 0.10, 0.50, 0.50, 2.50, 100_000, 0, "10", "");
+        var cost = new AnthropicCost(clock, "", "https://api.anthropic.com");
+        cost.use(since -> { throw new IllegalStateException("401"); });
+        u.anthropic = cost;
+        assertThat(u.credit().fromAnthropic()).isFalse();
+        assertThat(u.credit().remaining()).isEqualByComparingTo("10");
+    }
+
     private static String enc(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
 }

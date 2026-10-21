@@ -32,9 +32,28 @@ public class AiUsage {
     public record Prices(double input, double output, double inputLong, double outputLong, int longThreshold) {}
 
     /** byPurpose = 용도별 [호출 수, 비용] · remaining = 예산 - 쓴 돈(예산이 0이면 null) */
+    /**
+     * 남은 크레딧 추정(결정 38) — 작가가 적은 잔액(balance, 적은 때 at) − 그 뒤 쓴 돈(spent).
+     * fromAnthropic = 쓴 돈을 Anthropic 공식 비용 보고(계정 전체)에서 읽었는지, 아니면 이 서버 기록인지
+     */
+    public record Credit(BigDecimal balance, OffsetDateTime at, BigDecimal spent, boolean fromAnthropic) {
+        public BigDecimal remaining() { return balance.subtract(spent); }
+
+        public int percentLeft() {
+            return balance.signum() <= 0 ? 0 : remaining().multiply(BigDecimal.valueOf(100)).divide(balance, 0, RoundingMode.DOWN).max(BigDecimal.ZERO).intValue();
+        }
+
+        /** 「크레딧 약 $9.87 남음(10/21 잔액 $10.00 − 이후 $0.13, Anthropic 집계)」 */
+        public String line() {
+            return "크레딧 약 $" + remaining().max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString() + " 남음("
+                    + at.atZoneSameInstant(ZONE).format(DateTimeFormatter.ofPattern("M/d")) + " 잔액 $" + balance.setScale(2, RoundingMode.HALF_UP).toPlainString()
+                    + " − 이후 $" + spent.setScale(2, RoundingMode.HALF_UP).toPlainString() + ", " + (fromAnthropic ? "Anthropic 집계" : "이 서버 기록") + ")";
+        }
+    }
+
     public record Month(String month, long calls, long failed, long inputTokens, long outputTokens, BigDecimal cost,
                         BigDecimal budget, BigDecimal remaining, int percent, Map<String, long[]> callsByPurpose,
-                        Map<String, BigDecimal> costByPurpose, OffsetDateTime since) {
+                        Map<String, BigDecimal> costByPurpose, OffsetDateTime since, Credit credit) {
         public boolean limited() { return budget != null && budget.signum() > 0; }
 
         /** 「이번 달 AI 약 $0.0123 · 분류 40회 · 보고서 2회 / 예산 $5.00 · 남은 $4.99」 */
@@ -45,6 +64,7 @@ public class AiUsage {
             if (limited()) s.append(" / 예산 $").append(budget.setScale(2, RoundingMode.HALF_UP).toPlainString())
                     .append(" · 남은 $").append(remaining.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString())
                     .append(" (").append(percent).append("%)");
+            if (credit != null) s.append(" · ").append(credit.line());
             return s.toString();
         }
     }
@@ -54,6 +74,10 @@ public class AiUsage {
     private final Clock clock;
     private final Prices prices;
     private final BigDecimal budget;
+    private final BigDecimal creditBalance;
+    private final OffsetDateTime creditAt;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    AnthropicCost anthropic;
 
     public AiUsage(JdbcTemplate jdbc, OutboxService outbox, Clock clock,
                    @Value("${gameops.ai.price-input-per-mtok:0.10}") double in,
@@ -62,11 +86,43 @@ public class AiUsage {
                    @Value("${gameops.ai.price-output-long-per-mtok:2.50}") double outLong,
                    @Value("${gameops.ai.long-prompt-tokens:100000}") int longThreshold,
                    @Value("${gameops.ai.monthly-budget-usd:5}") double budget) {
+        this(jdbc, outbox, clock, in, out, inLong, outLong, longThreshold, budget, "", "");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AiUsage(JdbcTemplate jdbc, OutboxService outbox, Clock clock,
+                   @Value("${gameops.ai.price-input-per-mtok:0.10}") double in,
+                   @Value("${gameops.ai.price-output-per-mtok:0.50}") double out,
+                   @Value("${gameops.ai.price-input-long-per-mtok:0.50}") double inLong,
+                   @Value("${gameops.ai.price-output-long-per-mtok:2.50}") double outLong,
+                   @Value("${gameops.ai.long-prompt-tokens:100000}") int longThreshold,
+                   @Value("${gameops.ai.monthly-budget-usd:5}") double budget,
+                   @Value("${gameops.ai.credit-balance-usd:}") String creditBalance,
+                   @Value("${gameops.ai.credit-balance-at:}") String creditAt) {
         this.jdbc = jdbc;
         this.outbox = outbox;
         this.clock = clock;
         this.prices = new Prices(in, out, inLong, outLong, longThreshold);
         this.budget = BigDecimal.valueOf(budget);
+        this.creditBalance = creditBalance == null || creditBalance.isBlank() ? null : new BigDecimal(creditBalance.strip());
+        this.creditAt = this.creditBalance == null ? null : parseAt(creditAt, clock);
+    }
+
+    /** 「2026-10-21」 또는 「2026-10-21T10:50」(한국 시간). 비우면 서버를 켠 때 */
+    static OffsetDateTime parseAt(String s, Clock clock) {
+        if (s == null || s.isBlank()) return OffsetDateTime.now(clock);
+        String t = s.strip();
+        if (t.length() == 10) return java.time.LocalDate.parse(t).atStartOfDay(ZONE).toOffsetDateTime();
+        return java.time.LocalDateTime.parse(t).atZone(ZONE).toOffsetDateTime();
+    }
+
+    /** 남은 크레딧 추정. 잔액을 안 적었으면 null */
+    public Credit credit() {
+        if (creditBalance == null) return null;
+        BigDecimal real = anthropic == null ? null : anthropic.spentSince(creditAt);
+        if (real != null) return new Credit(creditBalance, creditAt, real, true);
+        BigDecimal mine = jdbc.queryForObject("SELECT coalesce(sum(cost_usd), 0) FROM ai_usage WHERE at >= ?", BigDecimal.class, creditAt);
+        return new Credit(creditBalance, creditAt, mine, false);
     }
 
     public static String label(String purpose) {
@@ -79,6 +135,9 @@ public class AiUsage {
 
     /** 이번 달 예산이 남았는지. 예산 0 은 제한 없음 */
     public boolean allowed() {
+        // 크레딧이 바닥나면(추정) 부르지 않는다. 불러도 Anthropic 이 거절한다
+        Credit c = credit();
+        if (c != null && c.remaining().signum() <= 0) return false;
         if (budget.signum() <= 0) return true;
         return spent(monthStart()).compareTo(budget) < 0;
     }
@@ -110,6 +169,19 @@ public class AiUsage {
 
     /** 80%·100% 에 처음 닿을 때 한 번씩(같은 달·같은 단계는 대기열 키로 한 번) */
     void alertIfNeeded() {
+        Credit c = credit();
+        if (c != null) {
+            int left = c.percentLeft();
+            for (int level : new int[]{0, 20}) { // 남은 크레딧 20% 아래·바닥
+                if (left <= level) {
+                    String text = level == 0
+                            ? "💸 Anthropic 크레딧이 바닥난 것 같아요. AI 를 멈추고 규칙·기록만으로 돌려요. 콘솔에서 충전한 뒤 AI_CREDIT_BALANCE_USD 를 새 잔액으로 바꿔 주세요. (" + c.line() + ")"
+                            : "💸 Anthropic 크레딧이 " + left + "% 남았어요. (" + c.line() + ")";
+                    outbox.enqueueOnce(NotificationType.AI_BUDGET, Map.of("text", text), "ai-credit:" + c.at().toLocalDate() + ":" + c.balance().toPlainString() + ":" + level);
+                    break;
+                }
+            }
+        }
         if (budget.signum() <= 0) return;
         Month m = month();
         for (int level : new int[]{100, 80}) {
@@ -144,7 +216,7 @@ public class AiUsage {
         BigDecimal remaining = b == null ? null : b.subtract(cost[0]);
         int pct = b == null ? 0 : cost[0].multiply(BigDecimal.valueOf(100)).divide(b, 0, RoundingMode.DOWN).intValue();
         return new Month(start.format(DateTimeFormatter.ofPattern("yyyy-MM")), tot[0], tot[1], tot[2], tot[3], cost[0],
-                b, remaining, pct, calls, costs, start);
+                b, remaining, pct, calls, costs, start, credit());
     }
 
     /** 기록을 시작한 뒤 전체 합계(달러) */
