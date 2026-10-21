@@ -70,14 +70,15 @@ public class IssueController {
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "이슈 상태 바꾸기", description = "OPEN·IN_PROGRESS·RESOLVED·WONT_FIX. 감사 기록에 키 이름과 reason(선택)이 남는다. AI 에이전트 키로는 RESOLVED·WONT_FIX 불가(403)")
+    @Operation(summary = "이슈 상태 바꾸기", description = "OPEN·IN_PROGRESS·VERIFYING·RESOLVED·WONT_FIX. 감사 기록에 키 이름과 reason(선택)이 남는다. AI 에이전트 키로는 VERIFYING·RESOLVED·WONT_FIX 불가(403)")
     @SecurityRequirement(name = "adminKey")
     public IssueView changeStatus(@PathVariable long id, @Valid @RequestBody StatusRequest req,
                                   @RequestHeader(value = "X-Api-Key", required = false) String apiKey) {
         String actor = guard.requireAdmin(apiKey);
         if (req == null || req.status() == null) throw new IllegalArgumentException("status 가 필요합니다");
         // 고쳤는지는 개발팀만 안다. 에이전트는 해결·보류로 닫지 못한다(플레이어 글에 숨은 지시로 이슈가 닫히는 것도 막는다)
-        if (AdminGuard.AGENT.equals(actor) && (req.status() == IssueStatus.RESOLVED || req.status() == IssueStatus.WONT_FIX)) {
+        if (AdminGuard.AGENT.equals(actor) && (req.status() == IssueStatus.RESOLVED || req.status() == IssueStatus.WONT_FIX
+                || req.status() == IssueStatus.VERIFYING)) {
             throw new ForbiddenException("AI 에이전트는 해결·보류로 바꿀 수 없습니다. 사람이 슬랙 버튼이나 관리자 키로 처리하세요");
         }
         String via = req.reason() == null || req.reason().isBlank() ? "api" : "api: " + req.reason().strip();

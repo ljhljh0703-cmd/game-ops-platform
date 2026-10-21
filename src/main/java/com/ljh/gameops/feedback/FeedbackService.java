@@ -33,8 +33,15 @@ public class FeedbackService {
         this.audit = audit;
     }
 
+    /** version·device·steps·attachments = 제보의 재현 정보(V12). 없으면 null */
     public record Item(long reportId, long issueId, String game, OffsetDateTime receivedAt, String body,
-                       String category, String severity, String status, int issueReportCount, String issueTitle) {}
+                       String category, String severity, String status, int issueReportCount, String issueTitle,
+                       String version, String device, String steps, String attachments) {
+        public Item(long reportId, long issueId, String game, OffsetDateTime receivedAt, String body,
+                    String category, String severity, String status, int issueReportCount, String issueTitle) {
+            this(reportId, issueId, game, receivedAt, body, category, severity, status, issueReportCount, issueTitle, null, null, null, null);
+        }
+    }
 
     /** 최근 days 일 제보(새것부터). game 이 null 이면 모든 게임 */
     @Transactional(readOnly = true)
@@ -42,7 +49,8 @@ public class FeedbackService {
         Long gameId = gameCode == null || gameCode.isBlank() ? null : game(gameCode).getId();
         OffsetDateTime since = OffsetDateTime.now().minusDays(days);
         return jdbc.query("""
-                SELECT r.id, i.id, g.code, r.received_at, r.body, i.category, i.severity, i.status, i.report_count, i.title
+                SELECT r.id, i.id, g.code, r.received_at, r.body, i.category, i.severity, i.status, i.report_count, i.title,
+                       r.build_version, r.device, r.repro_steps, r.attachment_urls
                 FROM report r
                 JOIN issue_report l ON l.report_id = r.id
                 JOIN issue i ON i.id = l.issue_id
@@ -51,7 +59,8 @@ public class FeedbackService {
                 ORDER BY r.received_at DESC, r.id DESC
                 LIMIT ?
                 """, (rs, n) -> new Item(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getObject(4, OffsetDateTime.class),
-                rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getInt(9), rs.getString(10)), since, gameId, gameId, limit);
+                rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getInt(9), rs.getString(10),
+                rs.getString(11), rs.getString(12), rs.getString(13), rs.getString(14)), since, gameId, gameId, limit);
     }
 
     /** AI 정리를 기록하고 슬랙 카드로 보낸다. 게임을 고르면 그 게임 채널, 아니면 공용 채널 */

@@ -248,7 +248,7 @@
             "type" : "string"
           },
           "status" : {
-            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX", "VERIFYING" ],
             "type" : "string"
           },
           "title" : {
@@ -263,10 +263,16 @@
       },
       "Item" : {
         "properties" : {
+          "attachments" : {
+            "type" : "string"
+          },
           "body" : {
             "type" : "string"
           },
           "category" : {
+            "type" : "string"
+          },
+          "device" : {
             "type" : "string"
           },
           "game" : {
@@ -295,6 +301,12 @@
             "type" : "string"
           },
           "status" : {
+            "type" : "string"
+          },
+          "steps" : {
+            "type" : "string"
+          },
+          "version" : {
             "type" : "string"
           }
         },
@@ -427,7 +439,7 @@
             "type" : "string"
           },
           "status" : {
-            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX", "VERIFYING" ],
             "type" : "string"
           }
         },
@@ -1037,7 +1049,7 @@
           "name" : "status",
           "required" : false,
           "schema" : {
-            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX" ],
+            "enum" : [ "OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX", "VERIFYING" ],
             "type" : "string"
           }
         } ],
@@ -1238,7 +1250,7 @@
     },
     "/api/issues/{id}/status" : {
       "patch" : {
-        "description" : "OPEN·IN_PROGRESS·RESOLVED·WONT_FIX. 감사 기록에 키 이름과 reason(선택)이 남는다. AI 에이전트 키로는 RESOLVED·WONT_FIX 불가(403)",
+        "description" : "OPEN·IN_PROGRESS·VERIFYING·RESOLVED·WONT_FIX. 감사 기록에 키 이름과 reason(선택)이 남는다. AI 에이전트 키로는 VERIFYING·RESOLVED·WONT_FIX 불가(403)",
         "operationId" : "changeStatus",
         "parameters" : [ {
           "in" : "path",

@@ -10,7 +10,8 @@ public final class Labels {
     public static final Map<Severity, String> SEVERITY = Map.of(
             Severity.CRITICAL, "긴급", Severity.HIGH, "높음", Severity.MEDIUM, "보통", Severity.LOW, "낮음");
     public static final Map<IssueStatus, String> STATUS = Map.of(
-            IssueStatus.OPEN, "열림", IssueStatus.IN_PROGRESS, "진행 중", IssueStatus.RESOLVED, "해결됨", IssueStatus.WONT_FIX, "보류");
+            IssueStatus.OPEN, "열림", IssueStatus.IN_PROGRESS, "진행 중", IssueStatus.RESOLVED, "해결됨", IssueStatus.WONT_FIX, "보류",
+            IssueStatus.VERIFYING, "QA 확인 대기");
 
     private Labels() {}
 
@@ -23,6 +24,7 @@ public final class Labels {
             case WONT_FIX -> "⏸️ 보류";
             case IN_PROGRESS -> "🛠️ 진행 중";
             case OPEN -> "↩️ 다시 열림";
+            case VERIFYING -> "🧪 고침 · QA 확인 대기";
         };
     }
 }

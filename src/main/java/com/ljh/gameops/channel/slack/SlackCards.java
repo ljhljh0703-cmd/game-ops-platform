@@ -53,6 +53,7 @@ public final class SlackCards {
     static String color(IssueCard c) {
         if (c.status() == IssueStatus.RESOLVED) return "#2EB67D";
         if (c.status() == IssueStatus.WONT_FIX) return "#616061";
+        if (c.status() == IssueStatus.VERIFYING) return "#36C5F0";
         return switch (c.severity()) {
             case CRITICAL -> "#E01E5A";
             case HIGH -> "#E8912D";
@@ -64,6 +65,7 @@ public final class SlackCards {
     static String mark(IssueCard c) {
         if (c.status() == IssueStatus.RESOLVED) return "✅";
         if (c.status() == IssueStatus.WONT_FIX) return "⏸️";
+        if (c.status() == IssueStatus.VERIFYING) return "🧪";
         return switch (c.severity()) {
             case CRITICAL -> "🔴";
             case HIGH -> "🟠";
@@ -112,7 +114,10 @@ public final class SlackCards {
         // 맥락은 한 블록에 모은다(블록이 6개를 넘으면 슬랙이 접는다). 방금 한 일이 있으면 맨 앞에
         List<ContextBlockElement> ctx = new ArrayList<>();
         if (c.lastAction() != null) ctx.add(md("*" + c.lastAction() + "*"));
-        if (c.recurrenceOf() != null) ctx.add(md("🔁 재발 의심 · 최근 해결한 #" + c.recurrenceOf() + "과 비슷"));
+        if (c.recurrenceOf() != null) ctx.add(md("🔁 재발 의심 · 최근 고친 #" + c.recurrenceOf() + "과 비슷"));
+        // QA가 먼저 보는 재현 정보 한 줄(버전·기기·재현 순서·스크린샷). 플레이어가 쓴 값이라 바꿔 쓴다
+        ctx.add(md("🧪 " + escape(cut(c.repro().line(), 200))));
+        if (c.jiraKey() != null) ctx.add(md("🎫 Jira <" + c.jiraUrl() + "|" + escape(c.jiraKey()) + ">"));
         if (c.detachedFrom() != null) ctx.add(md("✂️ #" + c.detachedFrom() + "에서 떼어냄"));
         String src = c.source() == null ? "" : SOURCE.get(c.source()) + " · ";
         ctx.add(md(src + "처음 " + when(c.createdAt())));
@@ -142,6 +147,11 @@ public final class SlackCards {
             case IN_PROGRESS -> {
                 out.add(statusButton(id, IssueStatus.RESOLVED, "✅ 해결", "primary"));
                 out.add(statusButton(id, IssueStatus.WONT_FIX, "보류", null));
+            }
+            // 고친 코드가 합쳐져 QA 확인 대기. 확인하면 해결(이때 플레이어 답장), 아직 나면 다시 열기
+            case VERIFYING -> {
+                out.add(statusButton(id, IssueStatus.RESOLVED, "✅ QA 확인 완료", "primary"));
+                out.add(statusButton(id, IssueStatus.OPEN, "↩️ 아직 나요 · 다시 열기", null));
             }
             case RESOLVED, WONT_FIX -> out.add(statusButton(id, IssueStatus.OPEN, "다시 열기", null));
         }
@@ -174,6 +184,7 @@ public final class SlackCards {
         if (actor == null) return "?";
         if (actor.equals("ai-agent")) return "🤖 AI 에이전트";
         if (actor.startsWith("github:")) return "🔀 깃허브 " + escape(actor.substring(7)) + "(코드 반영)";
+        if (actor.startsWith("jira:")) return "🎫 Jira " + escape(actor.substring(5));
         if (actor.startsWith("slack:")) {
             String id = actor.substring(6);
             return id.matches("[A-Z0-9_]{2,30}") ? "<@" + id + ">" : "슬랙 관리자";
@@ -211,6 +222,7 @@ public final class SlackCards {
     // ── AI 피드백 정리 카드 ──
 
     public static final String ACTION_DIGEST_HANDOFF = "digest_handoff";
+    public static final String ACTION_DIGEST_JIRA = "digest_jira";
 
     /** 보라 띠. 정리 글은 AI 가 쓴 글이지만 플레이어 글을 옮겼을 수 있어 서식 문자(& < >)는 바꿔 넣는다(굵게·목록은 그대로).
      *  아직 안 넘겼으면 「🤖 개발 AI에게 넘기기」 버튼, 넘겼으면 넘긴 이슈 링크와 누가·언제. 5블록 */
@@ -220,22 +232,27 @@ public final class SlackCards {
         b.add(HeaderBlock.builder().text(plain(cut("🧠 최근 피드백 정리 · " + (d.gameName() == null ? "전체" : d.gameName()), 150))).build());
         b.add(ContextBlock.builder().elements(List.of(md(escape(scope)))).build());
         b.add(SectionBlock.builder().text(md(cut(escape(d.text()), 2900))).build());
-        b.add(ContextBlock.builder().elements(List.of(md(actorLabel(d.actor()) + "가 정리 · " + when(d.createdAt())))).build());
-        if (d.handoffs().isEmpty()) {
-            b.add(ActionsBlock.builder().elements(List.<BlockElement>of(
-                    button(ACTION_DIGEST_HANDOFF, "🤖 개발 AI에게 넘기기", String.valueOf(d.digestId()), "primary"))).build());
-        } else {
-            var h = d.handoffs();
-            StringBuilder links = new StringBuilder("🤖 *개발 AI에게 넘김* · ");
-            for (int i = 0; i < h.size(); i++) {
-                if (i > 0) links.append(", ");
-                links.append('<').append(h.get(i).url()).append('|').append(escape(h.get(i).label())).append('>');
-            }
-            var last = h.get(h.size() - 1);
-            links.append(" · ").append(actorLabel(last.actor())).append(" · ").append(when(last.at()));
-            b.add(ContextBlock.builder().elements(List.of(md(cut(links.toString(), 2900)))).build());
-        }
+        // 정리한 쪽 · 넘긴 기록(깃허브 지시서 · Jira 티켓)은 한 맥락 블록에, 아직 안 한 일의 버튼은 한 줄에(5블록을 넘지 않게)
+        List<ContextBlockElement> ctx = new ArrayList<>();
+        ctx.add(md(actorLabel(d.actor()) + "가 정리 · " + when(d.createdAt())));
+        if (!d.handoffs().isEmpty()) ctx.add(md(cut(links("🤖 *개발 AI에게 넘김* · ", d.handoffs()), 1400)));
+        if (!d.jira().isEmpty()) ctx.add(md(cut(links("🎫 *Jira 티켓 " + d.jira().size() + "건* · ", d.jira()), 1400)));
+        b.add(ContextBlock.builder().elements(ctx).build());
+        List<BlockElement> todo = new ArrayList<>();
+        if (d.handoffs().isEmpty()) todo.add(button(ACTION_DIGEST_HANDOFF, "🤖 개발 AI에게 넘기기", String.valueOf(d.digestId()), "primary"));
+        if (d.jira().isEmpty() && d.jiraAvailable()) todo.add(button(ACTION_DIGEST_JIRA, "🎫 Jira 버그 티켓 만들기", String.valueOf(d.digestId()), null));
+        if (!todo.isEmpty()) b.add(ActionsBlock.builder().elements(todo).build());
         return Attachment.builder().color("#7C3AED").fallback("최근 피드백 정리 · " + scope).blocks(b).build();
+    }
+
+    private static String links(String head, List<com.ljh.gameops.notify.DigestCard.Handoff> h) {
+        StringBuilder s = new StringBuilder(head);
+        for (int i = 0; i < h.size(); i++) {
+            if (i > 0) s.append(", ");
+            s.append('<').append(h.get(i).url()).append('|').append(escape(h.get(i).label())).append('>');
+        }
+        var last = h.get(h.size() - 1);
+        return s.append(" · ").append(actorLabel(last.actor())).append(" · ").append(when(last.at())).toString();
     }
 
     // ── 입력 창 ──

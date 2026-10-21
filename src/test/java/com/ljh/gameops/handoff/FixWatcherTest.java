@@ -3,6 +3,7 @@ package com.ljh.gameops.handoff;
 
 import com.ljh.gameops.IntegrationTest;
 import com.ljh.gameops.game.GameCatalog;
+import com.ljh.gameops.game.GameSpec;
 import com.ljh.gameops.intake.IntakeService;
 import com.ljh.gameops.intake.SubmitReport;
 import com.ljh.gameops.issue.IssueRepository;
@@ -47,9 +48,17 @@ class FixWatcherTest extends IntegrationTest {
     @Autowired IntakeService intake;
     @Autowired IssueRepository issues;
     @Autowired OutboxRepository outbox;
+    @Autowired com.ljh.gameops.issue.IssueService issueService;
 
     @BeforeEach
     void reset() { github.merged.clear(); github.commits.clear(); github.comments.clear(); }
+
+    /** QA 확인을 끈 보석타워(합치면 바로 해결). 운영 설정은 QA 확인을 켜 둔다 */
+    private GameSpec noQa() {
+        GameSpec g = games.byCode("gemtower").orElseThrow();
+        return new GameSpec(g.code(), g.name(), g.discordChannels(), g.slackChannel(), g.slackUrgentChannel(), g.botName(), g.icon(),
+                g.repo(), false, null);
+    }
 
     private long issue(String game, String body) {
         return intake.submit(new SubmitReport(game, SourceChannel.API, null, "a" + body.hashCode(), body, null)).issueId();
@@ -63,7 +72,7 @@ class FixWatcherTest extends IntegrationTest {
         github.merged.add(new GitHubRepoReader.Merged(3, "fix: 보스 웨이브 튕김 (ops-" + gem + ")",
                 "고친 운영 이슈: ops-" + gem + ", ops-" + jelly + ", ops-99999\n재현 못 한 것: 결제 문제", "godju", OffsetDateTime.now().minusMinutes(1), "u"));
 
-        var done = watcher.scan(games.byCode("gemtower").orElseThrow());
+        var done = watcher.scan(noQa());
 
         assertThat(done).containsExactly(gem);
         assertThat(issues.findById(gem).orElseThrow().getStatus()).isEqualTo(IssueStatus.RESOLVED);
@@ -75,7 +84,7 @@ class FixWatcherTest extends IntegrationTest {
         assertThat(github.comments).hasSize(1).first().asString().contains("uzmap-forge#3", "ops-" + gem);
 
         // 다시 봐도 두 번 처리하지 않는다
-        assertThat(watcher.scan(games.byCode("gemtower").orElseThrow())).isEmpty();
+        assertThat(watcher.scan(noQa())).isEmpty();
         assertThat(github.comments).hasSize(1);
     }
 
@@ -86,8 +95,36 @@ class FixWatcherTest extends IntegrationTest {
         github.commits.add(new GitHubRepoReader.Commit("abc1234def", "fix: 타워 설치 (OPS-" + gem + ")", "codex-bot", OffsetDateTime.now(), "u"));
         github.merged.add(new GitHubRepoReader.Merged(1, "ops-" + old, "", "godju", OffsetDateTime.now().minusDays(3), "u"));
 
-        assertThat(watcher.scan(games.byCode("gemtower").orElseThrow())).containsExactly(gem);
+        assertThat(watcher.scan(noQa())).containsExactly(gem);
         assertThat(issues.findById(old).orElseThrow().getStatus()).isEqualTo(IssueStatus.OPEN);
+    }
+
+    @Test
+    void QA_확인을_쓰는_게임은_합쳐도_확인_대기_QA가_확인하면_그때_플레이어_답장() {
+        GameSpec gem = games.byCode("gemtower").orElseThrow();
+        assertThat(gem.qaCheck()).isTrue();
+        long id = issue("gemtower", "보스 웨이브에서 튕겨요");
+        github.merged.add(new GitHubRepoReader.Merged(5, "fix: 보스 튕김 ops-" + id, "", "godju", OffsetDateTime.now(), "u"));
+
+        assertThat(watcher.scan(gem)).containsExactly(id);
+        assertThat(issues.findById(id).orElseThrow().getStatus()).isEqualTo(IssueStatus.VERIFYING);
+        assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.PLAYER_RESOLVED)).isEmpty(); // 아직 「고쳤어요」 안 감
+        assertThat(github.comments).first().asString().contains("QA 확인 대기");
+
+        // QA가 슬랙에서 확인 → 해결, 이때 플레이어 답장
+        issueService.changeStatus(id, IssueStatus.RESOLVED, "slack:UQA", "slack");
+        assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.PLAYER_RESOLVED)).hasSize(1);
+    }
+
+    @Test
+    void 확인_대기_중에_같은_제보가_또_오면_재발로_표시한다() {
+        long id = issue("gemtower", "보스 웨이브에서 튕겨요");
+        github.merged.add(new GitHubRepoReader.Merged(6, "ops-" + id, "", "godju", OffsetDateTime.now(), "u"));
+        watcher.scan(games.byCode("gemtower").orElseThrow());
+
+        long again = intake.submit(new SubmitReport("gemtower", SourceChannel.API, null, "b", "보스 웨이브에서 또 튕겨요", null)).issueId();
+        assertThat(again).isNotEqualTo(id);
+        assertThat(issues.findById(again).orElseThrow().getRecurrenceOf()).isEqualTo(id);
     }
 
     @Test

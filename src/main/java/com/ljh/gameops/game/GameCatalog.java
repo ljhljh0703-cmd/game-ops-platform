@@ -52,9 +52,18 @@ public final class GameCatalog {
             List<String> channels = new ArrayList<>();
             g.path("discordChannels").forEach(c -> channels.add(c.asText()));
             out.add(new GameSpec(text(g, "code"), text(g, "name"), channels,
-                    text(g, "slackChannel"), text(g, "slackUrgentChannel"), text(g, "botName"), text(g, "icon"), text(g, "repo")));
+                    text(g, "slackChannel"), text(g, "slackUrgentChannel"), text(g, "botName"), text(g, "icon"), text(g, "repo"),
+                    g.path("qa").asBoolean(false), jiraKey(text(g, "jiraProject"))));
         }
         return new GameCatalog(out);
+    }
+
+    /** Jira 프로젝트 키는 영문 대문자로 시작하는 짧은 키(예: GEM). 형식이 틀리면 켜기 전에 알린다 */
+    static String jiraKey(String k) {
+        if (k == null || k.isBlank()) return null;
+        String t = k.strip();
+        if (!t.matches("[A-Z][A-Z0-9_]{0,19}")) throw new IllegalArgumentException("jiraProject 형식 오류(영문 대문자 키, 예: GEM): " + t);
+        return t;
     }
 
     private static String text(JsonNode n, String field) {

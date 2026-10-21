@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ApiError, GameOpsApi, q } from "./api.js";
 
-const STATUS = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "WONT_FIX"]);
+const STATUS = z.enum(["OPEN", "IN_PROGRESS", "VERIFYING", "RESOLVED", "WONT_FIX"]);
 const CATEGORY = z.enum(["CRASH", "BUG", "PERFORMANCE", "BALANCE", "PAYMENT", "UX", "OTHER"]);
 const SEVERITY = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 const gameCode = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/).describe("게임 코드(list_games 로 확인). 예: jelly-panic, gemtower, movefu");

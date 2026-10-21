@@ -82,11 +82,11 @@ class DevHandoffTest extends IntegrationTest {
         assertThat((Map<String, Object>) again.getBody().get(0)).containsEntry("already", true);
         assertThat(github.made).hasSize(1);
 
-        // 카드: 버튼 대신 넘긴 링크와 누가
+        // 카드: 버튼 대신 넘긴 링크와 누가(정리한 쪽과 같은 맥락 줄). Jira 설정이 없으면 Jira 버튼도 없어 버튼 줄이 사라진다
         var card = SlackCards.digestCard(digestCards.current(d));
-        assertThat(card.getBlocks()).hasSize(5).noneMatch(b -> b instanceof ActionsBlock);
-        var last = (ContextBlock) card.getBlocks().get(4);
-        assertThat(last.getElements().get(0).toString()).contains("개발 AI에게 넘김", "https://github.com/ljhljh0703-cmd/jelly-panic/issues/41|젤리 패닉 jelly-panic#41", "AI 에이전트");
+        assertThat(card.getBlocks()).hasSize(4).noneMatch(b -> b instanceof ActionsBlock);
+        var last = (ContextBlock) card.getBlocks().get(3);
+        assertThat(last.getElements().get(1).toString()).contains("개발 AI에게 넘김", "https://github.com/ljhljh0703-cmd/jelly-panic/issues/41|젤리 패닉 jelly-panic#41", "AI 에이전트");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_log WHERE action = 'DEV_HANDOFF'", Integer.class)).isEqualTo(1);
     }
 

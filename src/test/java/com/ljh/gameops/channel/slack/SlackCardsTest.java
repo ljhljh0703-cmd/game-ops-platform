@@ -120,4 +120,24 @@ class SlackCardsTest {
         assertThat(v.getCallbackId()).isEqualTo("detach");
         assertThat(json).contains("스테이지 3에서 게임이 느려요").contains("\"value\":\"5\"").contains("radio_buttons");
     }
+
+    @Test
+    void QA_확인_대기_카드는_파란_띠에_확인_완료와_다시_열기() {
+        var a = SlackCards.card(card(Severity.HIGH, IssueStatus.VERIFYING, 2, "튕겨요"), null);
+        assertThat(a.getColor()).isEqualTo("#36C5F0");
+        assertThat(((HeaderBlock) a.getBlocks().get(0)).getText().getText()).startsWith("🧪");
+        assertThat(buttons(a.getBlocks())).containsExactly("✅ QA 확인 완료", "↩️ 아직 나요 · 다시 열기");
+    }
+
+    @Test
+    void 재현_정보와_Jira_링크가_맥락_줄에() {
+        var c = card(Severity.HIGH, IssueStatus.OPEN, 2, "튕겨요");
+        var withRepro = new IssueCard(c.issueId(), c.gameName(), c.label(), c.title(), c.quote(), c.category(), c.severity(), c.status(),
+                c.reportCount(), null, null, c.source(), c.createdAt(), null,
+                com.ljh.gameops.report.ReproInfo.Summary.from(List.of(new com.ljh.gameops.report.ReproInfo.Summary.Part("1.2", "<!channel>", null, null))),
+                "GEM-7", "https://studio.atlassian.net/browse/GEM-7");
+        String text = SlackCards.card(withRepro, null).getBlocks().toString();
+        assertThat(text).contains("🧪 버전 1.2 · 기기 &lt;!channel&gt; · 재현 순서 없음", "🎫 Jira <https://studio.atlassian.net/browse/GEM-7|GEM-7>");
+        assertThat(SlackCards.card(c, null).getBlocks().toString()).contains("🧪 재현 정보 없음");
+    }
 }

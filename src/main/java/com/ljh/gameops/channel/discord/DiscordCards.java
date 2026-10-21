@@ -45,6 +45,10 @@ public final class DiscordCards {
         if (r.category() != null) e.addField("분류", CATEGORY.get(r.category()), true);
         if (r.severity() != null) e.addField("심각도", SEVERITY.get(r.severity()), true);
         e.addField("같은 제보", r.reportCount() + "건", true);
+        if (!r.missing().isEmpty()) {
+            e.addField("더 알려 주시면 빨리 고쳐요", String.join(" · ", r.missing())
+                    + (canReplyLater ? "\n이 글에 답글로 적어 주세요." : "\n/report 의 입력칸에 적을 수 있어요."), false);
+        }
         if (canReplyLater && r.kind() != DiscordReportHandler.Reply.Kind.DUPLICATE) {
             e.setFooter(FOOTER + " · 고치면 이 글에 답장으로 알려 드려요");
         }

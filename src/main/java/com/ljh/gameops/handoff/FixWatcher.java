@@ -80,18 +80,19 @@ public class FixWatcher {
             if (pr.mergedAt() == null || pr.mergedAt().isBefore(since)) continue;
             Set<Long> ids = refs(pr.title() + "\n" + pr.body());
             if (ids.isEmpty() || !claim(g.repo(), "PR", String.valueOf(pr.number()), pr.mergedBy())) continue;
-            List<Long> r = resolve(gameId, ids, "github:" + pr.mergedBy(), "github-pr#" + pr.number());
+            List<Long> r = resolve(g, gameId, ids, "github:" + pr.mergedBy(), "github-pr#" + pr.number());
             record(g.repo(), "PR", String.valueOf(pr.number()), r);
             done.addAll(r);
             if (!r.isEmpty()) {
-                github.comment(g.repo(), pr.number(), "🤖 게임 운영 플랫폼: 운영 이슈 " + join(r)
-                        + " 를 해결로 바꿨어요. 디스코드에 제보한 플레이어에게 「고쳤어요」 알림이 갑니다.");
+                github.comment(g.repo(), pr.number(), g.qaCheck()
+                        ? "🤖 게임 운영 플랫폼: 운영 이슈 " + join(r) + " 를 「QA 확인 대기」로 바꿨어요. QA가 슬랙에서 확인하면 해결로 바뀌고 제보한 플레이어에게 「고쳤어요」 알림이 갑니다."
+                        : "🤖 게임 운영 플랫폼: 운영 이슈 " + join(r) + " 를 해결로 바꿨어요. 디스코드에 제보한 플레이어에게 「고쳤어요」 알림이 갑니다.");
             }
         }
         for (GitHubRepoReader.Commit c : github.commitsSince(g.repo(), since)) {
             Set<Long> ids = refs(c.message());
             if (ids.isEmpty() || !claim(g.repo(), "COMMIT", c.sha(), c.author())) continue;
-            List<Long> r = resolve(gameId, ids, "github:" + c.author(), "github-commit:" + c.sha().substring(0, Math.min(7, c.sha().length())));
+            List<Long> r = resolve(g, gameId, ids, "github:" + c.author(), "github-commit:" + c.sha().substring(0, Math.min(7, c.sha().length())));
             record(g.repo(), "COMMIT", c.sha(), r);
             done.addAll(r);
         }
@@ -99,13 +100,14 @@ public class FixWatcher {
         return done;
     }
 
-    /** 그 게임의 열린 이슈만 해결. 다른 게임 번호·없는 번호·이미 닫힌 것은 넘긴다 */
-    private List<Long> resolve(long gameId, Set<Long> ids, String actor, String via) {
+    /** 그 게임의 열린 이슈만 해결(QA 확인을 쓰는 게임이면 「QA 확인 대기」). 다른 게임 번호·없는 번호·이미 닫힌 것은 넘긴다 */
+    private List<Long> resolve(GameSpec g, long gameId, Set<Long> ids, String actor, String via) {
+        IssueStatus target = g.qaCheck() ? IssueStatus.VERIFYING : IssueStatus.RESOLVED;
         List<Long> out = new ArrayList<>();
         for (Long id : ids) {
             Optional<Issue> i = issueRepo.findById(id);
             if (i.isEmpty() || !Objects.equals(i.get().getGameId(), gameId) || !i.get().getStatus().isOpen()) continue;
-            issues.changeStatus(id, IssueStatus.RESOLVED, actor, via);
+            issues.changeStatus(id, target, actor, via);
             out.add(id);
         }
         return out;

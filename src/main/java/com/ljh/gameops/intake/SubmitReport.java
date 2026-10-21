@@ -1,13 +1,22 @@
 // 제보 접수 명령 — 디스코드·슬랙·REST 어디서 오든 이 모양으로 들어온다
 package com.ljh.gameops.intake;
 
+import com.ljh.gameops.report.ReproInfo;
 import com.ljh.gameops.report.SourceChannel;
 
-/** @param replyTo 해결되면 답장할 곳(디스코드: 「채널 ID:메시지 ID」). 없으면 null */
+/**
+ * @param replyTo 해결되면 답장할 곳(디스코드: 「채널 ID:메시지 ID」). 없으면 null
+ * @param repro   입력칸으로 받은 재현 정보(버전·기기·재현 순서). 없으면 null — 글에서 찾은 값으로 채운다
+ */
 public record SubmitReport(String gameCode, SourceChannel channel, String externalId,
-                           String authorId, String body, String attachmentUrls, String replyTo) {
+                           String authorId, String body, String attachmentUrls, String replyTo, ReproInfo repro) {
+    public SubmitReport(String gameCode, SourceChannel channel, String externalId, String authorId, String body,
+                        String attachmentUrls, String replyTo) {
+        this(gameCode, channel, externalId, authorId, body, attachmentUrls, replyTo, null);
+    }
+
     public SubmitReport(String gameCode, SourceChannel channel, String externalId, String authorId, String body, String attachmentUrls) {
-        this(gameCode, channel, externalId, authorId, body, attachmentUrls, null);
+        this(gameCode, channel, externalId, authorId, body, attachmentUrls, null, null);
     }
 
     public SubmitReport {

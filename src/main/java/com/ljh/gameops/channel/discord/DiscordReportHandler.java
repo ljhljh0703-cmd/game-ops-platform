@@ -39,8 +39,18 @@ public class DiscordReportHandler {
     }
 
     /** 답장 한 건 — 글(text)과 카드에 쓸 값. 오류 답장은 issueId 가 null. */
-    public record Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount) {
+    /** @param missing 새 이슈일 때 플레이어에게 더 물어볼 재현 정보(게임 버전·기기·재현 순서·스크린샷). 다 있으면 빈 목록 */
+    public record Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount,
+                        java.util.List<String> missing) {
         public enum Kind { NEW, ATTACHED, DUPLICATE, ERROR }
+
+        public Reply {
+            missing = missing == null ? java.util.List.of() : java.util.List.copyOf(missing);
+        }
+
+        public Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount) {
+            this(text, kind, issueId, gameName, category, severity, reportCount, java.util.List.of());
+        }
 
         static Reply error(String text) { return new Reply(text, Kind.ERROR, null, null, null, null, 0); }
     }
@@ -57,6 +67,28 @@ public class DiscordReportHandler {
         if (in.content() == null || in.content().isBlank()) return Optional.empty();
         String chosen = (in.gameCode() != null && !in.gameCode().isBlank()) ? in.gameCode().trim() : game.get();
         return Optional.of(accept(in, chosen));
+    }
+
+    /**
+     * 제보 채널에서 답글로 단 글. 답글 대상이 이미 받은 제보면 재현 정보로 더하고 「더했어요」, 아니면 보통 제보로 받는다.
+     * @param originalMessageId 답글이 가리키는 플레이어 원래 글의 메시지 ID(봇 답장에 단 답글이면 봇 답장이 가리키는 글)
+     */
+    public Optional<Reply> onReplyMessage(DiscordInbound in, String originalMessageId) {
+        boolean noText = in.content() == null || in.content().isBlank();
+        if (in.fromBot() || noText && in.attachmentUrls() == null) return Optional.empty();
+        if (channelGame(in).isEmpty()) return Optional.empty();
+        try {
+            Optional<Long> issueId = intake.addRepro(SourceChannel.DISCORD, "msg:" + originalMessageId, in.content(), in.attachmentUrls());
+            if (issueId.isPresent()) {
+                var issue = issues.get(issueId.get());
+                String name = games.byCode(channelGame(in).get()).map(GameSpec::name).orElse("");
+                return Optional.of(new Reply("[" + name + "] 재현 정보를 이슈 #%d 에 더했어요. 고마워요!".formatted(issueId.get()),
+                        Reply.Kind.ATTACHED, issueId.get(), name, issue.getCategory(), issue.getSeverity(), issue.getReportCount()));
+            }
+        } catch (RuntimeException e) {
+            log.warn("재현 정보 더하기 실패, 보통 제보로 받습니다 original={}", originalMessageId, e);
+        }
+        return onChannelMessageReply(in);
     }
 
     /** /report 명령. 게임을 고르면 그 게임, 안 고르면 명령을 쓴 채널의 게임, 그것도 아니면 기본 게임. */
@@ -88,7 +120,7 @@ public class DiscordReportHandler {
         log.info("디스코드 제보 접수 channelId={} channelName={} game={}", in.channelId(), in.channelName(), game);
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
-                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo()));
+                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro()));
             var issue = issues.get(r.issueId());
             int count = issue.getReportCount();
             String name = games.byCode(game).map(GameSpec::name).orElse(game);
@@ -105,7 +137,12 @@ public class DiscordReportHandler {
                 case ATTACHED_TO_EXISTING -> "비슷한 제보가 있어 이슈 #%d 에 합쳤어요. 같은 제보 %d건째입니다.".formatted(r.issueId(), count);
                 case DUPLICATE_DELIVERY -> "이미 접수된 제보예요. 이슈 #%d".formatted(r.issueId());
             };
-            return new Reply(text, kind, r.issueId(), name, issue.getCategory(), issue.getSeverity(), count);
+            // 새 이슈면 빠진 재현 정보를 플레이어에게 묻는다(QA가 먼저 묻는 것). 합쳐진 제보는 이미 누군가 적었을 수 있어 묻지 않는다
+            java.util.List<String> missing = kind == Reply.Kind.NEW
+                    ? com.ljh.gameops.report.ReproInfo.merge(in.repro(), com.ljh.gameops.report.ReproInfo.parse(in.content()))
+                            .missing(in.attachmentUrls() != null && !in.attachmentUrls().isBlank())
+                    : java.util.List.of();
+            return new Reply(text, kind, r.issueId(), name, issue.getCategory(), issue.getSeverity(), count, missing);
         } catch (NotFoundException e) {
             return Reply.error("등록되지 않은 게임이에요: " + game);
         } catch (IllegalArgumentException e) {

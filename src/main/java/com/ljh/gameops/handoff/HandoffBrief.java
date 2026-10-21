@@ -20,7 +20,8 @@ public final class HandoffBrief {
 
     public record Brief(String title, String body, int issueCount) {}
 
-    record Row(long id, String title, Category category, Severity severity, IssueStatus status, int count, List<String> quotes) {}
+    public record Row(long id, String title, Category category, Severity severity, IssueStatus status, int count, List<String> quotes,
+               com.ljh.gameops.report.ReproInfo.Summary repro) {}
 
     private HandoffBrief() {}
 
@@ -42,6 +43,7 @@ public final class HandoffBrief {
                     .append("- 이번 기간 제보: ").append(r.count()).append("건 · 상태: ").append(Labels.STATUS.get(r.status())).append('\n')
                     .append("- 플레이어 글:\n");
             for (String q : r.quotes()) b.append("  > ").append(safe(q, QUOTE_MAX)).append('\n');
+            reproLines(b, r.repro());
         }
         b.append("\n## 완료 기준\n")
                 .append("- 위 문제를 재현하고 고친 뒤 테스트를 붙여 주세요.\n")
@@ -54,7 +56,7 @@ public final class HandoffBrief {
     }
 
     /** 열린 이슈만, 먼저 볼 순서: 긴급 → 높음 → 결제·크래시 → 제보 많은 순 */
-    static List<Row> rows(List<FeedbackService.Item> items) {
+    public static List<Row> rows(List<FeedbackService.Item> items) {
         Map<Long, List<FeedbackService.Item>> by = items.stream()
                 .collect(Collectors.groupingBy(FeedbackService.Item::issueId, LinkedHashMap::new, Collectors.toList()));
         List<Row> rows = new ArrayList<>();
@@ -64,12 +66,37 @@ public final class HandoffBrief {
             if (!st.isOpen()) return;
             rows.add(new Row(id, f.issueTitle() == null ? "" : f.issueTitle(),
                     enumOr(Category.class, f.category(), Category.OTHER), enumOr(Severity.class, f.severity(), Severity.LOW), st,
-                    list.size(), list.stream().map(FeedbackService.Item::body).filter(Objects::nonNull).limit(QUOTES).toList()));
+                    list.size(), list.stream().map(FeedbackService.Item::body).filter(Objects::nonNull).limit(QUOTES).toList(),
+                    repro(list)));
         });
         rows.sort(Comparator.comparingInt((Row r) -> r.severity().ordinal()).reversed()
                 .thenComparing(r -> r.category() == Category.PAYMENT || r.category() == Category.CRASH ? 0 : 1)
                 .thenComparing(Comparator.comparingInt(Row::count).reversed()));
         return rows.size() > MAX_ISSUES ? rows.subList(0, MAX_ISSUES) : rows;
+    }
+
+    /** 먼저 받은 제보부터 재현 정보를 모은다 */
+    static com.ljh.gameops.report.ReproInfo.Summary repro(List<FeedbackService.Item> list) {
+        List<FeedbackService.Item> sorted = new ArrayList<>(list);
+        sorted.sort(Comparator.comparingLong(FeedbackService.Item::reportId));
+        return com.ljh.gameops.report.ReproInfo.Summary.from(sorted.stream()
+                .map(i -> new com.ljh.gameops.report.ReproInfo.Summary.Part(i.version(), i.device(), i.steps(), i.attachments())).toList());
+    }
+
+    /** 재현 정보 — 플레이어가 쓴 값이라 safe() 로 넣는다. 없는 칸은 「모름」으로 적어 개발 쪽이 지어내지 않게 한다 */
+    static void reproLines(StringBuilder b, com.ljh.gameops.report.ReproInfo.Summary s) {
+        b.append("- 재현 정보:\n")
+                .append("  - 게임 버전: ").append(s.versions().isEmpty() ? "모름" : safe(String.join(", ", s.versions()), 120)).append('\n')
+                .append("  - 기기: ").append(s.devices().isEmpty() ? "모름" : safe(String.join(", ", s.devices()), 160)).append('\n')
+                .append("  - 재현 순서: ").append(s.steps() == null ? "모름" : safe(s.steps(), 300)).append('\n');
+        // 디스코드가 올려 둔 첨부 주소만 링크로(아무 주소나 지시서에 링크로 넣지 않게)
+        List<String> shots = s.screenshots().stream()
+                .filter(u -> u.startsWith("https://cdn.discordapp.com/") || u.startsWith("https://media.discordapp.net/")).toList();
+        if (!shots.isEmpty()) {
+            b.append("  - 스크린샷(디스코드 주소, 하루쯤 지나면 열리지 않을 수 있어요):");
+            for (String u : shots) b.append(" [그림](").append(u.replace(")", "%29").replace(" ", "%20").replace("]", "%5D")).append(')');
+            b.append('\n');
+        }
     }
 
     /** 정리 글 첫 줄(굵게 표시 뺀 것) */

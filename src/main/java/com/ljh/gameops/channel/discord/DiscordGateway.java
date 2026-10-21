@@ -56,6 +56,10 @@ public class DiscordGateway extends ListenerAdapter {
                 Commands.slash("report", "버그·불편 제보")
                         .addOption(OptionType.STRING, "content", "무슨 일이 있었나요", true)
                         .addOptions(gameOption())
+                        .addOption(OptionType.STRING, "version", "게임 버전 (예: 1.2.3)", false)
+                        .addOption(OptionType.STRING, "device", "기기 · 브라우저 (예: 아이폰 15, 크롬)", false)
+                        .addOption(OptionType.STRING, "steps", "어떻게 하면 다시 생기나요 (예: 3웨이브에서 일시정지 후 재개)", false)
+                        .addOption(OptionType.ATTACHMENT, "screenshot", "스크린샷", false)
         ).queue();
     }
 
@@ -74,8 +78,10 @@ public class DiscordGateway extends ListenerAdapter {
         String[] ch = baseChannel(e.getChannel());
         // 답장할 곳은 실제 채널(스레드면 스레드) + 메시지. 해결되면 이 글에 「고쳤어요」를 단다
         String replyTo = e.getChannel().getId() + ":" + m.getId();
-        workers.submit(() -> handler.onChannelMessageReply(new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
-                        e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments, replyTo))
+        DiscordInbound in = new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
+                e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments, replyTo);
+        String original = originalOf(m, e.getJDA().getSelfUser().getId());
+        workers.submit(() -> (original != null ? handler.onReplyMessage(in, original) : handler.onChannelMessageReply(in))
                 .ifPresent(reply -> m.replyEmbeds(DiscordCards.intake(reply, true)).queue()));
     }
 
@@ -86,9 +92,32 @@ public class DiscordGateway extends ListenerAdapter {
         OptionMapping game = e.getOption("game");
         OptionMapping content = e.getOption("content");
         String[] ch = slashChannel(e);
+        OptionMapping shot = e.getOption("screenshot");
         DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), ch[0], ch[1], e.getUser().getId(),
-                false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(), null);
+                false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(),
+                shot == null ? null : shot.getAsAttachment().getUrl(), null,
+                com.ljh.gameops.report.ReproInfo.of(str(e, "version"), str(e, "device"), str(e, "steps")));
         workers.submit(() -> e.getHook().sendMessageEmbeds(DiscordCards.intake(handler.onSlashCommandReply(in), false)).queue());
+    }
+
+    /**
+     * 답글이면 플레이어 원래 글의 메시지 ID. 봇의 접수 답장에 단 답글이면 그 답장이 가리키는 글로 거슬러 올라간다.
+     * 답글이 아니면 null
+     */
+    static String originalOf(Message m, String selfId) {
+        var ref = m.getMessageReference();
+        if (ref == null) return null;
+        Message target = m.getReferencedMessage();
+        if (target != null && target.getAuthor() != null && selfId.equals(target.getAuthor().getId())
+                && target.getMessageReference() != null) {
+            return target.getMessageReference().getMessageId();
+        }
+        return ref.getMessageId();
+    }
+
+    private static String str(SlashCommandInteractionEvent e, String name) {
+        OptionMapping o = e.getOption(name);
+        return o == null ? null : o.getAsString();
     }
 
     /**

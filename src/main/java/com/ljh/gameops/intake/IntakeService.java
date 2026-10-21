@@ -85,6 +85,27 @@ public class IntakeService {
         }
     }
 
+    /**
+     * 플레이어가 자기 제보(또는 봇의 접수 답장)에 답글로 버전·기기·재현 순서·스크린샷을 더 적었을 때.
+     * 새 제보로 받지 않고 원래 제보에 채운다. 원래 제보를 못 찾으면 빈 값(그때는 보통 제보로 받는다).
+     * 답글 글 자체는 재현 순서가 비어 있을 때만 재현 순서로 쓴다.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Long> addRepro(com.ljh.gameops.report.SourceChannel channel, String originalExternalId,
+                                   String text, String attachmentUrls) {
+        if (originalExternalId == null) return Optional.empty();
+        Optional<Report> orig = reports.findBySourceChannelAndExternalId(channel, originalExternalId);
+        if (orig.isEmpty()) return Optional.empty();
+        Report r = orig.get();
+        var parsed = com.ljh.gameops.report.ReproInfo.parse(text);
+        r.addRepro(new com.ljh.gameops.report.ReproInfo(parsed.version(), parsed.device(), text), attachmentUrls);
+        reports.saveAndFlush(r);
+        Optional<Long> issueId = links.findByReportId(r.getId()).map(IssueReport::getIssueId);
+        // 슬랙 카드의 재현 정보 줄을 새로
+        issueId.ifPresent(id -> events.publishEvent(com.ljh.gameops.notify.IssueChanged.counts(id)));
+        return issueId;
+    }
+
     private Optional<IntakeResult> findRedelivery(SubmitReport cmd) {
         if (cmd.externalId() == null) return Optional.empty();
         return reports.findBySourceChannelAndExternalId(cmd.channel(), cmd.externalId())
@@ -109,12 +130,18 @@ public class IntakeService {
                 best = new Match(i, s);
             }
         }
+        // QA 확인 대기 중인 이슈와 같은 제보가 또 오면 「고쳤다는데 아직 난다」는 신호라 재발로 표시한다(결정 31)
+        for (Issue i : issues.findByGameIdAndStatusIn(gameId, java.util.List.of(IssueStatus.VERIFYING))) {
+            double s = i.getNormalizedKey().equals(key) ? 1.0 : similarity(normalized, category, i);
+            if (s >= props.duplicateThreshold() && (best == null || s > best.score())) best = new Match(i, s);
+        }
         return Optional.ofNullable(best);
     }
 
     private IntakeResult store(Game game, SubmitReport cmd, Classification c) {
         Report report = reports.saveAndFlush(new Report(game.getId(), cmd.channel(), cmd.externalId(),
-                hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls(), cmd.replyTo()));
+                hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls(), cmd.replyTo())
+                .withRepro(com.ljh.gameops.report.ReproInfo.merge(cmd.repro(), com.ljh.gameops.report.ReproInfo.parse(cmd.body()))));
 
         String normalized = TextNormalizer.normalize(cmd.body());
         // 링크·이모지·감탄사만 있는 글은 정규화하면 빈 문자열이 된다. 빈 글끼리 묶으면 무관한 제보가 한 이슈로

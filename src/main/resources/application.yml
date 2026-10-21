@@ -80,6 +80,13 @@ gameops:
     api-url: ${GITHUB_API_URL:https://api.github.com}
     # 고친 코드가 들어왔는지 보는 간격(합쳐진 PR·기본 브랜치 커밋의 ops-번호 → 자동 해결)
     watch-ms: ${GITHUB_WATCH_MS:20000}
+  jira:
+    # Jira 버그 티켓(결정 32) — Jira Cloud 주소(https://회사.atlassian.net)·계정 메일·API 토큰. 셋 중 하나라도 비면 Jira 버튼이 안 보인다
+    base-url: ${JIRA_BASE_URL:}
+    email: ${JIRA_EMAIL:}
+    api-token: ${JIRA_API_TOKEN:}
+    # 만든 티켓이 완료로 옮겨졌는지 보는 간격
+    watch-ms: ${JIRA_WATCH_MS:60000}
   weekly-report:
     cron: "0 0 9 * * MON"
     zone: Asia/Seoul

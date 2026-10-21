@@ -57,6 +57,7 @@ public class SlackInteractionController {
     private final SlackMessageStore store;
     private final SlackHomeService home;
     private final com.ljh.gameops.handoff.DevHandoffService handoff;
+    private final com.ljh.gameops.jira.JiraHandoffService jira;
     // 깃허브 이슈 만들기는 3초를 넘길 수 있어 뒤에서
     private final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
 
@@ -64,7 +65,9 @@ public class SlackInteractionController {
                                       ReportRepository reports, IssueCardFactory cards, SlackWebApi web,
                                       ObjectMapper mapper, Clock clock, SlackResponder responder,
                                       com.ljh.gameops.classify.RuleChangeService rules, SlackMessageStore store,
-                                      SlackHomeService home, com.ljh.gameops.handoff.DevHandoffService handoff) {
+                                      SlackHomeService home, com.ljh.gameops.handoff.DevHandoffService handoff,
+                                      com.ljh.gameops.jira.JiraHandoffService jira) {
+        this.jira = jira;
         this.home = home;
         this.handoff = handoff;
         this.rules = rules;
@@ -145,6 +148,21 @@ public class SlackInteractionController {
                     } catch (RuntimeException e) {
                         log.warn("개발 AI에게 넘기기 실패 digest={}: {}", digestId, e.getMessage());
                         responder.reply(responseUrl, "개발 AI에게 넘기지 못했어요: " + e.getMessage());
+                    }
+                });
+                return ResponseEntity.ok().build();
+            }
+            if (actionId.equals(SlackCards.ACTION_DIGEST_JIRA)) {
+                long digestId = Long.parseLong(value);
+                pool.submit(() -> {
+                    try {
+                        var done = jira.handoff(digestId, "slack:" + userId, channel, messageTs);
+                        int made = done.stream().mapToInt(r -> r.created().size()).sum();
+                        if (made == 0) responder.reply(responseUrl, done.isEmpty()
+                                ? "Jira 로 보낼 열린 이슈가 없어요." : "이미 모두 Jira 티켓이 있어요.");
+                    } catch (RuntimeException e) {
+                        log.warn("Jira 티켓 만들기 실패 digest={}: {}", digestId, e.getMessage());
+                        responder.reply(responseUrl, "Jira 티켓을 만들지 못했어요: " + e.getMessage());
                     }
                 });
                 return ResponseEntity.ok().build();

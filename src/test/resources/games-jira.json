@@ -1,0 +1,5 @@
+{"games": [
+  {"code": "jelly-panic", "name": "젤리 패닉", "discordChannels": ["젤리패닉-버그-제보"], "repo": "ljhljh0703-cmd/jelly-panic", "qa": true},
+  {"code": "gemtower", "name": "보석타워", "discordChannels": ["보석타워-버그-제보"], "repo": "ljhljh0703-cmd/uzmap-forge", "qa": true, "jiraProject": "GEM"},
+  {"code": "movefu", "name": "무브퓨", "discordChannels": ["무브퓨-버그-제보"], "repo": "ljhljh0703-cmd/few-moves"}
+]}

@@ -12,16 +12,21 @@ import java.util.List;
 public class DigestCardFactory {
     private final FeedbackService feedback;
     private final ObjectProvider<DevHandoffService> handoff;
+    private final ObjectProvider<com.ljh.gameops.jira.JiraHandoffService> jira;
 
-    public DigestCardFactory(FeedbackService feedback, ObjectProvider<DevHandoffService> handoff) {
+    public DigestCardFactory(FeedbackService feedback, ObjectProvider<DevHandoffService> handoff,
+                             ObjectProvider<com.ljh.gameops.jira.JiraHandoffService> jira) {
         this.feedback = feedback;
         this.handoff = handoff;
+        this.jira = jira;
     }
 
     public DigestCard current(long digestId) {
         var d = feedback.get(digestId);
         DevHandoffService h = handoff.getIfAvailable();
         List<DigestCard.Handoff> list = h == null ? List.of() : h.handoffs(digestId);
-        return new DigestCard(d.id(), d.gameName(), d.days(), d.reportCount(), d.text(), d.actor(), d.createdAt(), list);
+        var j = jira.getIfAvailable();
+        return new DigestCard(d.id(), d.gameName(), d.days(), d.reportCount(), d.text(), d.actor(), d.createdAt(), list,
+                j == null ? List.of() : j.tickets(digestId), j != null && j.available(d.gameCode()));
     }
 }
