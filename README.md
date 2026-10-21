@@ -2,7 +2,7 @@
 
 > 플레이어가 디스코드에 올린 버그 제보를 받아 분류하고, 비슷한 제보를 이슈 하나로 묶어 개발팀 슬랙에 카드로 올리는 게임 운영 서버.
 >
-> 작품 페이지: https://ljhljh0703-cmd.github.io/game-ops/
+> 작품 페이지: https://ljhljh0703-cmd.github.io/game-ops-platform/portfolio/
 
 **실행**
 

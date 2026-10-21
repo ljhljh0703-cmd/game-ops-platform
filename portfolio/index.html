@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>게임 운영 플랫폼 | 이주형</title>
+<meta name="description" content="디스코드 버그 제보를 분류하고 묶어, 버튼 하나로 게임 저장소의 개발 지시서로 만드는 라이브 운영 자동화. 고친 코드가 합쳐지면 해결로 바뀌고 제보자에게 답장이 갑니다. 실제 플레이어 제보 6건 → 개발 지시서 1건.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/wanted-sans@1.0.3/fonts/webfonts/variable/split/WantedSansVariable.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+<link rel="stylesheet" href="case/case-paper.css">
+<link rel="stylesheet" href="case/case-easy.css">
+<style>
+/* 이 페이지에만 쓰는 모양: 일곱 단계 흐름 · 세 칸 나눔 · 시연 영상 */
+.cp-flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:16px;counter-reset:f}
+.cp-flow li{position:relative;counter-increment:f;background:var(--slip);border:1.5px solid var(--ink);padding:12px 12px 14px}
+.cp-flow li::before{content:"0" counter(f);display:block;font-weight:800;font-size:13px;color:var(--accent)}
+.cp-flow li+li::after{content:"→";position:absolute;left:-9px;top:50%;transform:translate(-50%,-50%);color:var(--faint)}
+.cp-flow h3{margin:2px 0 6px;font-size:15.5px;line-height:1.35}
+.cp-flow p{margin:0;font-size:12.5px;line-height:1.55;color:var(--muted)}
+.cp-flow .who{display:inline-block;margin-top:10px;padding:0 6px;font-size:11px;font-weight:800;border:1px solid var(--ink)}
+.cp-flow li.human{background:var(--accent-soft)}
+.cp-flow li.human .who{background:var(--ink);color:var(--slip)}
+.cp-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cp-three .cp-card.human{background:var(--accent-soft);border:1.5px solid var(--ink)}
+.cp-three .cp-list li{font-size:14px}
+.cp-video{display:block;width:100%;aspect-ratio:16/9;background:var(--ink);border:1.5px solid var(--ink)}
+.cp-table td.ok{color:var(--accent);font-weight:700}
+@media(max-width:1000px){
+  .cp-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cp-flow li+li::after{display:none}
+  .cp-three{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .cp-flow{grid-template-columns:1fr;gap:22px}
+  .cp-flow li+li::after{display:block;content:"↓";left:50%;top:-12px}
+  .cp-stats b{font-size:28px;white-space:nowrap}
+}
+@media(max-width:760px){.ez-bars div{grid-template-columns:1fr 54px}.ez-bars b{white-space:nowrap;font-size:16px}}
+</style>
+</head>
+<body class="cp" data-ink="teal">
+<a class="cp-skip" href="#top">본문으로</a>
+<nav class="cp-nav" aria-label="작품 탐색"><div class="cp-shell">
+<a class="cp-back" href="../../" data-portfolio-back="10-game-ops">작품 모음으로</a>
+<div class="cp-links"><a class="opt" href="#flow">흐름</a><a href="#fit">운영팀에서</a><a href="#result">결과</a><a href="#deep-read">자세히 읽기</a><button type="button" class="easy-open" data-easy-open aria-haspopup="dialog" aria-controls="easy">쉽게 읽기</button></div>
+</div></nav>
+
+<main class="cp-shell" id="top">
+<header class="cp-hero">
+<div>
+<p class="cp-kicker"><b>게임 운영 플랫폼</b>라이브 운영 자동화 · 1인 개발</p>
+<h1 class="cp-h1">플레이어 제보가 그대로<br><b>개발 지시서</b>가 됩니다</h1>
+<p class="cp-lead">디스코드에 흩어진 버그 제보를 서버가 분류하고 같은 문제끼리 묶은 뒤, 슬랙 버튼 하나로 게임 저장소에 개발 지시서를 만듭니다. 지시서에는 한 줄 요약, 고칠 것(급하고 제보가 많은 것부터), 이슈마다 플레이어 글 세 개, 완료 기준이 들어갑니다. 고친 코드가 합쳐지면 운영 이슈가 해결로 바뀌고 제보한 플레이어에게 답장이 갑니다. 젤리 패닉 · 보석타워 · 무브퓨 세 게임을 서버 한 대로 돌립니다.</p>
+<p class="cp-result"><strong>실제 플레이어 제보 6건 → 개발 지시서 1건</strong><span>보석타워 · 2026-10-21 · 깃허브 이슈 1건으로 넘긴 뒤, 고친 PR을 합치자 운영 이슈가 해결로 바뀌고 디스코드 답장이 가는 것까지 확인</span></p>
+<p class="cp-mine"><span>내 몫</span>기획 · 설계 판단 · 검증 (코드는 AI 코딩 에이전트가 작성)</p>
+<dl class="cp-who">
+<div><dt>내가 정한 것</dt><dd>문제 정의 · 제보부터 답장까지의 흐름 설계 · 설계 결정 고르기 · 평가 문장과 합격선 설계와 판정</dd></div>
+<div><dt>AI가 짠 것</dt><dd>서버 · 디스코드 봇 · 슬랙 앱 · Claude 플러그인 코드 (AI 코딩 에이전트 Claude)</dd></div>
+<div><dt>내가 확인한 것</dt><dd>테스트 결과 · 실제 디스코드 · 슬랙 · 깃허브 환경을 꾸려 직접 시험 · 코드를 쓰지 않은 AI 검토자가 찾은 문제 판단</dd></div>
+</dl>
+<p class="cp-meta"><b>이주형</b>Java · Spring Boot · PostgreSQL · 디스코드 · 슬랙 · 깃허브 · Claude 플러그인 · 2026-10-19 ~ 10-21 제작 · 소수 플레이어와 시험 운영</p>
+<div class="cp-actions">
+<button type="button" class="easy-hero" data-easy-open aria-haspopup="dialog" aria-controls="easy"><span class="easy-hero-k">처음이라면</span>카드 5장으로 쉽게 읽기</button>
+<a class="cp-btn primary" href="https://github.com/ljhljh0703-cmd/game-ops-platform" target="_blank" rel="noopener noreferrer">저장소 보기 (GitHub)</a>
+<a class="cp-btn" href="#demo">시연 영상</a>
+</div>
+</div>
+<figure class="cp-sticker"><img src="case/sticker-game-ops.webp" alt="" width="699" height="720"></figure>
+</header>
+
+<section class="cp-section" id="demo" aria-labelledby="demo-h">
+<div class="cp-head"><h2 id="demo-h">시연 영상</h2><p>디스코드 제보부터 제보자 답장까지 · 소리 없음</p></div>
+<video class="cp-video" src="promo-30s.mp4" poster="promo-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="시연 영상: 디스코드 제보, 슬랙 카드와 보고서, 깃허브 이슈, PR 합치기, 제보자 답장"></video>
+<p class="cp-note">2026-10-21 녹화. 실제 디스코드 서버와 슬랙, 보석타워 깃허브 저장소에서 찍었습니다.</p>
+</section>
+
+<section class="cp-section" id="flow" aria-labelledby="flow-h">
+<div class="cp-head"><h2 id="flow-h">제보가 지시서와 답장이 되기까지</h2><p>일곱 단계 · 사람이 정하는 곳 두 군데</p></div>
+<ol class="cp-flow">
+<li><h3>디스코드 제보</h3><p>게임별 채널 글이나 /report. 같은 메시지는 한 번만 저장합니다.</p><span class="who">플레이어</span></li>
+<li><h3>분류 · 묶기</h3><p>제보 종류를 나누고, 비슷한 제보는 이슈 하나로 묶습니다.</p><span class="who">서버</span></li>
+<li><h3>게임별 슬랙 카드</h3><p>게임마다 채널과 봇 얼굴이 따로. 버튼으로 상태와 분류를 고칩니다.</p><span class="who">서버</span></li>
+<li><h3>피드백 보고서</h3><p>슬랙에 /피드백정리 한 줄. AI는 고르고 요약하고, 숫자는 서버 기록에서 채웁니다.</p><span class="who">AI · 서버</span></li>
+<li class="human"><h3>개발 지시서</h3><p>보고서 카드 버튼으로 게임 저장소에 깃허브 이슈를 만듭니다.</p><span class="who">사람 ① 넘길지</span></li>
+<li class="human"><h3>수정 · 합치기</h3><p>개발 AI가 고쳐 PR을 올리고, 사람이 읽고 합칩니다.</p><span class="who">사람 ② 합칠지</span></li>
+<li><h3>해결 · 답장</h3><p>서버가 20초마다 합쳐진 PR을 읽어 해결로 바꾸고 제보자에게 「고쳤어요」.</p><span class="who">서버</span></li>
+</ol>
+<p class="cp-note">QA가 있는 팀을 위해 6과 7 사이에 「QA 확인 대기」를 두는 설정도 만들었습니다(사람 ③ 고쳐졌는지). 이 단계와 Jira 버그 티켓 연결은 시험으로만 확인했습니다.</p>
+</section>
+
+<section class="cp-section" id="fit" aria-labelledby="fit-h">
+<div class="cp-head"><h2 id="fit-h">게임사 운영팀에 붙인다면</h2><p>이 도구가 맡을 수 있는 일</p></div>
+<div class="cp-three">
+<div class="cp-card"><span class="k">라이브 운영</span><h4>제보 정리를 서버가 맡습니다</h4><p>디스코드 제보를 종류별로 나누고 같은 문제끼리 묶어 게임별 슬랙 채널에 올립니다. 제보 수 · 심각도 · 상태는 서버 기록에서 채웁니다.</p></div>
+<div class="cp-card"><span class="k">개발팀</span><h4>개발 AI가 바로 읽는 지시서</h4><p>지시서에는 한 줄 요약, 고칠 것, 완료 기준이 들어갑니다. 게임 폴더의 개발 AI에게 「넘어온 피드백 처리해」라고 하면 재현 · 계획 · 사람 확인을 거쳐 고칩니다.</p></div>
+<div class="cp-card"><span class="k">QA</span><h4>QA가 먼저 묻는 네 가지를 미리 받습니다</h4><p>버전 · 기기 · 재현 방법 · 스크린샷을 제보와 함께 받고, 빠진 것만 접수 답장에서 다시 묻습니다. QA 확인 단계와 Jira 버그 티켓도 붙일 수 있습니다(시험으로만 확인).</p></div>
+</div>
+<p class="cp-note">실제 게임사 팀이 써 본 적은 아직 없고, 제보가 몰리는 상황도 아직 겪지 않았습니다.</p>
+</section>
+
+<section class="cp-section" id="split" aria-labelledby="split-h">
+<div class="cp-head"><h2 id="split-h">AI · 서버 · 사람이 나눈 일</h2><p>2026-10-21 작가 결정</p></div>
+<div class="cp-three">
+<div class="cp-card"><span class="k">AI가 하는 일</span>
+<ul class="cp-list"><li>보고서에 넣을 이슈 고르기와 한 줄 요약</li><li>개발 지시서를 읽고 게임 코드를 고쳐 PR 올리기 (사람이 돌림)</li><li>분류 규칙 수정안 내기</li></ul></div>
+<div class="cp-card"><span class="k">서버가 기록대로 하는 일</span>
+<ul class="cp-list"><li>같은 문제 묶기, 제보 수 · 심각도 · 상태 채우기</li><li>AI가 낸 규칙 수정안을 평가 문장으로 다시 시험해 통과한 것만 반영</li><li>합쳐진 PR을 읽어 해결로 바꾸고 제보자에게 답장</li></ul></div>
+<div class="cp-card human"><span class="k">사람이 정하는 일</span>
+<ul class="cp-list"><li>① 보고서를 보고 개발 AI에게 넘길지</li><li>② 고친 코드를 합칠지</li><li>③ 정말 고쳐졌는지 (QA 확인 · 시험으로만 확인)</li></ul></div>
+</div>
+<p class="cp-note">심각도와 보류는 사람이 언제든 바꾸고, 사람이 정한 심각도는 다음 제보가 덮어쓰지 못합니다. AI 도구 키로는 해결 · 보류를 누를 수 없고, 결제 · 크래시 분류를 빼거나 낮추는 규칙 수정은 서버가 거절합니다.</p>
+</section>
+
+<section class="cp-section" id="story" aria-labelledby="story-h">
+<div class="cp-head"><h2 id="story-h">해결 버튼을 다시 정한 과정</h2><p>2026-10-21 시연 흐름 점검</p></div>
+<ol class="cp-story">
+<li><span class="k">문제</span><p>시연 단계를 하나씩 따라가 보니 코드를 고치기 전에 슬랙에서 [해결]을 누를 수 있었습니다.</p><span class="cp-ghost" aria-hidden="true">[해결] 버튼만</span></li>
+<li><span class="k">판단</span><p>고친 PR을 사람이 합치는 순간을 해결로 보기로 했습니다. 서버가 게임 저장소를 20초마다 읽어 PR에 적힌 운영 이슈 번호를 찾습니다.</p></li>
+<li><span class="k">검증</span><p>보석타워 저장소에서 PR #2를 합치자 운영 이슈 9가 해결로 바뀌고, 디스코드 제보 글에 「고쳤어요 · 이슈 #9」 답장이 달렸습니다.</p></li>
+<li class="last"><span class="k">결과</span><p>해결은 고친 코드가 들어올 때 일어납니다. 코드 밖에서 고친 경우를 위해 슬랙 [해결] 버튼은 남겨 두었습니다.</p></li>
+</ol>
+</section>
+
+<section class="cp-section" id="result" aria-labelledby="result-h">
+<div class="cp-head"><h2 id="result-h">분류와 묶기를 잰 결과</h2><p>키워드 규칙 기준 · 2026-10-20 측정</p></div>
+<div class="cp-bars" role="img" aria-label="분류 맞힌 비율: 개발용 60건 처음 65%, 지금 100%. 숨겨 둔 30건 처음 50%, 지금 83%. 같은 문제 쌍 묶기 처음 5%, 지금 40%">
+<div class="cp-bar"><span class="lab">개발용 60건 · 처음<small>규칙을 고치며 본 문장</small></span><span class="track"><i class="fill" style="--w:65%"></i></span><b class="val">65%</b></div>
+<div class="cp-bar accent"><span class="lab">개발용 60건 · 지금<small>v3 규칙</small></span><span class="track"><i class="fill" style="--w:100%"></i></span><b class="val">100%</b></div>
+<div class="cp-bar"><span class="lab">숨겨 둔 30건 · 처음<small>규칙을 고칠 때 보지 않은 문장</small></span><span class="track"><i class="fill" style="--w:50%"></i></span><b class="val">50%</b></div>
+<div class="cp-bar accent"><span class="lab">숨겨 둔 30건 · 지금<small>v3 규칙</small></span><span class="track"><i class="fill" style="--w:83%"></i></span><b class="val">83%</b></div>
+<div class="cp-bar"><span class="lab">같은 문제 쌍 묶기 · 처음<small>글자 비교 기준 0.55</small></span><span class="track"><i class="fill" style="--w:5%"></i></span><b class="val">5%</b></div>
+<div class="cp-bar accent"><span class="lab">같은 문제 쌍 묶기 · 지금<small>분류가 같을 때만 비교 · 기준 0.20</small></span><span class="track"><i class="fill" style="--w:40%"></i></span><b class="val">40%</b></div>
+</div>
+<p class="cp-note">평가 문장과 묶기 평가 쌍(40개)은 한 사람이 썼습니다. 묶기 기준을 낮춘 뒤에도 다른 문제를 엉뚱하게 묶은 쌍은 0개였습니다. 숫자는 키워드 규칙 기준이고, AI 분류는 같은 묶음으로 아직 재지 않았습니다.</p>
+<div class="cp-stats">
+<div><b>214 + 15</b><span>서버 테스트 + AI 도구 테스트</span></div>
+<div><b>16/16</b><span>결제 회귀 문장 분류</span></div>
+<div><b>39</b><span>설계 결정 기록 (고른 것 · 버린 것 · 이유)</span></div>
+<div><b>10</b><span>막힌 곳 기록 · 건마다 재발 막는 테스트</span></div>
+<div><b>54</b><span>커밋 · 2026-10-19 ~ 10-21 사흘</span></div>
+</div>
+<p class="cp-note">테스트 · 결정 · 막힌 곳 · 커밋 수는 저장소 마지막 커밋(53c929c) 기준입니다.</p>
+</section>
+
+<section class="cp-section" id="trials" aria-labelledby="trials-h">
+<div class="cp-head"><h2 id="trials-h">막혔던 곳 다섯 군데</h2><p>막힌 곳 기록 10건 중</p></div>
+<div class="cp-grid2">
+<div class="cp-card"><span class="k">동시 제보 · 직접 발견</span><h4>같은 버그 제보 8건이 동시에 오면 일부가 실패</h4><p>재시도로 버티는 방식(낙관적 잠금)이 바닥나 이슈 행을 잠그는 방식으로 바꿨습니다. 잠금 쿼리를 따로 만든 뒤에도 먼저 읽어 둔 옛 객체 때문에 같은 에러가 나서 한 번 더 고쳤습니다.</p></div>
+<div class="cp-card"><span class="k">슬랙 서명 · 별도 검토가 발견</span><h4>테스트는 통과하고 실제 요청에선 틀릴 서명 검사</h4><p>프레임워크가 다시 조립한 본문으로 서명을 재면 실제 슬랙 요청과 어긋납니다. 받은 원래 바이트로 계산하게 바꿨습니다.</p></div>
+<div class="cp-card"><span class="k">평가 · 별도 검토가 발견</span><h4>점수 98%를 맞추려다 결제 사고를 놓친 규칙</h4><p>개발용 문장 98%를 맞춘 v2가 묶음 밖 결제 문장 16개 중 15개를 놓쳤습니다. 비싼 오류는 회귀 문장으로 따로 지키게 하고 v3에서 16/16을 맞췄습니다.</p></div>
+<div class="cp-card"><span class="k">사람 판단 · 별도 검토가 발견</span><h4>사람이 내린 심각도를 다음 제보가 다시 올림</h4><p>심각도를 자동으로 내리거나 사람 판단을 덮는 길을 서버에서 없앴습니다.</p></div>
+<div class="cp-card"><span class="k">시연 점검 · 직접 발견</span><h4>고치지 않았는데 해결을 누르는 구멍</h4><p>시연 흐름을 따라가다 찾았고, 고친 PR이 합쳐질 때 해결되도록 바꿨습니다.</p></div>
+</div>
+<p class="cp-note">「별도 검토」는 코드를 쓰지 않은 AI 검토자가 찾은 것입니다. 찾은 문제를 받아들일지와 고친 결과는 제가 판단했습니다.</p>
+</section>
+
+<section class="cp-section" id="deep-read" aria-labelledby="deep-h">
+<div class="cp-head"><h2 id="deep-h">궁금한 부분을 더 자세히</h2><button type="button" class="cp-expand" data-expand-all>모두 펼치기</button></div>
+
+<details class="cp-detail" id="status"><summary><div><b>기능별 확인 상태</b><span>실제 환경에서 확인한 것 · 시험으로만 확인한 것</span></div></summary>
+<div class="cp-body">
+<p>「시험으로만 확인」은 테스트는 통과했지만 실제 디스코드 · 슬랙이나 팀에서 아직 쓰지 않은 기능입니다.</p>
+<table class="cp-table"><thead><tr><th>기능</th><th>확인한 방법</th></tr></thead><tbody>
+<tr><td>디스코드 제보 받기, 같은 메시지 한 번만 저장</td><td class="ok">실제 디스코드 서버 · 테스트</td></tr>
+<tr><td>분류 (AI가 실패하면 키워드 규칙으로)</td><td class="ok">테스트 · 지금은 AI 분류를 꺼 두고 키워드 규칙으로 돌림</td></tr>
+<tr><td>같은 문제 묶기 (동시 8건도 안전)</td><td class="ok">테스트</td></tr>
+<tr><td>게임별 슬랙 카드와 버튼</td><td class="ok">실제 슬랙</td></tr>
+<tr><td>/피드백정리 보고서</td><td class="ok">실제 슬랙 · 테스트</td></tr>
+<tr><td>개발 지시서 (깃허브 이슈)</td><td class="ok">실제 생성: 보석타워 저장소 이슈 #1 (플레이어 제보 6건)</td></tr>
+<tr><td>고친 PR이 합쳐지면 해결 · 제보자 답장</td><td class="ok">실제: PR #2 합침 → 운영 이슈 9 해결 → 디스코드 답장</td></tr>
+<tr><td>AI 규칙 수정안을 다시 시험해 통과한 것만 반영</td><td class="ok">테스트</td></tr>
+<tr><td>Claude 플러그인 (운영 도구 + 스킬 5개)</td><td class="ok">도구 테스트 15건</td></tr>
+<tr><td>재현 정보 받기 (버전 · 기기 · 재현 단계 · 스크린샷)</td><td>시험으로만 확인</td></tr>
+<tr><td>QA 확인 단계</td><td>시험으로만 확인 · 세 게임 모두 켜 둠</td></tr>
+<tr><td>Jira 버그 티켓</td><td>시험으로만 확인 (가짜 Jira로 시험, 실제 사이트 연결 전)</td></tr>
+<tr><td>AI 사용량 기록과 월 예산</td><td>시험으로만 확인</td></tr>
+<tr><td>처리 지표 (고칠 때까지 걸린 시간 등)</td><td>시험으로만 확인</td></tr>
+<tr><td>게임 오류 기록</td><td>시험으로만 확인 · 게임에 아직 넣지 않음</td></tr>
+<tr><td>패치노트 초안</td><td>시험으로만 확인</td></tr>
+</tbody></table>
+</div></details>
+
+<details class="cp-detail" id="guard"><summary><div><b>AI가 할 수 없게 막은 것</b><span>권한 · 숫자 · 플레이어 글</span></div></summary>
+<div class="cp-body">
+<ul class="cp-list">
+<li>AI 도구 키로는 확인 대기 · 해결 · 보류를 바꿀 수 없습니다.</li>
+<li>결제 · 크래시 키워드를 빼거나 낮추는 규칙 수정은 서버가 거절합니다.</li>
+<li>보고서의 제보 수 · 심각도 · 상태는 서버 기록에서 채웁니다. AI가 자료에 없는 이슈 번호를 내면 버립니다.</li>
+<li>개발 지시서에 넣는 플레이어 글은 참고 자료로 표시하고 @ · # · HTML을 무력화합니다.</li>
+<li>슬랙 버튼은 관리자 슬랙 계정만 쓸 수 있고, 요청마다 서명을 검사합니다.</li>
+<li>서버는 게임 코드를 고치지 않습니다. 개발 AI는 사람이 돌립니다.</li>
+</ul>
+</div></details>
+
+<details class="cp-detail" id="failsafe"><summary><div><b>AI가 멈춰도 접수는 계속</b><span>실패했을 때 내려가는 길</span></div></summary>
+<div class="cp-body">
+<ul class="cp-list">
+<li>분류 AI가 실패하면 키워드 규칙 분류로 내려가 접수가 끊기지 않습니다.</li>
+<li>보고서 AI가 안 되면 서버 기록만으로 같은 모양의 카드를 만듭니다.</li>
+<li>슬랙 알림은 DB 대기열에 먼저 적고 따로 보냅니다. 슬랙이 느리거나 멈춰도 제보 접수는 그대로 돌아갑니다.</li>
+<li>월 AI 예산(기본 5달러)을 넘으면 규칙과 기록만으로 돌고, 80% · 100%에서 알립니다. 이 부분은 시험으로만 확인했습니다.</li>
+</ul>
+</div></details>
+
+<details class="cp-detail" id="limits"><summary><div><b>아직 모르는 것</b><span>한계와 다음에 잴 것</span></div></summary>
+<div class="cp-body">
+<ul class="cp-list">
+<li>평가 문장과 묶기 평가 쌍은 한 사람이 썼습니다. 실제 제보가 모이면 다시 잽니다.</li>
+<li>AI 분류는 같은 평가 묶음으로 아직 재지 않았습니다.</li>
+<li>소수 플레이어와 시험 운영 중이라 제보가 몰리는 상황은 아직 겪지 않았습니다.</li>
+<li>개발 AI를 돌리는 일은 아직 사람이 시킵니다.</li>
+<li>재현 정보 받기 · QA 확인 · Jira 연결은 시험으로만 확인했고, 실제 팀이 써 본 적은 없습니다.</li>
+<li>맥 한 대에서 돌리고, 디스코드 봇은 하나입니다.</li>
+</ul>
+</div></details>
+
+<details class="cp-detail" id="build"><summary><div><b>만든 정보</b><span>기간 · 도구 · 저장소</span></div></summary>
+<div class="cp-body">
+<table class="cp-table"><tbody>
+<tr><td>기간</td><td>2026-10-19 ~ 10-21 · 커밋 54개</td></tr>
+<tr><td>게임</td><td>젤리 패닉 · 보석타워 · 무브퓨. 게임마다 디스코드 채널 · 슬랙 채널 · 봇 얼굴 · 저장소를 따로 둡니다.</td></tr>
+<tr><td>도구</td><td>Java 21 · Spring Boot 3.3 · PostgreSQL · JDA(디스코드) · 슬랙 앱 · Claude 플러그인</td></tr>
+<tr><td>저장소</td><td><a href="https://github.com/ljhljh0703-cmd/game-ops-platform" target="_blank" rel="noopener noreferrer">GitHub에서 열기</a></td></tr>
+<tr><td>기준 커밋</td><td class="cp-code">53c929c</td></tr>
+</tbody></table>
+</div></details>
+</section>
+
+<footer class="cp-foot"><a href="../../" data-portfolio-back="10-game-ops">← 작품 모음으로</a><a href="https://github.com/ljhljh0703-cmd/game-ops-platform" target="_blank" rel="noopener noreferrer">저장소 보기</a><a href="mailto:ljhljh0703@gmail.com">ljhljh0703@gmail.com</a><span>게임 운영 플랫폼 · 이주형</span></footer>
+</main>
+
+<dialog class="easy" id="easy" aria-labelledby="easy-title">
+<div class="easy-scraps" aria-hidden="true"><span class="ez-hex h1"></span><span class="ez-hex h2"></span><span class="ez-hex h3"></span><img class="ez-tape t1" src="case/tape.webp" alt=""><img class="ez-tape t2" src="case/tape.webp" alt=""></div>
+<div class="easy-top"><button type="button" class="easy-close" data-easy-close>원래대로 읽기</button><span class="easy-who">이주형 · 게임 운영 플랫폼</span></div>
+<header class="easy-head">
+<div>
+<h2 id="easy-title" class="ez-h"><span class="ez-strip">플레이어 제보가</span><br><span class="ez-strip">그대로</span><span class="ez-strip accent">개발 지시서로</span></h2>
+<p class="ez-lede">세 게임의 디스코드 버그 제보를 서버가 분류하고 묶은 뒤, 버튼 하나로 게임 저장소에 개발 지시서를 만듭니다. 고친 코드가 합쳐지면 제보한 플레이어에게 답장이 갑니다.</p>
+<div class="ez-play"><a class="ez-btn main" href="https://github.com/ljhljh0703-cmd/game-ops-platform" target="_blank" rel="noopener noreferrer">저장소 보기</a><a class="ez-btn" href="../../" data-portfolio-back="10-game-ops">작품 모음으로</a></div>
+</div>
+<figure class="ez-obj"><img src="case/sticker-game-ops.webp" alt="" width="699" height="720"></figure>
+</header>
+<div class="ez-grid">
+<section class="ez-card wide" style="--tilt:-.6deg"><span class="ez-tag">01 제보가 지시서가 되기까지</span>
+<ol class="ez-flow"><li>디스코드 제보</li><li>슬랙 카드와 보고서</li><li class="mine">개발 지시서<b>넘길지</b></li><li class="mine">합치기 · 답장<b>합칠지</b></li></ol>
+<p class="ez-small">게임 3개를 서버 한 대로 · 자세한 일곱 단계는 원래 페이지에 있습니다</p></section>
+<section class="ez-card kraft" style="--tilt:.8deg"><span class="ez-tag">02 지시서에 들어가는 것</span>
+<ul class="ez-list"><li>한 줄 요약</li><li>고칠 것 · 급하고 제보 많은 것부터</li><li>이슈마다 플레이어 글 세 개</li><li>완료 기준</li></ul>
+<p class="ez-small">고친 PR이 합쳐지면 해결로 바뀌고 제보자에게 답장이 갑니다.</p></section>
+<section class="ez-card accent" style="--tilt:-.9deg"><span class="ez-tag">03 내가 맡은 것</span>
+<ul class="ez-list"><li>문제 정의와 흐름 설계</li><li>설계 결정 고르기</li><li>평가 문장과 합격선</li><li>실제 디스코드 · 슬랙 · 깃허브 시험</li></ul>
+<p class="ez-small">코드는 AI 코딩 에이전트(Claude)가 짰습니다.</p></section>
+<section class="ez-card wide" style="--tilt:.4deg"><span class="ez-tag">04 결과</span><span class="ez-stamp">6 → 1</span>
+<p class="ez-band">실제 플레이어 제보 6건 → 개발 지시서 <b>1건</b></p>
+<div class="ez-bars" role="img" aria-label="분류 맞힌 비율: 처음 개발용 65%, 지금 숨겨 둔 30건 83%, 지금 개발용 100%"><div><span>처음 · 개발용 60건</span><i style="--w:65%"></i><b>65%</b></div><div class="mid"><span>지금 · 숨겨 둔 30건</span><i style="--w:83%"></i><b>83%</b></div><div class="hi"><span>지금 · 개발용 60건</span><i style="--w:100%"></i><b>100%</b></div></div>
+<p class="ez-small">보석타워 · 2026-10-21 · 분류는 키워드 규칙 기준, 평가 문장은 한 사람이 씀 · 테스트 214 + 15건</p></section>
+<section class="ez-card wide ez-row" style="--tilt:-.5deg"><span class="ez-tag">05 AI가 못 하게 막은 것</span>
+<div class="ez-evo"><img src="case/sticker-game-ops.webp" alt="운영 봇" width="64" height="66" style="height:110px;width:auto"></div>
+<p>AI 키로는 해결 · 보류를 누를 수 없고, 결제 · 크래시 규칙을 빼거나 낮추는 수정은 서버가 거절합니다.</p></section>
+</div>
+<div class="easy-foot"><p>기능별 확인 상태와 막혔던 곳은 원래 페이지에 있습니다.</p><button type="button" class="ez-btn" data-easy-close>원래대로 읽기</button><a class="ez-btn" href="https://github.com/ljhljh0703-cmd/game-ops-platform" target="_blank" rel="noopener noreferrer">저장소 보기</a></div>
+</dialog>
+<script src="case/case-easy.js"></script>
+</body></html>
