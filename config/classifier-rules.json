@@ -1,5 +1,5 @@
 {
-  "_설명": "분류 키워드 규칙. 위에서부터 먼저 걸리는 규칙 하나를 쓴다. 더 심각한 규칙을 위에 둔다. 분류는 CRASH·BUG·PERFORMANCE·BALANCE·PAYMENT·UX·OTHER, 심각도는 LOW·MEDIUM·HIGH·CRITICAL 중에서 고른다.",
+  "_설명": "분류 키워드 규칙. 위에서부터 먼저 걸리는 규칙 하나를 쓴다. 더 심각한 규칙을 위에 둔다. 분류는 CRASH·BUG·PERFORMANCE·BALANCE·PAYMENT·UX·OTHER, 심각도는 LOW·MEDIUM·HIGH·CRITICAL 중에서 고른다. 영어·일본어 키워드는 AI 번역이 없을 때(키 없음·실패) 외국어 제보를 받기 위한 것(결정 42).",
   "rules": [
     {
       "category": "PAYMENT",
@@ -43,7 +43,17 @@
         "월정액",
         "payment",
         "refund",
-        "purchase"
+        "purchase",
+        "paid",
+        "charged",
+        "bought",
+        "billing",
+        "課金",
+        "返金",
+        "購入",
+        "決済",
+        "支払",
+        "請求"
       ]
     },
     {
@@ -78,7 +88,14 @@
         "추가해주세요",
         "추가해 주세요",
         "가격",
-        "비싸"
+        "비싸",
+        "how do i",
+        "how can i",
+        "is there a way",
+        "please add",
+        "どうやって",
+        "方法を教え",
+        "追加してほしい"
       ]
     },
     {
@@ -111,7 +128,24 @@
         "실행 안",
         "안 넘어가",
         "crash",
-        "freeze"
+        "freeze",
+        "freez",
+        "force close",
+        "force-close",
+        "won't launch",
+        "won't open",
+        "black screen",
+        "kicked out",
+        "keeps closing",
+        "アプリが落ち",
+        "ゲームが落ち",
+        "強制終了",
+        "クラッシュ",
+        "フリーズ",
+        "固ま",
+        "起動しない",
+        "起動できない",
+        "真っ黒"
       ]
     },
     {
@@ -123,7 +157,20 @@
         "처음부터 다시",
         "진행 불가",
         "저장이 안",
-        "저장 안"
+        "저장 안",
+        "wiped",
+        "lost all progress",
+        "lost my progress",
+        "progress reset",
+        "save is gone",
+        "save was deleted",
+        "softlock",
+        "soft lock",
+        "セーブデータが消え",
+        "データが消え",
+        "最初からに",
+        "進行不能",
+        "初期化"
       ]
     },
     {
@@ -140,7 +187,22 @@
         "뜨거",
         "끊겨",
         "lag",
-        "fps"
+        "fps",
+        "stutter",
+        "slow",
+        "overheat",
+        "gets hot",
+        "battery",
+        "loading takes",
+        "frame drop",
+        "ラグ",
+        "カクカク",
+        "重い",
+        "重く",
+        "遅い",
+        "発熱",
+        "熱く",
+        "読み込みが長"
       ]
     },
     {
@@ -172,7 +234,29 @@
         "안 들어",
         "무한",
         "bug",
-        "error"
+        "error",
+        "glitch",
+        "not working",
+        "doesn't work",
+        "does not work",
+        "broken",
+        "stuck",
+        "fall through",
+        "falls through",
+        "disappear",
+        "missing",
+        "didn't get",
+        "never got",
+        "バグ",
+        "不具合",
+        "エラー",
+        "動かない",
+        "反応しない",
+        "消える",
+        "すり抜け",
+        "届かない",
+        "もらえない",
+        "おかしい"
       ]
     },
     {
@@ -190,7 +274,22 @@
         "난이도",
         "확률",
         "op ",
-        "balance"
+        "balance",
+        "too strong",
+        "too weak",
+        "too hard",
+        "too difficult",
+        "nerf",
+        "buff",
+        "overpowered",
+        "drop rate",
+        "強すぎ",
+        "弱すぎ",
+        "難しすぎ",
+        "難易度",
+        "確率",
+        "バランス",
+        "ナーフ"
       ]
     },
     {
@@ -207,7 +306,21 @@
         "옵션",
         "조작감",
         "미끄러",
-        "위치를 바꿀"
+        "위치를 바꿀",
+        "hard to find",
+        "hard to read",
+        "confusing",
+        "button",
+        "font",
+        "too small",
+        "押しにくい",
+        "見づらい",
+        "見にくい",
+        "読みにくい",
+        "分かりにくい",
+        "わかりにくい",
+        "ボタン",
+        "文字が小さ"
       ]
     }
   ]

@@ -29,15 +29,14 @@ public class FeedbackConfig {
         RestClient client = RestClient.builder().baseUrl(llm.baseUrl()).requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + llm.apiKey()).build();
         String model = llm.model();
+        boolean anthropic = com.ljh.gameops.ai.LlmRequest.isAnthropic(llm.baseUrl());
         DigestWriter.Ai ai = (system, user) -> {
             // 예산을 다 썼으면 부르지 않는다 → 보고서는 기록만으로 같은 모양(DigestWriter 가 실패를 그렇게 받는다)
             if (!usage.allowed()) throw new IllegalStateException("이번 달 AI 예산을 다 썼어요");
             JsonNode r;
             try {
                 r = client.post().uri("/chat/completions").contentType(MediaType.APPLICATION_JSON)
-                        .body(Map.of("model", model, "temperature", 0, "max_tokens", MAX_TOKENS, "messages", List.of(
-                                Map.of("role", "system", "content", system),
-                                Map.of("role", "user", "content", user))))
+                        .body(com.ljh.gameops.ai.LlmRequest.chat(anthropic, model, MAX_TOKENS, system, user))
                         .retrieve().body(JsonNode.class);
             } catch (RuntimeException e) {
                 usage.record(com.ljh.gameops.ai.AiUsage.DIGEST, model, null, false);

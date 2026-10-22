@@ -1,0 +1,12 @@
+{"id": 201, "a": "5웨이브에서 게임이 튕겨요", "b": "The game crashes every time I reach wave 5", "same": true}
+{"id": 202, "a": "결제했는데 보석이 안 들어왔어요", "b": "I paid for the gem pack but never got the gems", "same": true}
+{"id": 203, "a": "결제했는데 보석이 안 들어왔어요", "b": "課金したのにジェムが届きません", "same": true}
+{"id": 204, "a": "세이브가 날아갔어요", "b": "セーブデータが消えて最初からになりました", "same": true}
+{"id": 205, "a": "대시 쓰면 벽을 뚫고 나가요", "b": "ダッシュすると壁をすり抜けるバグがあります", "same": true}
+{"id": 206, "a": "멀티에서 렉이 심해요", "b": "Huge lag spikes in multiplayer, fps drops to 10", "same": true}
+{"id": 207, "a": "5웨이브에서 게임이 튕겨요", "b": "Ruby tower is way too strong, please nerf", "same": false}
+{"id": 208, "a": "결제했는데 보석이 안 들어왔어요", "b": "How do I change my nickname?", "same": false}
+{"id": 209, "a": "세이브가 날아갔어요", "b": "ボスが強すぎてクリアできない", "same": false}
+{"id": 210, "a": "대시 쓰면 벽을 뚫고 나가요", "b": "The settings button is really hard to find", "same": false}
+{"id": 211, "a": "멀티에서 렉이 심해요", "b": "課金したのにジェムが届きません", "same": false}
+{"id": 212, "a": "5웨이브에서 게임이 튕겨요", "b": "起動するとすぐ強制終了します", "same": false}

@@ -48,6 +48,8 @@ public class DiscordGateway extends ListenerAdapter {
         if (props.botToken() == null || props.botToken().isBlank()) {
             throw new IllegalStateException("gameops.discord.enabled=true 인데 bot-token 이 비어 있습니다");
         }
+        // 봇 글이 @everyone·@here·역할을 부르지 못하게(플레이어 글·AI 글이 섞여도). 답장 대상 한 사람만 부른다(결정 43)
+        net.dv8tion.jda.api.utils.messages.MessageRequest.setDefaultMentions(java.util.EnumSet.noneOf(Message.MentionType.class));
         jda = JDABuilder.createLight(props.botToken(),
                         EnumSet.of(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT))
                 .addEventListeners(this)

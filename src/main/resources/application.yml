@@ -32,6 +32,14 @@ gameops:
     duplicate-threshold: ${DUPLICATE_THRESHOLD:0.20}
     same-category-only: ${DUPLICATE_SAME_CATEGORY_ONLY:true}
     recurrence-window-days: ${RECURRENCE_WINDOW_DAYS:30}
+  # 묶기 둘째 단계(결정 41): 글자 비교로 못 묶은 제보를 AI 에게 묻는다. AI 키(LLM_API_KEY)가 있을 때만. 한 제보에 최대 3번
+  # 외국어 제보 한국어 번역(결정 42). AI 키가 있을 때만. 플레이어 답장은 키가 없어도 그 사람 말로
+  translate:
+    enabled: ${TRANSLATE_ENABLED:true}
+  dedupe:
+    ai-judge: ${DEDUPE_AI_JUDGE:true}
+    ai-min-confidence: ${DEDUPE_AI_MIN_CONFIDENCE:0.5}
+    ai-candidates: ${DEDUPE_AI_CANDIDATES:3}
   outbox:
     batch-size: 20
     max-attempts: 5
@@ -96,9 +104,16 @@ gameops:
     credit-balance-at: ${AI_CREDIT_BALANCE_AT:}
     # 있으면 그 뒤 쓴 돈을 Anthropic 공식 비용 보고(계정 전체)에서 읽는다. 조직 관리 키(sk-ant-admin…). 비우면 이 서버 기록으로
     admin-key: ${ANTHROPIC_ADMIN_KEY:}
+    # 한 시간 AI 호출 상한(결정 43). 넘으면 그 시간은 규칙만. 평소 제보 수의 몇 배로
+    max-calls-per-hour: ${AI_MAX_CALLS_PER_HOUR:600}
   intake:
     # 도배 막기 — 한 사람이 10분에 이만큼 넘게 디스코드 제보를 올리면 받지 않는다. 0 이면 끔
     max-per-10min: ${INTAKE_MAX_PER_10MIN:5}
+    # 공격 막기(결정 43, docs/SECURITY.md) — 가입 7일 안 된 계정은 10분에 1건. 게임 하나에 1분 30건 넘게 몰리면 가입 30일 안 된 계정은 받지 않는다
+    new-account-days: ${INTAKE_NEW_ACCOUNT_DAYS:7}
+    new-account-max-per-10min: ${INTAKE_NEW_ACCOUNT_MAX:1}
+    flood-per-min: ${INTAKE_FLOOD_PER_MIN:30}
+    flood-min-account-days: ${INTAKE_FLOOD_MIN_ACCOUNT_DAYS:30}
   jira:
     # Jira 버그 티켓(결정 32) — Jira Cloud 주소(https://회사.atlassian.net)·계정 메일·API 토큰. 셋 중 하나라도 비면 Jira 버튼이 안 보인다
     base-url: ${JIRA_BASE_URL:}

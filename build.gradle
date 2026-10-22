@@ -48,7 +48,7 @@ tasks.named('processResources') {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'load' }
     systemProperty 'updateOpenApi', System.getProperty('updateOpenApi', 'false')
     testLogging { events 'passed', 'skipped', 'failed'; exceptionFormat 'full' }
 }
@@ -66,4 +66,16 @@ tasks.register('evalClassifier', JavaExec) {
     systemProperty 'eval.llm', project.findProperty('llm') ?: 'false'
     systemProperty 'eval.holdout', project.findProperty('holdout') ?: 'false'
     if (project.hasProperty('label')) systemProperty 'eval.label', project.property('label')
+}
+
+// 부하 시험 — ./gradlew loadTest (결과: build/load-report.md, docs/LOAD.md 에 옮겨 적는다)
+tasks.register('loadTest', Test) {
+    group = 'verification'
+    description = '제보 접수 부하 시험(보통 · 한 이슈 몰림 · 열린 이슈 많을 때)'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'load' }
+    jvmArgs '-Dfile.encoding=UTF-8'
+    testLogging { events 'passed', 'failed'; exceptionFormat 'full'; showStandardStreams = true }
+    outputs.upToDateWhen { false }
 }

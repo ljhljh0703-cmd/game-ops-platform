@@ -11,6 +11,7 @@ import com.ljh.gameops.intake.SubmitReport;
 import com.ljh.gameops.issue.Category;
 import com.ljh.gameops.issue.IssueService;
 import com.ljh.gameops.issue.Severity;
+import com.ljh.gameops.report.Lang;
 import com.ljh.gameops.report.SourceChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,19 +41,28 @@ public class DiscordReportHandler {
 
     /** 답장 한 건 — 글(text)과 카드에 쓸 값. 오류 답장은 issueId 가 null. */
     /** @param missing 새 이슈일 때 플레이어에게 더 물어볼 재현 정보(게임 버전·기기·재현 순서·스크린샷). 다 있으면 빈 목록 */
+    /** @param lang 플레이어 글의 언어 — 답장도 그 말로(결정 42) */
     public record Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount,
-                        java.util.List<String> missing) {
+                        java.util.List<String> missing, String lang) {
         public enum Kind { NEW, ATTACHED, DUPLICATE, ERROR }
 
         public Reply {
             missing = missing == null ? java.util.List.of() : java.util.List.copyOf(missing);
+            lang = PlayerText.of(lang);
+        }
+
+        public Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount,
+                     java.util.List<String> missing) {
+            this(text, kind, issueId, gameName, category, severity, reportCount, missing, Lang.KO);
         }
 
         public Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount) {
-            this(text, kind, issueId, gameName, category, severity, reportCount, java.util.List.of());
+            this(text, kind, issueId, gameName, category, severity, reportCount, java.util.List.of(), Lang.KO);
         }
 
-        static Reply error(String text) { return new Reply(text, Kind.ERROR, null, null, null, null, 0); }
+        static Reply error(String text) { return error(text, Lang.KO); }
+
+        static Reply error(String text, String lang) { return new Reply(text, Kind.ERROR, null, null, null, null, 0, null, lang); }
     }
 
     /** 제보 채널에 올라온 일반 글. 봇 글·제보 채널이 아닌 곳의 글·빈 글은 답하지 않는다. */
@@ -66,7 +76,7 @@ public class DiscordReportHandler {
         if (game.isEmpty()) return Optional.empty();
         if (in.content() == null || in.content().isBlank()) return Optional.empty();
         String chosen = (in.gameCode() != null && !in.gameCode().isBlank()) ? in.gameCode().trim() : game.get();
-        return Optional.of(accept(in, chosen));
+        return Optional.ofNullable(accept(in, chosen, true));
     }
 
     /**
@@ -82,8 +92,9 @@ public class DiscordReportHandler {
             if (issueId.isPresent()) {
                 var issue = issues.get(issueId.get());
                 String name = games.byCode(channelGame(in).get()).map(GameSpec::name).orElse("");
-                return Optional.of(new Reply("[" + name + "] 재현 정보를 이슈 #%d 에 더했어요. 고마워요!".formatted(issueId.get()),
-                        Reply.Kind.ATTACHED, issueId.get(), name, issue.getCategory(), issue.getSeverity(), issue.getReportCount()));
+                String lang = Lang.detect(in.content());
+                return Optional.of(new Reply("[" + name + "] " + PlayerText.reproAdded(lang, issueId.get()),
+                        Reply.Kind.ATTACHED, issueId.get(), name, issue.getCategory(), issue.getSeverity(), issue.getReportCount(), null, lang));
             }
         } catch (RuntimeException e) {
             log.warn("재현 정보 더하기 실패, 보통 제보로 받습니다 original={}", originalMessageId, e);
@@ -97,10 +108,26 @@ public class DiscordReportHandler {
     }
 
     public Reply onSlashCommandReply(DiscordInbound in) {
-        if (in.content() == null || in.content().isBlank()) return Reply.error("내용을 적어 주세요.");
+        if (in.content() == null || in.content().isBlank()) return Reply.error(PlayerText.emptyBody(Lang.KO));
         String game = (in.gameCode() != null && !in.gameCode().isBlank()) ? in.gameCode().trim()
                 : channelGame(in).orElse(props.defaultGame());
-        return accept(in, game);
+        return accept(in, game, false);
+    }
+
+    /**
+     * 막힌 사람에게는 10분에 한 번만 답한다(결정 43). 도배하는 쪽이 봇 답장까지 불려 채널을 두 배로 채우지 못하게.
+     * 작성자 ID 를 메모리에만 잠깐 둔다(재시작하면 잊는다)
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> toldLimited = new java.util.concurrent.ConcurrentHashMap<>();
+    static final long QUIET_MS = 10 * 60_000L;
+
+    boolean firstLimitedReply(String authorId) {
+        long now = System.currentTimeMillis();
+        if (toldLimited.size() > 10_000) toldLimited.values().removeIf(t -> now - t > QUIET_MS);
+        Long before = toldLimited.get(authorId);
+        if (before != null && now - before < QUIET_MS) return false;
+        toldLimited.put(authorId, now);
+        return true;
     }
 
     /** 게임별 채널이 먼저, 예전 방식(DISCORD_REPORT_CHANNEL_IDS → 기본 게임)은 그다음. */
@@ -115,9 +142,11 @@ public class DiscordReportHandler {
         return Optional.empty();
     }
 
-    private Reply accept(DiscordInbound in, String game) {
+    /** @param quietRepeat 채널 글이면 true — 막힌 사람에게 두 번째부터는 답하지 않는다(null). 명령은 답해야 해서 false */
+    private Reply accept(DiscordInbound in, String game, boolean quietRepeat) {
         // 어느 채널 글을 어느 게임으로 받았는지 남긴다(게임이 엉뚱하게 잡히면 이 줄로 원인을 본다)
         log.info("디스코드 제보 접수 channelId={} channelName={} game={}", in.channelId(), in.channelName(), game);
+        String lang = Lang.detect(in.content());
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
                     in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro()));
@@ -130,26 +159,28 @@ public class DiscordReportHandler {
                 case DUPLICATE_DELIVERY -> Reply.Kind.DUPLICATE;
             };
             String text = "[" + name + "] " + switch (r.outcome()) {
-                case NEW_ISSUE -> issue.getRecurrenceOf() == null
-                        ? "접수했어요. 이슈 #%d 로 개발팀에 전달합니다.".formatted(r.issueId())
-                        : "접수했어요. 이슈 #%d 로 전달합니다. 최근 고친 문제(#%d)가 다시 생긴 것 같아 함께 알렸어요."
-                                .formatted(r.issueId(), issue.getRecurrenceOf());
-                case ATTACHED_TO_EXISTING -> "비슷한 제보가 있어 이슈 #%d 에 합쳤어요. 같은 제보 %d건째입니다.".formatted(r.issueId(), count);
-                case DUPLICATE_DELIVERY -> "이미 접수된 제보예요. 이슈 #%d".formatted(r.issueId());
+                case NEW_ISSUE -> issue.getRecurrenceOf() == null ? PlayerText.received(lang, r.issueId())
+                        : PlayerText.receivedRecurrence(lang, r.issueId(), issue.getRecurrenceOf());
+                case ATTACHED_TO_EXISTING -> PlayerText.attached(lang, r.issueId(), count);
+                case DUPLICATE_DELIVERY -> PlayerText.duplicate(lang, r.issueId());
             };
             // 새 이슈면 빠진 재현 정보를 플레이어에게 묻는다(QA가 먼저 묻는 것). 합쳐진 제보는 이미 누군가 적었을 수 있어 묻지 않는다
             java.util.List<String> missing = kind == Reply.Kind.NEW
                     ? com.ljh.gameops.report.ReproInfo.merge(in.repro(), com.ljh.gameops.report.ReproInfo.parse(in.content()))
                             .missing(in.attachmentUrls() != null && !in.attachmentUrls().isBlank())
                     : java.util.List.of();
-            return new Reply(text, kind, r.issueId(), name, issue.getCategory(), issue.getSeverity(), count, missing);
+            return new Reply(text, kind, r.issueId(), name, issue.getCategory(), issue.getSeverity(), count, missing, lang);
         } catch (NotFoundException e) {
-            return Reply.error("등록되지 않은 게임이에요: " + game);
+            return Reply.error(PlayerText.unknownGame(lang, game), lang);
+        } catch (com.ljh.gameops.intake.RateLimitedException e) {
+            if (quietRepeat && !firstLimitedReply(in.authorId())) return null;
+            return Reply.error(e.reason() == com.ljh.gameops.intake.IntakeGuard.Reason.FLOOD
+                    ? PlayerText.flood(lang) : PlayerText.rateLimited(lang), lang);
         } catch (IllegalArgumentException e) {
-            return Reply.error(e.getMessage());
+            return Reply.error(e.getMessage(), lang);
         } catch (RuntimeException e) {
             log.error("디스코드 제보 접수 실패 externalId={}", in.externalId(), e);
-            return Reply.error("지금 접수가 안 되고 있어요. 잠시 뒤 다시 올려 주세요.");
+            return Reply.error(PlayerText.down(lang), lang);
         }
     }
 }

@@ -51,6 +51,7 @@ public class ClassifierConfig {
                 .requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + llm.apiKey())
                 .build();
-        return new FallbackClassifier(new LlmClassifier(client, llm.model(), mapper, usage), rules);
+        return new FallbackClassifier(new LlmClassifier(client, llm.model(), mapper, usage,
+                com.ljh.gameops.ai.LlmRequest.isAnthropic(llm.baseUrl())), rules);
     }
 }

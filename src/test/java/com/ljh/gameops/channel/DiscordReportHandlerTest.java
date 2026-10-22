@@ -110,4 +110,26 @@ class DiscordReportHandlerTest extends IntegrationTest {
         assertThat(r).hasValueSatisfying(t -> assertThat(t).startsWith("[보석타워]"));
         assertThat(gameOfOnlyReport()).isEqualTo("gemtower");
     }
+
+    @Test
+    void 막힌_사람에게는_한_번만_답한다() {
+        for (int i = 0; i < 5; i++) {
+            assertThat(handler.onChannelMessageReply(new DiscordInbound("msg:s" + i, "C_REPORT", null, "spam-1", false, null,
+                    "서로 다른 글 " + i + " 번째 버그", null))).isPresent();
+        }
+        var sixth = handler.onChannelMessageReply(new DiscordInbound("msg:s6", "C_REPORT", null, "spam-1", false, null, "또 버그", null));
+        assertThat(sixth).hasValueSatisfying(r -> assertThat(r.text()).contains("10분쯤 뒤에"));
+        var seventh = handler.onChannelMessageReply(new DiscordInbound("msg:s7", "C_REPORT", null, "spam-1", false, null, "또또 버그", null));
+        assertThat(seventh).isEmpty(); // 도배에 봇 답장까지 쌓이지 않게
+    }
+
+    @Test
+    void 영어_제보에는_영어로_답한다() {
+        var r = handler.onChannelMessageReply(new DiscordInbound("msg:en1", "C_REPORT", null, "user-en", false, null,
+                "The game crashes at wave 5", null));
+        assertThat(r).hasValueSatisfying(x -> {
+            assertThat(x.lang()).isEqualTo("en");
+            assertThat(x.text()).contains("Sent to the dev team as issue #1");
+        });
+    }
 }

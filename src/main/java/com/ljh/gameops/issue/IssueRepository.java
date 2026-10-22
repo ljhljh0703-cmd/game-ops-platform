@@ -12,6 +12,12 @@ import java.util.Optional;
 public interface IssueRepository extends JpaRepository<Issue, Long> {
     List<Issue> findByGameIdAndStatusIn(Long gameId, Collection<IssueStatus> statuses);
 
+    @org.springframework.data.jpa.repository.Query("""
+            select new com.ljh.gameops.issue.IssueCandidate(i.id, i.category, i.autoCategory, i.normalizedText)
+            from Issue i where i.gameId = :gameId and i.status in :statuses""")
+    List<IssueCandidate> candidates(@org.springframework.data.repository.query.Param("gameId") Long gameId,
+                                    @org.springframework.data.repository.query.Param("statuses") Collection<IssueStatus> statuses);
+
     Optional<Issue> findByGameIdAndNormalizedKeyAndStatusIn(Long gameId, String key, Collection<IssueStatus> statuses);
 
     List<Issue> findTop5ByGameIdAndStatusInOrderByReportCountDescUpdatedAtDesc(Long gameId, Collection<IssueStatus> statuses);

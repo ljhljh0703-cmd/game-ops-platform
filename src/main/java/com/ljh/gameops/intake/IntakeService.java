@@ -22,7 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +67,19 @@ public class IntakeService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.ljh.gameops.errors.ClientErrors clientErrors;
 
+    /** 외국어 제보 한국어 번역(결정 42). 없으면 원문으로 분류·묶기 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.report.Translator translator;
+
+    /** 묶기 둘째 단계(결정 41). 없으면 글자 비교만 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    DuplicateJudge judge;
+    @org.springframework.beans.factory.annotation.Value("${gameops.dedupe.ai-min-confidence:0.5}")
+    double aiMinConfidence = 0.5;
+    /** 한 제보에 AI 에게 물어보는 이슈 수 상한(비용 상한 · 결정 42) */
+    @org.springframework.beans.factory.annotation.Value("${gameops.dedupe.ai-candidates:3}")
+    int aiCandidates = 3;
+
     /** 플레이어가 붙여 넣은 「게임진단」 줄에 오류가 있으면 게임 오류 기록에도 넣는다(결정 37). 실패해도 접수는 그대로 */
     private void recordDiagError(Game game, SubmitReport cmd) {
         if (clientErrors == null) return;
@@ -77,9 +92,9 @@ public class IntakeService {
         }
     }
 
-    /** 도배 막기(결정 36): 한 사람이 10분에 이만큼 넘게 올리면 받지 않는다. 0 이면 끔. 디스코드 제보에만 */
-    @org.springframework.beans.factory.annotation.Value("${gameops.intake.max-per-10min:5}")
-    int maxPer10Min = 5;
+    /** 도배·몰림 막기(결정 36 · 43) */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    IntakeGuard guard;
 
     public IntakeResult submit(SubmitReport cmd) {
         Game game = games.findByCode(cmd.gameCode())
@@ -88,21 +103,21 @@ public class IntakeService {
         Optional<IntakeResult> redelivered = findRedelivery(cmd);
         if (redelivered.isPresent()) return redelivered.get();
 
-        if (maxPer10Min > 0 && cmd.channel() == com.ljh.gameops.report.SourceChannel.DISCORD) {
-            long recent = reports.countByAuthorHashAndReceivedAtAfter(hasher.hash(cmd.channel().name(), cmd.authorId()),
-                    OffsetDateTime.now().minusMinutes(10));
-            if (recent >= maxPer10Min) {
-                log.info("도배 막기: 10분에 {}건 넘게 올린 작성자의 제보를 받지 않음", maxPer10Min);
-                throw new RateLimitedException("짧은 시간에 제보가 많아요. 10분쯤 뒤에 다시 올려 주세요. 같은 문제면 처음 글에 답글로 더해 주시면 돼요.");
-            }
-        }
+        if (guard != null) guard.check(game, cmd);
 
-        Classification c = classifier.classify(game.getCode(), cmd.body());
+        // 외국어면 AI 가 한국어로 옮겨 운영자가 읽게 한다(결정 42). 분류는 원문 먼저, 묶기 글자 비교는 원문(번역문 비교는 평가에서 도움이 안 됨)
+        String lang = com.ljh.gameops.report.Lang.detect(cmd.body());
+        String ko = com.ljh.gameops.report.Lang.isKorean(lang) || translator == null || !translator.enabled() ? null
+                : translator.toKorean(game.getCode(), cmd.body());
+        Text text = new Text(cmd.body(), lang, ko);
+        Classification c = classifyWithTranslation(classifier, game.getCode(), cmd.body(), ko);
+        // AI 판정은 DB 거래 밖에서(응답 기다리는 동안 DB 연결을 잡지 않게). 결과는 「붙일 후보」 하나
+        AiHint hint = aiHint(game, text, c);
 
         // 동시 제보가 같은 이슈를 두 번 만들거나(고유 인덱스), 같은 이슈를 동시에 고치면(version) 다시 시도한다.
         for (int attempt = 1; ; attempt++) {
             try {
-                IntakeResult r = tx.execute(status -> store(game, cmd, c));
+                IntakeResult r = tx.execute(status -> store(game, cmd, c, hint, text));
                 recordDiagError(game, cmd);
                 return r;
             } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException
@@ -168,12 +183,68 @@ public class IntakeService {
         return Optional.ofNullable(best);
     }
 
-    private IntakeResult store(Game game, SubmitReport cmd, Classification c) {
+    /**
+     * 외국어 제보 분류(결정 42): 원문을 먼저(규칙에 영어·일본어 낱말이 있다), 아무 규칙도 안 걸리면(기타·낮음) 번역으로.
+     * 평가에서 번역만 쓰면 번역문이 규칙 낱말과 다르게 옮겨져 더 틀렸다. 제목은 번역이 있으면 번역으로(운영자가 읽게)
+     */
+    public static Classification classifyWithTranslation(IssueClassifier classifier, String game, String original, String ko) {
+        Classification c = classifier.classify(game, original);
+        if (ko == null) return c;
+        if (c.category() == Category.OTHER && c.severity() == Severity.LOW) {
+            Classification t = classifier.classify(game, ko);
+            if (t.category() != Category.OTHER || t.severity() != Severity.LOW) c = t;
+        }
+        return new Classification(c.category(), c.severity(), com.ljh.gameops.classify.Titles.fromBody(ko), c.classifiedBy());
+    }
+
+    /** 원문 · 언어 · 한국어 번역(없으면 null) */
+    record Text(String original, String lang, String ko) {}
+
+    /** AI 가 같은 문제라고 본 열린 이슈와 그 확신 */
+    record AiHint(Long issueId, double confidence) {}
+
+    /**
+     * 글자 비교로 붙일 이슈가 없을 때만, 같은 분류의 열린 이슈 가운데 글자가 가장 비슷한 몇 개를 AI 에게 묻는다.
+     * 글자 비교로 이미 붙거나 글이 똑같으면 부르지 않는다(비용 0). 판정 실패·예산 초과면 null → 새 이슈.
+     */
+    AiHint aiHint(Game game, Text text, Classification c) {
+        if (judge == null || !judge.enabled()) return null;
+        String body = text.original();
+        String normalized = TextNormalizer.normalize(text.original());
+        if (normalized.isEmpty()) return null;
+        String key = TextNormalizer.key(normalized);
+        if (issues.findByGameIdAndNormalizedKeyAndStatusIn(game.getId(), key, OPEN).isPresent()) return null;
+        record Cand(IssueCandidate i, double score) {}
+        List<Cand> cands = new ArrayList<>();
+        var mine = Similarity.bigrams(normalized);
+        for (IssueCandidate i : issues.candidates(game.getId(), OPEN)) {
+            if (props.sameCategoryOnly() && i.category() != c.category() && i.autoCategory() != c.category()) continue;
+            double s = Similarity.jaccard(mine, Similarity.bigrams(i.normalizedText()));
+            if (s >= props.duplicateThreshold()) return null; // 글자 비교로 붙는다
+            cands.add(new Cand(i, s));
+        }
+        cands.sort(java.util.Comparator.comparingDouble(Cand::score).reversed()
+                .thenComparing(m -> m.i().id(), java.util.Comparator.reverseOrder()));
+        for (Cand m : cands.subList(0, Math.min(aiCandidates, cands.size()))) {
+            Issue issue = issues.findById(m.i().id()).orElse(null);
+            if (issue == null) continue;
+            String rep = reports.findById(issue.getRepresentativeReportId()).map(Report::getBody).orElse(issue.getNormalizedText());
+            double conf = judge.confidence(game.getCode(), body, rep);
+            if (conf >= aiMinConfidence) {
+                log.info("AI 묶기 판정: 이슈 {} 와 같은 문제(확신 {})", issue.getId(), conf);
+                return new AiHint(issue.getId(), conf);
+            }
+        }
+        return null;
+    }
+
+    private IntakeResult store(Game game, SubmitReport cmd, Classification c, AiHint hint, Text text) {
         Report report = reports.saveAndFlush(new Report(game.getId(), cmd.channel(), cmd.externalId(),
                 hasher.hash(cmd.channel().name(), cmd.authorId()), cmd.body(), cmd.attachmentUrls(), cmd.replyTo())
-                .withRepro(com.ljh.gameops.report.ReproInfo.merge(cmd.repro(), com.ljh.gameops.report.ReproInfo.parse(cmd.body()))));
+                .withRepro(com.ljh.gameops.report.ReproInfo.merge(cmd.repro(), com.ljh.gameops.report.ReproInfo.parse(cmd.body())))
+                .withLanguage(text.lang(), text.ko()));
 
-        String normalized = TextNormalizer.normalize(cmd.body());
+        String normalized = TextNormalizer.normalize(text.original());
         // 링크·이모지·감탄사만 있는 글은 정규화하면 빈 문자열이 된다. 빈 글끼리 묶으면 무관한 제보가 한 이슈로
         // 몰리므로, 빈 글은 비교하지 않고 제보마다 따로 이슈를 만든다.
         boolean empty = normalized.isEmpty();
@@ -181,16 +252,22 @@ public class IntakeService {
 
         Issue best = null;
         double bestScore = 0;
+        boolean aiMatched = false;
         if (!empty) {
             Optional<Issue> exact = issues.findByGameIdAndNormalizedKeyAndStatusIn(game.getId(), key, OPEN);
             if (exact.isPresent()) {
                 best = exact.get();
                 bestScore = 1.0;
             } else {
-                for (Issue i : issues.findByGameIdAndStatusIn(game.getId(), OPEN)) {
-                    double s = similarity(normalized, c.category(), i);
-                    if (s > bestScore) { bestScore = s; best = i; }
+                // 칸 네 개만 읽고, 새 글의 글자 묶음은 한 번만 만든다(열린 이슈 수만큼 도는 곳)
+                var mine = Similarity.bigrams(normalized);
+                Long bestId = null;
+                for (IssueCandidate i : issues.candidates(game.getId(), OPEN)) {
+                    if (props.sameCategoryOnly() && i.category() != c.category() && i.autoCategory() != c.category()) continue;
+                    double s = Similarity.jaccard(mine, Similarity.bigrams(i.normalizedText()));
+                    if (s > bestScore) { bestScore = s; bestId = i.id(); }
                 }
+                if (bestId != null) best = issues.findById(bestId).orElse(null);
             }
         }
 
@@ -205,7 +282,15 @@ public class IntakeService {
                 bestScore = similarity(normalized, c.category(), best);
             }
         }
-        if (best != null && bestScore >= props.duplicateThreshold()) {
+        if ((best == null || bestScore < props.duplicateThreshold()) && hint != null) {
+            // 글자 비교로는 못 붙였지만 AI 가 같은 문제라고 본 이슈. 잠근 뒤에도 열려 있을 때만 붙인다
+            Issue h = issues.findById(hint.issueId()).orElse(null);
+            if (h != null) {
+                em.refresh(h, LockModeType.PESSIMISTIC_WRITE);
+                if (h.getStatus().isOpen()) { best = h; bestScore = hint.confidence(); aiMatched = true; }
+            }
+        }
+        if (best != null && (bestScore >= props.duplicateThreshold() || aiMatched)) {
             var before = best.getSeverity();
             best.attachReport(c.severity());
             issues.saveAndFlush(best);

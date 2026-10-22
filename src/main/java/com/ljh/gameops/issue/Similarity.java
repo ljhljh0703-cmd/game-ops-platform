@@ -8,17 +8,19 @@ public final class Similarity {
     private Similarity() {}
 
     public static double jaccard(String a, String b) {
-        Set<String> x = bigrams(a);
-        Set<String> y = bigrams(b);
-        if (x.isEmpty() || y.isEmpty()) return 0.0;
-        Set<String> inter = new HashSet<>(x);
-        inter.retainAll(y);
-        Set<String> union = new HashSet<>(x);
-        union.addAll(y);
-        return (double) inter.size() / union.size();
+        return jaccard(bigrams(a), bigrams(b));
     }
 
-    static Set<String> bigrams(String s) {
+    /** 새 제보의 묶음은 한 번만 만들고 열린 이슈마다 비교한다(부하 시험 ③ · docs/LOAD.md) */
+    public static double jaccard(Set<String> x, Set<String> y) {
+        if (x.isEmpty() || y.isEmpty()) return 0.0;
+        Set<String> small = x.size() <= y.size() ? x : y, big = small == x ? y : x;
+        int inter = 0;
+        for (String g : small) if (big.contains(g)) inter++;
+        return (double) inter / (x.size() + y.size() - inter);
+    }
+
+    public static Set<String> bigrams(String s) {
         String t = s.replace(" ", "");
         Set<String> out = new HashSet<>();
         if (t.length() == 1) out.add(t);

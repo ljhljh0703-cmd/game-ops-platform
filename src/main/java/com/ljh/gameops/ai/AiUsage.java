@@ -129,12 +129,51 @@ public class AiUsage {
         return switch (purpose) {
             case CLASSIFY -> "분류";
             case DIGEST -> "보고서";
+            case "dedupe" -> "묶기 판정";
+            case "translate" -> "번역";
+            case "patch" -> "패치노트";
             default -> purpose;
         };
     }
 
+    /**
+     * 한 시간 AI 호출 상한(결정 43). 서로 다른 글을 잔뜩 보내 번역·판정을 계속 부르게 하는 비용 공격을 막는다.
+     * 넘으면 그 시간엔 규칙·글자 비교만(제보는 그대로 받는다). 0 이면 끔. 15초마다 다시 센다
+     */
+    @Value("${gameops.ai.max-calls-per-hour:600}")
+    int maxCallsPerHour = 600;
+    private volatile long hourCountAt;
+    private volatile long hourCount;
+    private volatile boolean hourAlerted;
+
+    boolean underHourlyCap() {
+        if (maxCallsPerHour <= 0) return true;
+        long now = clock.millis();
+        if (now - hourCountAt > 15_000) {
+            Long n = jdbc.queryForObject("SELECT count(*) FROM ai_usage WHERE at >= ?", Long.class, OffsetDateTime.now(clock).minusHours(1));
+            hourCount = n == null ? 0 : n;
+            hourCountAt = now;
+        }
+        boolean ok = hourCount < maxCallsPerHour;
+        if (!ok && !hourAlerted) {
+            hourAlerted = true;
+            log.warn("AI 호출이 한 시간 {}번을 넘어 규칙으로만 처리합니다", maxCallsPerHour);
+            try {
+                String hour = OffsetDateTime.now(clock).atZoneSameInstant(ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH"));
+                outbox.enqueueOnce(NotificationType.OPS_ALERT, Map.of("text", "🛡️ AI 호출이 한 시간에 " + maxCallsPerHour
+                        + "번을 넘었어요. 이번 한 시간은 AI 없이(규칙·글자 비교) 받습니다. 제보는 그대로 들어와요. 평소보다 많으면 제보 몰림이나 비용 공격일 수 있어요."),
+                        "ai-hour:" + hour);
+            } catch (RuntimeException e) {
+                log.warn("AI 시간 상한 알림 실패: {}", e.getMessage());
+            }
+        }
+        if (ok) hourAlerted = false;
+        return ok;
+    }
+
     /** 이번 달 예산이 남았는지. 예산 0 은 제한 없음 */
     public boolean allowed() {
+        if (!underHourlyCap()) return false;
         // 크레딧이 바닥나면(추정) 부르지 않는다. 불러도 Anthropic 이 거절한다
         Credit c = credit();
         if (c != null && c.remaining().signum() <= 0) return false;

@@ -72,7 +72,7 @@ public class NotificationRenderer {
                         digestCards.current(d.id()));
             }
             case SLACK_URL_CHANGED -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
-            case AI_BUDGET -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
+            case AI_BUDGET, OPS_ALERT -> new RenderedNotification(m.getType(), null, Severity.HIGH, null, p.path("text").asText());
             // 패치노트 초안 카드 — 그 게임 알림 채널로. 공지(PATCH_PUBLISH)는 슬랙이 아니라 디스코드로 간다(OutboxDispatcher)
             case PATCH_NOTE, PATCH_PUBLISH -> {
                 if (patches == null) throw new IllegalStateException("패치노트 기능이 없어요");

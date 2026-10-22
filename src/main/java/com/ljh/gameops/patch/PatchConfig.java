@@ -30,13 +30,13 @@ public class PatchConfig {
         RestClient client = RestClient.builder().baseUrl(llm.baseUrl()).requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + llm.apiKey()).build();
         String model = llm.model();
+        boolean anthropic = com.ljh.gameops.ai.LlmRequest.isAnthropic(llm.baseUrl());
         DigestWriter.Ai ai = (system, user) -> {
             if (!usage.allowed()) throw new IllegalStateException("이번 달 AI 예산을 다 썼어요");
             JsonNode r;
             try {
                 r = client.post().uri("/chat/completions").contentType(MediaType.APPLICATION_JSON)
-                        .body(Map.of("model", model, "temperature", 0, "max_tokens", 1000, "messages", List.of(
-                                Map.of("role", "system", "content", system), Map.of("role", "user", "content", user))))
+                        .body(com.ljh.gameops.ai.LlmRequest.chat(anthropic, model, 1000, system, user))
                         .retrieve().body(JsonNode.class);
             } catch (RuntimeException e) {
                 usage.record(PURPOSE, model, null, false);

@@ -47,7 +47,9 @@ public class DiscordPlayerNotifier implements PlayerNotifier {
     }
 
     /** 답장할 곳 「채널 ID:메시지 ID」 — 같은 사람(작성자 해시)은 처음 글 하나만. */
-    record Target(String channelId, String messageId) {}
+    record Target(String channelId, String messageId, String lang, String body) {
+        Target(String channelId, String messageId) { this(channelId, messageId, null, null); }
+    }
 
     static List<Target> targets(List<Report> rs) {
         Set<String> seen = new HashSet<>();
@@ -57,7 +59,7 @@ public class DiscordPlayerNotifier implements PlayerNotifier {
             if (to == null || !seen.add(r.getAuthorHash())) continue;
             int i = to.indexOf(':');
             if (i <= 0 || i == to.length() - 1) continue;
-            out.add(new Target(to.substring(0, i), to.substring(i + 1)));
+            out.add(new Target(to.substring(0, i), to.substring(i + 1), r.getLanguage(), r.getBody()));
             if (out.size() >= MAX_REPLIES) break;
         }
         return out;
@@ -72,7 +74,6 @@ public class DiscordPlayerNotifier implements PlayerNotifier {
         String game = games.findById(issue.getGameId()).map(Game::getName).orElse("?");
         List<Report> rs = links.findByIssueId(issueId).stream().map(IssueReport::getReportId)
                 .map(id -> reports.findById(id).orElse(null)).filter(java.util.Objects::nonNull).toList();
-        var embed = DiscordCards.resolved(game, issueId, issue.getTitle());
         int sent = 0;
         for (Target t : targets(rs)) {
             MessageChannel ch = jda.getChannelById(MessageChannel.class, t.channelId());
@@ -80,6 +81,9 @@ public class DiscordPlayerNotifier implements PlayerNotifier {
                 log.info("해결 답장: 채널을 못 찾아 건너뜀 channelId={}", t.channelId());
                 continue;
             }
+            // 플레이어 말로 답한다. 외국어 제보자는 한국어 이슈 제목 대신 자기 글로 알아보게
+            var embed = com.ljh.gameops.report.Lang.isKorean(t.lang()) ? DiscordCards.resolved(game, issueId, issue.getTitle())
+                    : DiscordCards.resolved(game, issueId, t.body(), t.lang());
             try {
                 ch.sendMessageEmbeds(embed).setMessageReference(t.messageId()).failOnInvalidReply(false)
                         .mentionRepliedUser(true).submit().get(10, TimeUnit.SECONDS);

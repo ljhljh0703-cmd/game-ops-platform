@@ -41,12 +41,19 @@ public class IssueCardFactory {
         Issue i = issues.findById(issueId).orElseThrow(() -> new IllegalStateException("이슈 없음: " + issueId));
         String game = games.findById(i.getGameId()).map(Game::getName).orElse("?");
         Report rep = i.getRepresentativeReportId() == null ? null : reports.findById(i.getRepresentativeReportId()).orElse(null);
-        return new IssueCard(i.getId(), game, label, i.getTitle(), rep == null ? i.getTitle() : rep.getBody(),
+        return new IssueCard(i.getId(), game, label, i.getTitle(), rep == null ? i.getTitle() : quoteOf(rep),
                 i.getCategory(), i.getSeverity(), i.getStatus(), i.getReportCount(), i.getRecurrenceOf(), detachedFrom,
                 rep == null ? null : rep.getSourceChannel(), i.getCreatedAt(), null, repro(issueId),
                 jira.of(issueId).map(com.ljh.gameops.jira.JiraTickets.Ticket::key).orElse(null),
                 jira.of(issueId).map(com.ljh.gameops.jira.JiraTickets.Ticket::url).orElse(null),
                 clientErrors == null ? null : com.ljh.gameops.errors.ClientErrors.cardLine(clientErrors.forIssue(issueId, 3)));
+    }
+
+    /** 외국어 제보는 AI 번역을 먼저, 원문을 아래에(결정 42). 「AI 번역」이라고 밝힌다 */
+    static String quoteOf(Report rep) {
+        if (rep.getTranslationKo() == null) return rep.getBody();
+        return "🌐 " + com.ljh.gameops.report.Lang.label(rep.getLanguage()) + " 제보 · AI 번역: " + rep.getTranslationKo()
+                + "\n원문: " + rep.getBody();
     }
 
     /** 사람이 버튼을 누른 뒤 다시 그릴 때 — 알림 종류 대신 이슈 번호만 제목에 둔다 */

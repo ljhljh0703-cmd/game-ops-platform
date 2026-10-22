@@ -49,6 +49,6 @@ class DiscordCardsTest {
         var api = new Report(1L, SourceChannel.API, "x", "author-c", "API 제보", null, null);
         var broken = new Report(1L, SourceChannel.DISCORD, "msg:4", "author-d", "?", null, "깨진값");
         assertThat(DiscordPlayerNotifier.targets(List.of(a1, a2, b, api, broken)))
-                .containsExactly(new DiscordPlayerNotifier.Target("C1", "1"), new DiscordPlayerNotifier.Target("T9", "3"));
+                .extracting(t -> t.channelId() + ":" + t.messageId()).containsExactly("C1:1", "T9:3");
     }
 }

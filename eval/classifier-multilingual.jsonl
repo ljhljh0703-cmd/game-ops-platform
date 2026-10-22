@@ -1,0 +1,24 @@
+{"id": 2001, "split": "dev", "game": "gemtower", "body": "The game crashes every time I reach wave 5", "category": "CRASH", "severity": "HIGH", "note": "en"}
+{"id": 2002, "split": "dev", "game": "jelly-panic", "body": "I paid for the gem pack but never got the gems", "category": "PAYMENT", "severity": "CRITICAL", "note": "en"}
+{"id": 2003, "split": "dev", "game": "movefu", "body": "Huge lag spikes in multiplayer, fps drops to 10", "category": "PERFORMANCE", "severity": "MEDIUM", "note": "en"}
+{"id": 2004, "split": "dev", "game": "jelly-panic", "body": "My save got wiped, lost all progress up to stage 40", "category": "BUG", "severity": "HIGH", "note": "en"}
+{"id": 2005, "split": "dev", "game": "gemtower", "body": "Ruby tower is way too strong, please nerf", "category": "BALANCE", "severity": "LOW", "note": "en"}
+{"id": 2006, "split": "dev", "game": "movefu", "body": "The settings button is really hard to find", "category": "UX", "severity": "LOW", "note": "en"}
+{"id": 2007, "split": "dev", "game": "gemtower", "body": "5ウェーブで毎回アプリが落ちます", "category": "CRASH", "severity": "HIGH", "note": "ja"}
+{"id": 2008, "split": "dev", "game": "jelly-panic", "body": "課金したのにジェムが届きません", "category": "PAYMENT", "severity": "CRITICAL", "note": "ja"}
+{"id": 2009, "split": "dev", "game": "movefu", "body": "対戦中にラグがひどくてカクカクします", "category": "PERFORMANCE", "severity": "MEDIUM", "note": "ja"}
+{"id": 2010, "split": "dev", "game": "jelly-panic", "body": "セーブデータが消えて最初からになりました", "category": "BUG", "severity": "HIGH", "note": "ja"}
+{"id": 2011, "split": "dev", "game": "gemtower", "body": "ボスが強すぎてクリアできない", "category": "BALANCE", "severity": "LOW", "note": "ja"}
+{"id": 2012, "split": "dev", "game": "movefu", "body": "ボタンが小さくて押しにくいです", "category": "UX", "severity": "LOW", "note": "ja"}
+{"id": 2013, "split": "holdout", "game": "jelly-panic", "body": "App freezes on the loading screen and I have to force close it", "category": "CRASH", "severity": "HIGH", "note": "en"}
+{"id": 2014, "split": "holdout", "game": "gemtower", "body": "I was charged twice for the same bundle, please refund", "category": "PAYMENT", "severity": "CRITICAL", "note": "en"}
+{"id": 2015, "split": "holdout", "game": "movefu", "body": "The character falls through the floor after using dash", "category": "BUG", "severity": "MEDIUM", "note": "en"}
+{"id": 2016, "split": "holdout", "game": "jelly-panic", "body": "Phone gets really hot and the game stutters", "category": "PERFORMANCE", "severity": "MEDIUM", "note": "en"}
+{"id": 2017, "split": "holdout", "game": "gemtower", "body": "How do I change my nickname?", "category": "OTHER", "severity": "LOW", "note": "en"}
+{"id": 2018, "split": "holdout", "game": "movefu", "body": "Daily reward is not working, it says claimed but nothing arrived", "category": "BUG", "severity": "MEDIUM", "note": "en"}
+{"id": 2019, "split": "holdout", "game": "jelly-panic", "body": "起動するとすぐ強制終了します", "category": "CRASH", "severity": "HIGH", "note": "ja"}
+{"id": 2020, "split": "holdout", "game": "gemtower", "body": "返金してください、間違えて二回購入しました", "category": "PAYMENT", "severity": "CRITICAL", "note": "ja"}
+{"id": 2021, "split": "holdout", "game": "movefu", "body": "ダッシュすると壁をすり抜けるバグがあります", "category": "BUG", "severity": "MEDIUM", "note": "ja"}
+{"id": 2022, "split": "holdout", "game": "jelly-panic", "body": "読み込みが長くて動作が重いです", "category": "PERFORMANCE", "severity": "MEDIUM", "note": "ja"}
+{"id": 2023, "split": "holdout", "game": "gemtower", "body": "ガチャの確率が低すぎる", "category": "BALANCE", "severity": "LOW", "note": "ja"}
+{"id": 2024, "split": "holdout", "game": "movefu", "body": "メニューの文字が小さくて読みにくい", "category": "UX", "severity": "LOW", "note": "ja"}

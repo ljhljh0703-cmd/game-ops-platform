@@ -149,4 +149,18 @@ class AiUsageTest extends IntegrationTest {
     }
 
     private static String enc(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
+
+    @Test
+    void 한_시간_호출_상한을_넘으면_AI를_안_부르고_한_번_알린다() throws Exception {
+        AiUsage u = withBudget(0);
+        u.maxCallsPerHour = 2;
+        assertThat(u.allowed()).isTrue();
+        u.record(AiUsage.CLASSIFY, "m", resp(10, 1), true);
+        u.record("translate", "m", resp(10, 1), true);
+        AiUsage fresh = withBudget(0); // 15초 묶음 셈을 새로
+        fresh.maxCallsPerHour = 2;
+        assertThat(fresh.allowed()).isFalse();
+        assertThat(fresh.allowed()).isFalse();
+        assertThat(outbox.findByTypeOrderByIdAsc(NotificationType.OPS_ALERT)).hasSize(1);
+    }
 }

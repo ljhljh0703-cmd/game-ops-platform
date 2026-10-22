@@ -22,6 +22,9 @@ public class Report {
     private String buildVersion;
     private String device;
     private String reproSteps;
+    /** 제보 언어(ko·ja·zh·en·other)와 외국어일 때 AI 한국어 번역(결정 42). 번역이 없으면 null */
+    private String language;
+    private String translationKo;
     private OffsetDateTime receivedAt;
 
     protected Report() {}
@@ -67,6 +70,14 @@ public class Report {
     public String getBuildVersion() { return buildVersion; }
     public String getDevice() { return device; }
     public String getReproSteps() { return reproSteps; }
+    public String getLanguage() { return language == null ? Lang.KO : language; }
+    public String getTranslationKo() { return translationKo; }
+
+    public Report withLanguage(String language, String translationKo) {
+        this.language = language;
+        this.translationKo = translationKo;
+        return this;
+    }
 
     public Long getId() { return id; }
     public Long getGameId() { return gameId; }

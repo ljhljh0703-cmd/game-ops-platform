@@ -49,7 +49,7 @@ public class FeedbackService {
         Long gameId = gameCode == null || gameCode.isBlank() ? null : game(gameCode).getId();
         OffsetDateTime since = OffsetDateTime.now().minusDays(days);
         return jdbc.query("""
-                SELECT r.id, i.id, g.code, r.received_at, r.body, i.category, i.severity, i.status, i.report_count, i.title,
+                SELECT r.id, i.id, g.code, r.received_at, coalesce('[AI 번역] ' || r.translation_ko || ' (원문: ' || r.body || ')', r.body), i.category, i.severity, i.status, i.report_count, i.title,
                        r.build_version, r.device, r.repro_steps, r.attachment_urls
                 FROM report r
                 JOIN issue_report l ON l.report_id = r.id
