@@ -73,7 +73,7 @@ nav.cp-nav{position:sticky;top:0;z-index:30;background:rgba(238,230,214,.95);bac
 .cp-story .k{display:block;margin-bottom:8px;font-weight:800;color:var(--accent)}
 .cp-story p{margin:0;font-size:14.5px;line-height:1.65}
 .cp-story .last{background:var(--accent-soft)}
-.cp-ghost{position:absolute;right:-6px;bottom:6px;font:28px/1 "Black Han Sans",sans-serif;white-space:nowrap;color:rgba(27,26,23,.10);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--bad) 55%,transparent);text-decoration-thickness:3px;transform:rotate(-4deg);pointer-events:none}
+.cp-ghost{position:absolute;right:-6px;bottom:6px;font:800 28px/1 "Wanted Sans Variable",sans-serif;white-space:nowrap;color:rgba(27,26,23,.10);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--bad) 55%,transparent);text-decoration-thickness:3px;transform:rotate(-4deg);pointer-events:none}
 
 /* 막대 비교 */
 .cp-bars{display:grid;gap:14px;max-width:820px}
