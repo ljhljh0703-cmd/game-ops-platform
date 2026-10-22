@@ -112,13 +112,13 @@ gameops:
   intake:
     # 도배 막기 — 한 사람이 10분에 이만큼 넘게 디스코드 제보를 올리면 받지 않는다. 0 이면 끔
     max-per-10min: ${INTAKE_MAX_PER_10MIN:5}
-    # 신뢰 등급(결정 44, docs/SECURITY.md) — 계정 나이가 아니라 한 일로. 새 사람 3건 · 확인된 사람 위의 5건 · 믿는 사람·멤버 10건 · 운영진 제한 없음
+    # 신뢰 등급(결정 44, docs/SECURITY.md) — 계정 나이가 아니라 한 일로. 새 사람 3건 · 확인된 사람 위의 5건 · 믿는 사람·우수 테스터 10건 · 운영진 제한 없음
     limit-new: ${INTAKE_LIMIT_NEW:3}
     limit-trusted: ${INTAKE_LIMIT_TRUSTED:10}
     trusted-issues: ${INTAKE_TRUSTED_ISSUES:3}
     trusted-days: ${INTAKE_TRUSTED_DAYS:2}
-    # 디스코드 역할 이름이나 ID(쉼표로). 멤버 = 후원·테스터 등, 운영진 = 한도 없음
-    member-roles: ${DISCORD_MEMBER_ROLES:}
+    # 디스코드 역할 이름이나 ID(쉼표로). 우수 테스터 = 10분 10건·몰려도 바로 접수, 운영진 = 한도 없음
+    member-roles: ${DISCORD_MEMBER_ROLES:우수 테스터}
     staff-roles: ${DISCORD_STAFF_ROLES:}
     # 게임 하나에 1분에 이만큼 넘게 몰리면 새 사람 제보는 보류함에(잃지 않음), 풀리면 차례로 접수
     flood-per-min: ${INTAKE_FLOOD_PER_MIN:30}

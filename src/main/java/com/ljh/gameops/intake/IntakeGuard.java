@@ -5,7 +5,7 @@
 //   새 사람     실적 없음                                     10분에 3건
 //   확인된 사람 제보가 사람이 다룬 이슈에 들어간 적 있음(1건 이상)  10분에 5건
 //   믿는 사람   그런 이슈 3개 이상, 서로 다른 날 2일 이상           10분에 10건
-//   멤버        서버 운영자가 정한 역할(후원·테스터 등)             10분에 10건
+//   우수 테스터 디스코드 「우수 테스터」 역할(운영자가 준다)           10분에 10건
 //   운영진      운영진 역할                                    제한 없음
 // 「사람이 다룬 이슈」 = 운영자가 작업 중·QA 확인 대기·해결로 옮긴 이슈. 이슈를 만든 것만으로는 실적이 아니다(누구나 만들 수 있으므로).
 // 게임 하나에 1분 30건 넘게 몰리면(몰림 모드) 새 사람 제보는 버리지 않고 보류함에 받아 두었다가 몰림이 풀리면 차례로 접수한다.
@@ -37,7 +37,7 @@ public class IntakeGuard {
     public enum Reason { AUTHOR, FLOOD }
 
     public enum Level {
-        NEW("새 사람"), CONFIRMED("확인된 사람"), TRUSTED("믿는 사람"), MEMBER("멤버"), STAFF("운영진");
+        NEW("새 사람"), CONFIRMED("확인된 사람"), TRUSTED("믿는 사람"), MEMBER("우수 테스터"), STAFF("운영진");
         public final String label;
         Level(String label) { this.label = label; }
     }
@@ -149,7 +149,7 @@ public class IntakeGuard {
         String bucket = now.toLocalDate() + "T" + now.getHour() + ":" + (now.getMinute() / 10);
         String text = "🚨 [" + game.getName() + "] 디스코드 제보가 1분에 " + floodPerMin + "건 넘게 몰리고 있어요. "
                 + "실적 없는 사람의 제보는 보류함에 받아 두고, 몰림이 풀리면 차례로 접수합니다(잃는 제보 없음). "
-                + "실적 있는 사람·멤버 제보는 그대로 받고 있어요. 진짜 큰 버그인지 공격인지 카드에서 확인해 주세요.";
+                + "실적 있는 사람·우수 테스터 제보는 그대로 받고 있어요. 진짜 큰 버그인지 공격인지 카드에서 확인해 주세요.";
         try {
             outbox.enqueueOnce(NotificationType.OPS_ALERT, Map.of("text", text), "flood:" + game.getCode() + ":" + bucket);
         } catch (RuntimeException e) {

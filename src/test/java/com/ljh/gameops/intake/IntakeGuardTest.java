@@ -27,8 +27,15 @@ class IntakeGuardTest extends IntegrationTest {
     @AfterEach
     void restore() {
         guard.floodPerMin = 30;
-        guard.memberRoles = Set.of();
+        guard.memberRoles = IntakeGuard.roles("우수 테스터");
         guard.staffRoles = Set.of();
+    }
+
+    @Test
+    void 기본_멤버_역할은_우수_테스터() {
+        assertThat(guard.memberRoles).containsExactly("우수 테스터");
+        assertThat(guard.level(cmd("t", "x", null, List.of("123", "우수 테스터")))).isEqualTo(IntakeGuard.Level.MEMBER);
+        assertThat(IntakeGuard.Level.MEMBER.label).isEqualTo("우수 테스터");
     }
 
     private SubmitReport cmd(String author, String body, String id, List<String> roles) {
