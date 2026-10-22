@@ -33,6 +33,10 @@ public final class DiscordCards {
             case ERROR -> {
                 return e.setColor(RED).setTitle(PlayerText.titleError(l)).setDescription(r.text()).build();
             }
+            case HELD -> {
+                return e.setColor(GRAY).setTitle(PlayerText.titleHeld(l)).setDescription(r.text())
+                        .setFooter(PlayerText.footer(l) + (canReplyLater ? PlayerText.footerPromise(l) : "")).build();
+            }
             case NEW -> e.setTitle(PlayerText.titleNew(l, r.issueId()));
             case ATTACHED -> e.setTitle(PlayerText.titleAttached(l, r.issueId()));
             case DUPLICATE -> e.setTitle(PlayerText.titleDuplicate(l, r.issueId()));

@@ -76,14 +76,14 @@ class ClientErrorsTest extends IntegrationTest {
     }
 
     @Test
-    void 한_사람이_10분에_5건_넘게_올리면_받지_않는다() {
-        for (int i = 0; i < 5; i++) {
+    void 실적_없는_사람이_10분에_3건_넘게_올리면_받지_않는다() {
+        for (int i = 0; i < 3; i++) {
             var r = handler.onChannelMessageReply(new DiscordInbound("msg:" + i, "C_REPORT", null, "spammer", false, null, "버그 " + i + "번 상점이 안 열려요", null)).orElseThrow();
             assertThat(r.kind()).isNotEqualTo(DiscordReportHandler.Reply.Kind.ERROR);
         }
-        var sixth = handler.onChannelMessageReply(new DiscordInbound("msg:9", "C_REPORT", null, "spammer", false, null, "또 버그", null)).orElseThrow();
-        assertThat(sixth.kind()).isEqualTo(DiscordReportHandler.Reply.Kind.ERROR);
-        assertThat(sixth.text()).contains("짧은 시간에 제보가 많아요");
+        var fourth = handler.onChannelMessageReply(new DiscordInbound("msg:9", "C_REPORT", null, "spammer", false, null, "또 버그", null)).orElseThrow();
+        assertThat(fourth.kind()).isEqualTo(DiscordReportHandler.Reply.Kind.ERROR);
+        assertThat(fourth.text()).contains("짧은 시간에 제보가 많아요");
         // 다른 사람은 그대로, 같은 메시지를 다시 받는 건 도배가 아님
         assertThat(handler.onChannelMessageReply(new DiscordInbound("msg:10", "C_REPORT", null, "other", false, null, "결제가 안 돼요", null))
                 .orElseThrow().kind()).isEqualTo(DiscordReportHandler.Reply.Kind.NEW);

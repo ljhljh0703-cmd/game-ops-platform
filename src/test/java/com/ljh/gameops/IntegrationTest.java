@@ -38,7 +38,7 @@ public abstract class IntegrationTest {
     @BeforeEach
     void cleanTables() {
         sender.reset();
-        jdbc.execute("TRUNCATE notification_outbox, audit_log, correction, issue_report, issue, report, classifier_rule_version, slack_message, dev_handoff, merged_change, jira_ticket, ai_usage, client_error, patch_note, feedback_digest RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE notification_outbox, audit_log, correction, issue_report, issue, report, classifier_rule_version, slack_message, dev_handoff, merged_change, jira_ticket, ai_usage, client_error, patch_note, feedback_digest, held_report RESTART IDENTITY CASCADE");
         ruleSource.invalidate();
     }
 }

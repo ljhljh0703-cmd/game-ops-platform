@@ -8,7 +8,23 @@ import com.ljh.gameops.report.ReproInfo;
  * @param repro   /report 입력칸의 버전·기기·재현 순서. 채널 글이면 null(글에서 찾는다)
  */
 public record DiscordInbound(String externalId, String channelId, String channelName, String authorId, boolean fromBot,
-                             String gameCode, String content, String attachmentUrls, String replyTo, ReproInfo repro) {
+                             String gameCode, String content, String attachmentUrls, String replyTo, ReproInfo repro,
+                             java.util.List<String> authorRoles) {
+    /** @param authorRoles 쓴 사람의 디스코드 역할(ID 와 이름). 신뢰 등급에 쓴다(결정 44) */
+    public DiscordInbound {
+        authorRoles = authorRoles == null ? java.util.List.of() : java.util.List.copyOf(authorRoles);
+    }
+
+    public DiscordInbound(String externalId, String channelId, String channelName, String authorId, boolean fromBot,
+                          String gameCode, String content, String attachmentUrls, String replyTo, ReproInfo repro) {
+        this(externalId, channelId, channelName, authorId, fromBot, gameCode, content, attachmentUrls, replyTo, repro, null);
+    }
+
+    /** 이어 쓴 글을 하나로 합친 것(DiscordMessageBuffer) */
+    public DiscordInbound withContent(String content, String attachmentUrls) {
+        return new DiscordInbound(externalId, channelId, channelName, authorId, fromBot, gameCode, content, attachmentUrls, replyTo, repro, authorRoles);
+    }
+
     public DiscordInbound(String externalId, String channelId, String channelName, String authorId, boolean fromBot,
                           String gameCode, String content, String attachmentUrls, String replyTo) {
         this(externalId, channelId, channelName, authorId, fromBot, gameCode, content, attachmentUrls, replyTo, null);

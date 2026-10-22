@@ -9,17 +9,25 @@ import com.ljh.gameops.report.SourceChannel;
  * @param repro   입력칸으로 받은 재현 정보(버전·기기·재현 순서). 없으면 null — 글에서 찾은 값으로 채운다
  */
 public record SubmitReport(String gameCode, SourceChannel channel, String externalId,
-                           String authorId, String body, String attachmentUrls, String replyTo, ReproInfo repro) {
+                           String authorId, String body, String attachmentUrls, String replyTo, ReproInfo repro,
+                           java.util.List<String> authorRoles) {
+    public SubmitReport(String gameCode, SourceChannel channel, String externalId,
+                        String authorId, String body, String attachmentUrls, String replyTo, ReproInfo repro) {
+        this(gameCode, channel, externalId, authorId, body, attachmentUrls, replyTo, repro, null);
+    }
+
     public SubmitReport(String gameCode, SourceChannel channel, String externalId, String authorId, String body,
                         String attachmentUrls, String replyTo) {
-        this(gameCode, channel, externalId, authorId, body, attachmentUrls, replyTo, null);
+        this(gameCode, channel, externalId, authorId, body, attachmentUrls, replyTo, null, null);
     }
 
     public SubmitReport(String gameCode, SourceChannel channel, String externalId, String authorId, String body, String attachmentUrls) {
-        this(gameCode, channel, externalId, authorId, body, attachmentUrls, null, null);
+        this(gameCode, channel, externalId, authorId, body, attachmentUrls, null, null, null);
     }
 
+    /** @param authorRoles 디스코드 역할(ID·이름). 신뢰 등급용(결정 44). 다른 채널은 빈 목록 */
     public SubmitReport {
+        authorRoles = authorRoles == null ? java.util.List.of() : java.util.List.copyOf(authorRoles);
         if (replyTo != null && replyTo.length() > 100) replyTo = null;
         if (gameCode == null || gameCode.isBlank()) throw new IllegalArgumentException("게임 코드가 비어 있습니다");
         if (body == null || body.isBlank()) throw new IllegalArgumentException("제보 내용이 비어 있습니다");

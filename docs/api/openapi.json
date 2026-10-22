@@ -268,7 +268,7 @@
             "type" : "integer"
           },
           "outcome" : {
-            "enum" : [ "NEW_ISSUE", "ATTACHED_TO_EXISTING", "DUPLICATE_DELIVERY" ],
+            "enum" : [ "NEW_ISSUE", "ATTACHED_TO_EXISTING", "DUPLICATE_DELIVERY", "HELD" ],
             "type" : "string"
           },
           "reportId" : {

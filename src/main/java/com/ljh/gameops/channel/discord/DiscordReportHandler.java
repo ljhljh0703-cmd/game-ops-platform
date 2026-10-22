@@ -44,7 +44,7 @@ public class DiscordReportHandler {
     /** @param lang 플레이어 글의 언어 — 답장도 그 말로(결정 42) */
     public record Reply(String text, Kind kind, Long issueId, String gameName, Category category, Severity severity, int reportCount,
                         java.util.List<String> missing, String lang) {
-        public enum Kind { NEW, ATTACHED, DUPLICATE, ERROR }
+        public enum Kind { NEW, ATTACHED, DUPLICATE, HELD, ERROR }
 
         public Reply {
             missing = missing == null ? java.util.List.of() : java.util.List.copyOf(missing);
@@ -63,6 +63,11 @@ public class DiscordReportHandler {
         static Reply error(String text) { return error(text, Lang.KO); }
 
         static Reply error(String text, String lang) { return new Reply(text, Kind.ERROR, null, null, null, null, 0, null, lang); }
+    }
+
+    /** 제보를 받는 채널인지(끊어 쓴 글을 모으기 전에 거른다) */
+    public boolean isReportChannel(DiscordInbound in) {
+        return channelGame(in).isPresent();
     }
 
     /** 제보 채널에 올라온 일반 글. 봇 글·제보 채널이 아닌 곳의 글·빈 글은 답하지 않는다. */
@@ -149,20 +154,24 @@ public class DiscordReportHandler {
         String lang = Lang.detect(in.content());
         try {
             IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
-                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro()));
+                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro(), in.authorRoles()));
+            if (r.outcome() == IntakeResult.Outcome.HELD) {
+                String name = games.byCode(game).map(GameSpec::name).orElse(game);
+                return new Reply("[" + name + "] " + PlayerText.held(lang), Reply.Kind.HELD, null, name, null, null, 0, null, lang);
+            }
             var issue = issues.get(r.issueId());
             int count = issue.getReportCount();
             String name = games.byCode(game).map(GameSpec::name).orElse(game);
             Reply.Kind kind = switch (r.outcome()) {
                 case NEW_ISSUE -> Reply.Kind.NEW;
                 case ATTACHED_TO_EXISTING -> Reply.Kind.ATTACHED;
-                case DUPLICATE_DELIVERY -> Reply.Kind.DUPLICATE;
+                case DUPLICATE_DELIVERY, HELD -> Reply.Kind.DUPLICATE;
             };
             String text = "[" + name + "] " + switch (r.outcome()) {
                 case NEW_ISSUE -> issue.getRecurrenceOf() == null ? PlayerText.received(lang, r.issueId())
                         : PlayerText.receivedRecurrence(lang, r.issueId(), issue.getRecurrenceOf());
                 case ATTACHED_TO_EXISTING -> PlayerText.attached(lang, r.issueId(), count);
-                case DUPLICATE_DELIVERY -> PlayerText.duplicate(lang, r.issueId());
+                case DUPLICATE_DELIVERY, HELD -> PlayerText.duplicate(lang, r.issueId());
             };
             // 새 이슈면 빠진 재현 정보를 플레이어에게 묻는다(QA가 먼저 묻는 것). 합쳐진 제보는 이미 누군가 적었을 수 있어 묻지 않는다
             java.util.List<String> missing = kind == Reply.Kind.NEW

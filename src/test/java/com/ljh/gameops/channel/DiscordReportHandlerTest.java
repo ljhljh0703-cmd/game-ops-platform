@@ -113,7 +113,7 @@ class DiscordReportHandlerTest extends IntegrationTest {
 
     @Test
     void 막힌_사람에게는_한_번만_답한다() {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) { // 실적 없는 사람은 10분에 3건(결정 44)
             assertThat(handler.onChannelMessageReply(new DiscordInbound("msg:s" + i, "C_REPORT", null, "spam-1", false, null,
                     "서로 다른 글 " + i + " 번째 버그", null))).isPresent();
         }

@@ -65,6 +65,12 @@ public final class PlayerText {
                 "短時間に報告が多すぎます。10分ほど待ってから送ってください。同じ問題なら最初の投稿に返信で追加してください。");
     }
 
+    static String held(String lang) {
+        return pick(lang, "지금 제보가 몰려 차례로 보고 있어요. 받아 뒀으니 다시 올리지 않으셔도 돼요.",
+                "We're getting a lot of reports right now, so yours is in line. It's saved, no need to post again.",
+                "現在報告が集中しているため順番に確認しています。受け付け済みなので再投稿は不要です。");
+    }
+
     static String flood(String lang) {
         return pick(lang, "지금 같은 게임에 제보가 몰려 확인 중이에요. 잠시 뒤 다시 올려 주세요.",
                 "We're getting a lot of reports for this game right now. Please try again a little later.",
@@ -76,6 +82,7 @@ public final class PlayerText {
     }
 
     // 카드
+    static String titleHeld(String l) { return pick(l, "⏳ 받아 뒀어요", "⏳ Saved, in line", "⏳ 受付済み・順番待ち"); }
     static String titleError(String l) { return pick(l, "⚠️ 접수하지 못했어요", "⚠️ Couldn't take your report", "⚠️ 受け付けできませんでした"); }
     static String titleNew(String l, long id) { return pick(l, "📨 접수했어요 · 이슈 #", "📨 Received · Issue #", "📨 受付 · 課題 #") + id; }
     static String titleAttached(String l, long id) { return pick(l, "🔗 같은 제보에 합쳤어요 · 이슈 #", "🔗 Added to an existing report · Issue #", "🔗 同じ報告にまとめました · 課題 #") + id; }

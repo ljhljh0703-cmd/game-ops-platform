@@ -1,8 +1,14 @@
-// 도배·공격 막기(결정 36 · 43) — 디스코드 제보만. 누가 무엇을 막는지는 docs/SECURITY.md
-//  ① 한 사람: 10분에 5건(가입 7일 안 된 계정은 1건)
-//  ② 게임 하나에 1분 30건 넘게 몰리면 「몰림 모드」: 가입 30일 안 된 계정 제보는 받지 않고, 슬랙 긴급 채널에 한 번 알린다
-//     진짜 큰 버그도 제보가 몰린다. 그래서 몰림 모드에서도 오래된 계정 제보는 그대로 받는다(진짜 신고를 잃지 않게)
-// 계정 나이는 디스코드 사용자 ID 안에 든 만든 시각으로 잰다(디스코드에 묻지 않음). 작성자는 여전히 해시로만 센다.
+// 도배·공격 막기(결정 36 · 43 · 44) — 디스코드 제보만. 근거와 남는 위험은 docs/SECURITY.md
+//
+// 신뢰 등급은 「기다린 시간」이 아니라 「한 일」로 매긴다. 계정 나이·서버 가입 기간은 미리 만들어 묵혀 둔 계정(잠복 계정)이
+// 그냥 통과하므로 쓰지 않는다. 같은 규칙을 모든 계정에 똑같이 쓴다.
+//   새 사람     실적 없음                                     10분에 3건
+//   확인된 사람 제보가 사람이 다룬 이슈에 들어간 적 있음(1건 이상)  10분에 5건
+//   믿는 사람   그런 이슈 3개 이상, 서로 다른 날 2일 이상           10분에 10건
+//   멤버        서버 운영자가 정한 역할(후원·테스터 등)             10분에 10건
+//   운영진      운영진 역할                                    제한 없음
+// 「사람이 다룬 이슈」 = 운영자가 작업 중·QA 확인 대기·해결로 옮긴 이슈. 이슈를 만든 것만으로는 실적이 아니다(누구나 만들 수 있으므로).
+// 게임 하나에 1분 30건 넘게 몰리면(몰림 모드) 새 사람 제보는 버리지 않고 보류함에 받아 두었다가 몰림이 풀리면 차례로 접수한다.
 package com.ljh.gameops.intake;
 
 import com.ljh.gameops.game.Game;
@@ -13,87 +19,137 @@ import com.ljh.gameops.report.SourceChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class IntakeGuard {
     private static final Logger log = LoggerFactory.getLogger(IntakeGuard.class);
-    /** 디스코드 ID 의 시각 기준(2015-01-01) */
-    static final long DISCORD_EPOCH = 1420070400000L;
 
-    public enum Reason { AUTHOR, NEW_ACCOUNT, FLOOD }
+    public enum Reason { AUTHOR, FLOOD }
+
+    public enum Level {
+        NEW("새 사람"), CONFIRMED("확인된 사람"), TRUSTED("믿는 사람"), MEMBER("멤버"), STAFF("운영진");
+        public final String label;
+        Level(String label) { this.label = label; }
+    }
+
+    /** 받기 · 보류함에 받아 두기 */
+    public enum Decision { ACCEPT, HOLD }
 
     private final ReportRepository reports;
     private final AuthorHasher hasher;
     private final OutboxService outbox;
+    private final JdbcTemplate jdbc;
     Clock clock = Clock.systemDefaultZone();
 
-    @Value("${gameops.intake.max-per-10min:5}") int maxPer10Min = 5;
-    @Value("${gameops.intake.new-account-days:7}") int newAccountDays = 7;
-    @Value("${gameops.intake.new-account-max-per-10min:1}") int newAccountMax = 1;
+    @Value("${gameops.intake.limit-new:3}") int limitNew = 3;
+    @Value("${gameops.intake.max-per-10min:5}") int limitConfirmed = 5;
+    @Value("${gameops.intake.limit-trusted:10}") int limitTrusted = 10;
+    @Value("${gameops.intake.trusted-issues:3}") int trustedIssues = 3;
+    @Value("${gameops.intake.trusted-days:2}") int trustedDays = 2;
     @Value("${gameops.intake.flood-per-min:30}") int floodPerMin = 30;
-    @Value("${gameops.intake.flood-min-account-days:30}") int floodMinAccountDays = 30;
+    Set<String> memberRoles = Set.of();
+    Set<String> staffRoles = Set.of();
 
-    public IntakeGuard(ReportRepository reports, AuthorHasher hasher, OutboxService outbox) {
+    public IntakeGuard(ReportRepository reports, AuthorHasher hasher, OutboxService outbox, JdbcTemplate jdbc,
+                       @Value("${gameops.intake.member-roles:}") String memberRoles,
+                       @Value("${gameops.intake.staff-roles:}") String staffRoles) {
         this.reports = reports;
         this.hasher = hasher;
         this.outbox = outbox;
+        this.jdbc = jdbc;
+        this.memberRoles = roles(memberRoles);
+        this.staffRoles = roles(staffRoles);
     }
 
-    /** 디스코드 사용자 ID 로 계정 나이. ID 모양이 아니면 null(나이를 모르면 새 계정으로 보지 않는다) */
-    Duration accountAge(String authorId) {
-        try {
-            long id = Long.parseLong(authorId);
-            if (id <= 0) return null;
-            Instant created = Instant.ofEpochMilli((id >> 22) + DISCORD_EPOCH);
-            Duration age = Duration.between(created, clock.instant());
-            return age.isNegative() ? null : age;
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    /** 「후원자, 1234567890」 → 이름은 소문자로. 역할 ID·이름 둘 다 받는다 */
+    static Set<String> roles(String csv) {
+        if (csv == null || csv.isBlank()) return Set.of();
+        return Arrays.stream(csv.split(",")).map(String::strip).filter(s -> !s.isEmpty())
+                .map(s -> s.toLowerCase(java.util.Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
     }
 
-    /** 받으면 그대로 돌아오고, 막으면 RateLimitedException(이유와 함께) */
-    public void check(Game game, SubmitReport cmd) {
-        if (cmd.channel() != SourceChannel.DISCORD) return;
-        OffsetDateTime now = OffsetDateTime.now(clock);
-        Duration age = accountAge(cmd.authorId());
+    private static boolean has(List<String> mine, Set<String> wanted) {
+        if (wanted.isEmpty()) return false;
+        for (String r : mine) if (wanted.contains(r.toLowerCase(java.util.Locale.ROOT))) return true;
+        return false;
+    }
 
-        if (floodPerMin > 0) {
-            long lastMinute = reports.countByGameIdAndSourceChannelAndReceivedAtAfter(game.getId(), SourceChannel.DISCORD, now.minusMinutes(1));
-            if (lastMinute >= floodPerMin) {
-                alertFlood(game, lastMinute, now);
-                if (age != null && age.toDays() < floodMinAccountDays) {
-                    log.info("몰림 모드: 가입 {}일 안 된 계정 제보를 받지 않음 game={}", floodMinAccountDays, game.getCode());
-                    throw new RateLimitedException(Reason.FLOOD, "지금 같은 게임에 제보가 몰려 확인 중이에요. 잠시 뒤 다시 올려 주세요.");
-                }
-            }
-        }
+    public Level level(SubmitReport cmd) {
+        if (has(cmd.authorRoles(), staffRoles)) return Level.STAFF;
+        String hash = hasher.hash(cmd.channel().name(), cmd.authorId());
+        Map<String, Object> row = jdbc.queryForMap("""
+                SELECT count(DISTINCT i.id) AS issues, count(DISTINCT (r.received_at AT TIME ZONE 'Asia/Seoul')::date) AS days
+                FROM report r JOIN issue_report l ON l.report_id = r.id JOIN issue i ON i.id = l.issue_id
+                WHERE r.author_hash = ? AND i.status IN ('IN_PROGRESS', 'VERIFYING', 'RESOLVED')""", hash);
+        long issues = ((Number) row.get("issues")).longValue(), days = ((Number) row.get("days")).longValue();
+        if (issues >= trustedIssues && days >= trustedDays) return Level.TRUSTED;
+        if (has(cmd.authorRoles(), memberRoles)) return Level.MEMBER;
+        return issues >= 1 ? Level.CONFIRMED : Level.NEW;
+    }
 
-        boolean fresh = age != null && age.toDays() < newAccountDays;
-        int limit = fresh ? newAccountMax : maxPer10Min;
+    int limit(Level l) {
+        return switch (l) {
+            case NEW -> limitNew;
+            case CONFIRMED -> limitConfirmed;
+            case TRUSTED, MEMBER -> limitTrusted;
+            case STAFF -> 0;
+        };
+    }
+
+    public boolean flooding(Game game) {
+        if (floodPerMin <= 0) return false;
+        return reports.countByGameIdAndSourceChannelAndReceivedAtAfter(game.getId(), SourceChannel.DISCORD,
+                OffsetDateTime.now(clock).minusMinutes(1)) >= floodPerMin;
+    }
+
+    /**
+     * 받기·보류 결정. 한도를 넘으면 RateLimitedException.
+     * @param released 보류함에서 꺼낸 제보면 true(몰림 검사는 건너뛰고 한도만 본다)
+     */
+    public Decision check(Game game, SubmitReport cmd, boolean released) {
+        if (cmd.channel() != SourceChannel.DISCORD) return Decision.ACCEPT;
+        Level level = level(cmd);
+        int limit = limit(level);
         if (limit > 0) {
-            long recent = reports.countByAuthorHashAndReceivedAtAfter(hasher.hash(cmd.channel().name(), cmd.authorId()), now.minusMinutes(10));
+            String hash = hasher.hash(cmd.channel().name(), cmd.authorId());
+            OffsetDateTime since = OffsetDateTime.now(clock).minusMinutes(10);
+            long recent = reports.countByAuthorHashAndReceivedAtAfter(hash, since)
+                    + (released ? 0 : heldSince(hash, since));
             if (recent >= limit) {
-                log.info("도배 막기: 10분에 {}건 넘게 올린 {}작성자의 제보를 받지 않음", limit, fresh ? "새 계정 " : "");
-                throw new RateLimitedException(fresh ? Reason.NEW_ACCOUNT : Reason.AUTHOR,
+                log.info("도배 막기: {} 은 10분에 {}건까지", level.label, limit);
+                throw new RateLimitedException(Reason.AUTHOR,
                         "짧은 시간에 제보가 많아요. 10분쯤 뒤에 다시 올려 주세요. 같은 문제면 처음 글에 답글로 더해 주시면 돼요.");
             }
         }
+        if (!released && level == Level.NEW && flooding(game)) {
+            alertFlood(game);
+            return Decision.HOLD;
+        }
+        return Decision.ACCEPT;
+    }
+
+    private long heldSince(String hash, OffsetDateTime since) {
+        Long n = jdbc.queryForObject("SELECT count(*) FROM held_report WHERE author_hash = ? AND received_at >= ?", Long.class, hash, since);
+        return n == null ? 0 : n;
     }
 
     /** 몰림 알림은 게임마다 10분에 한 번 */
-    private void alertFlood(Game game, long lastMinute, OffsetDateTime now) {
+    private void alertFlood(Game game) {
+        OffsetDateTime now = OffsetDateTime.now(clock);
         String bucket = now.toLocalDate() + "T" + now.getHour() + ":" + (now.getMinute() / 10);
-        String text = "🚨 [" + game.getName() + "] 디스코드 제보가 1분에 " + lastMinute + "건 몰리고 있어요. 몰림 모드: 가입 "
-                + floodMinAccountDays + "일 안 된 계정 제보는 받지 않고, 오래된 계정 제보는 그대로 받습니다. "
-                + "진짜 큰 버그인지(서로 다른 사람·비슷한 글) 공격인지(새 계정·같은 글) 슬랙 카드에서 확인해 주세요.";
+        String text = "🚨 [" + game.getName() + "] 디스코드 제보가 1분에 " + floodPerMin + "건 넘게 몰리고 있어요. "
+                + "실적 없는 사람의 제보는 보류함에 받아 두고, 몰림이 풀리면 차례로 접수합니다(잃는 제보 없음). "
+                + "실적 있는 사람·멤버 제보는 그대로 받고 있어요. 진짜 큰 버그인지 공격인지 카드에서 확인해 주세요.";
         try {
             outbox.enqueueOnce(NotificationType.OPS_ALERT, Map.of("text", text), "flood:" + game.getCode() + ":" + bucket);
         } catch (RuntimeException e) {

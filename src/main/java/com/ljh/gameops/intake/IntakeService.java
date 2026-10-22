@@ -97,13 +97,25 @@ public class IntakeService {
     IntakeGuard guard;
 
     public IntakeResult submit(SubmitReport cmd) {
+        return submit(cmd, false);
+    }
+
+    /** 보류함에서 꺼낸 제보(HeldReleaser). 몰림 검사는 건너뛴다 */
+    public IntakeResult submitReleased(SubmitReport cmd) {
+        return submit(cmd, true);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.fasterxml.jackson.databind.ObjectMapper mapper;
+
+    private IntakeResult submit(SubmitReport cmd, boolean released) {
         Game game = games.findByCode(cmd.gameCode())
                 .orElseThrow(() -> new NotFoundException("등록되지 않은 게임: " + cmd.gameCode()));
 
         Optional<IntakeResult> redelivered = findRedelivery(cmd);
         if (redelivered.isPresent()) return redelivered.get();
 
-        if (guard != null) guard.check(game, cmd);
+        if (guard != null && guard.check(game, cmd, released) == IntakeGuard.Decision.HOLD) return hold(game, cmd);
 
         // 외국어면 AI 가 한국어로 옮겨 운영자가 읽게 한다(결정 42). 분류는 원문 먼저, 묶기 글자 비교는 원문(번역문 비교는 평가에서 도움이 안 됨)
         String lang = com.ljh.gameops.report.Lang.detect(cmd.body());
@@ -195,6 +207,22 @@ public class IntakeService {
             if (t.category() != Category.OTHER || t.severity() != Severity.LOW) c = t;
         }
         return new Classification(c.category(), c.severity(), com.ljh.gameops.classify.Titles.fromBody(ko), c.classifiedBy());
+    }
+
+    /** 몰림 모드: 실적 없는 사람 제보를 보류함에 받아 둔다(결정 44). 같은 메시지가 또 오면 한 번만 */
+    private IntakeResult hold(Game game, SubmitReport cmd) {
+        try {
+            String payload = (mapper != null ? mapper : new com.fasterxml.jackson.databind.ObjectMapper()).writeValueAsString(cmd);
+            tx.executeWithoutResult(st -> em.createNativeQuery("""
+                    INSERT INTO held_report (game_id, author_hash, external_id, payload) VALUES (?1, ?2, ?3, ?4)
+                    ON CONFLICT (external_id) WHERE external_id IS NOT NULL DO NOTHING""")
+                    .setParameter(1, game.getId()).setParameter(2, hasher.hash(cmd.channel().name(), cmd.authorId()))
+                    .setParameter(3, cmd.externalId()).setParameter(4, payload).executeUpdate());
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+        log.info("몰림 모드: 제보를 보류함에 받아 둠 game={}", game.getCode());
+        return new IntakeResult(0, 0, IntakeResult.Outcome.HELD, 0);
     }
 
     /** 원문 · 언어 · 한국어 번역(없으면 null) */

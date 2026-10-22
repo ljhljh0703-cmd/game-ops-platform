@@ -37,11 +37,26 @@ public class DiscordGateway extends ListenerAdapter {
     // 디스코드 라이브러리의 이벤트 스레드는 하나다. 분류(LLM 호출)를 거기서 하면 뒤 명령이 3초 제한을 넘기므로 따로 돌린다.
     private final ExecutorService workers = Executors.newFixedThreadPool(4);
 
-    public DiscordGateway(DiscordProperties props, DiscordReportHandler handler, GameCatalog games) {
+    /** 끊어 쓴 글 합치기(결정 44). 다 모이면 처리기로 넘기고 처음 글에 답한다 */
+    private final DiscordMessageBuffer buffer;
+    /** 답할 메시지 — 버퍼가 넘길 때 처음 글을 찾는다 */
+    private final java.util.Map<String, Message> firstMessages = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public DiscordGateway(DiscordProperties props, DiscordReportHandler handler, GameCatalog games,
+                          @org.springframework.beans.factory.annotation.Value("${gameops.discord.merge-quiet-ms:20000}") long quietMs,
+                          @org.springframework.beans.factory.annotation.Value("${gameops.discord.merge-max-ms:60000}") long maxMs) {
         this.props = props;
         this.handler = handler;
         this.games = games;
+        this.buffer = new DiscordMessageBuffer(quietMs, maxMs, in -> workers.submit(() -> {
+            Message first = firstMessages.remove(in.externalId());
+            handler.onChannelMessageReply(in).ifPresent(reply -> {
+                if (first != null) first.replyEmbeds(DiscordCards.intake(reply, true)).queue();
+            });
+        }));
     }
+
+
 
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
@@ -81,10 +96,18 @@ public class DiscordGateway extends ListenerAdapter {
         // 답장할 곳은 실제 채널(스레드면 스레드) + 메시지. 해결되면 이 글에 「고쳤어요」를 단다
         String replyTo = e.getChannel().getId() + ":" + m.getId();
         DiscordInbound in = new DiscordInbound("msg:" + m.getId(), ch[0], ch[1], e.getAuthor().getId(),
-                e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments, replyTo);
+                e.getAuthor().isBot(), null, m.getContentRaw(), attachments.isEmpty() ? null : attachments, replyTo, null,
+                roles(e.getMember()));
         String original = originalOf(m, e.getJDA().getSelfUser().getId());
-        workers.submit(() -> (original != null ? handler.onReplyMessage(in, original) : handler.onChannelMessageReply(in))
-                .ifPresent(reply -> m.replyEmbeds(DiscordCards.intake(reply, true)).queue()));
+        if (original != null) {
+            workers.submit(() -> handler.onReplyMessage(in, original)
+                    .ifPresent(reply -> m.replyEmbeds(DiscordCards.intake(reply, true)).queue()));
+            return;
+        }
+        if (in.fromBot() || !handler.isReportChannel(in)) return;
+        // 이어 쓴 줄은 모아서 제보 하나로. 답장은 처음 글에
+        firstMessages.putIfAbsent(in.externalId(), m);
+        buffer.add(in);
     }
 
     @Override
@@ -98,8 +121,16 @@ public class DiscordGateway extends ListenerAdapter {
         DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), ch[0], ch[1], e.getUser().getId(),
                 false, game == null ? null : game.getAsString(), content == null ? null : content.getAsString(),
                 shot == null ? null : shot.getAsAttachment().getUrl(), null,
-                com.ljh.gameops.report.ReproInfo.of(str(e, "version"), str(e, "device"), str(e, "steps")));
+                com.ljh.gameops.report.ReproInfo.of(str(e, "version"), str(e, "device"), str(e, "steps")), roles(e.getMember()));
         workers.submit(() -> e.getHook().sendMessageEmbeds(DiscordCards.intake(handler.onSlashCommandReply(in), false)).queue());
+    }
+
+    /** 역할 ID 와 이름 둘 다(설정에 어느 쪽을 적어도 되게) */
+    static java.util.List<String> roles(net.dv8tion.jda.api.entities.Member member) {
+        if (member == null) return java.util.List.of();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (var r : member.getRoles()) { out.add(r.getId()); out.add(r.getName()); }
+        return out;
     }
 
     /**
@@ -152,7 +183,9 @@ public class DiscordGateway extends ListenerAdapter {
 
     @PreDestroy
     public void stop() {
+        buffer.flushAll(); // 모아 둔 글을 먼저 넘기고(잃지 않게) 일꾼이 끝낼 때까지 잠깐 기다린다
         workers.shutdown();
+        try { workers.awaitTermination(20, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         if (jda != null) jda.shutdown();
     }
 }
