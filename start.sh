@@ -66,15 +66,15 @@ case "$PWD" in
     echo "        서버가 「Starting」에서 몇 분째 멈춰 있으면 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더 > Docker 를 확인하세요." ;;
 esac
 
-# 공개 이미지만 쓰는데 docker 가 맥 키체인(비밀번호 저장소)에 로그인 정보를 물으러 가다 창이 닫히면 빌드가 멈춘다
-# (2026-10-27 「error getting credentials … User canceled the operation」). 이번 실행만 키체인을 거치지 않게 한다
-if [ -f "$HOME/.docker/config.json" ] && grep -q '"credsStore"' "$HOME/.docker/config.json"; then
+# 공개 이미지만 쓰는데 docker 가 맥 키체인(비밀번호 저장소)에 로그인 정보를 물으러 가면, 키체인 창이 다른 창 뒤에 숨어
+# 내려받기가 끝없이 멈추거나(2026-10-28, 1시간 넘게 「Pulling」) 창이 닫혀 실패한다(2026-10-27). 그래서 이번 실행만 키체인을 쓰지 않는
+# 최소 설정을 쓴다. 지금 쓰는 연결(OrbStack)과 compose 확장은 그대로 연결한다.
+if [ -d "$HOME/.docker" ]; then
   DOCKER_CONFIG_TMP=$(mktemp -d)
-  cp "$HOME/.docker/config.json" "$DOCKER_CONFIG_TMP/config.json"
-  if command -v plutil >/dev/null 2>&1 && plutil -remove credsStore "$DOCKER_CONFIG_TMP/config.json" >/dev/null 2>&1; then
-    for d in contexts cli-plugins; do [ -e "$HOME/.docker/$d" ] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG_TMP/$d"; done
-    export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
-  fi
+  ctx=$( (grep -o '"currentContext"[[:space:]]*:[[:space:]]*"[^"]*"' "$HOME/.docker/config.json" 2>/dev/null || true) | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  if [ -n "$ctx" ]; then printf '{"currentContext":"%s"}\n' "$ctx" > "$DOCKER_CONFIG_TMP/config.json"; else echo '{}' > "$DOCKER_CONFIG_TMP/config.json"; fi
+  for d in contexts cli-plugins; do [ -e "$HOME/.docker/$d" ] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG_TMP/$d"; done
+  export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
 fi
 
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
@@ -82,7 +82,19 @@ echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸�
 GAMEOPS_VERSION="$(git log -1 --format='%h %s' 2>/dev/null | cut -c1-120 || true)"
 export GAMEOPS_VERSION
 # shellcheck disable=SC2086
-docker compose $PROFILE up -d --build
+# 내려받기·만들기가 15분 넘게 끝나지 않으면 멈춘 것으로 보고 끝낸다(창 뒤에 숨은 확인 창 등)
+docker compose $PROFILE up -d --build &
+compose_pid=$!
+waited=0
+while kill -0 "$compose_pid" 2>/dev/null; do
+  sleep 5; waited=$((waited+5))
+  if [ "$waited" -ge 900 ]; then
+    kill "$compose_pid" 2>/dev/null || true
+    echo "  15분이 지나도 끝나지 않아 멈췄습니다. 맥 화면 뒤에 숨은 확인 창(키체인·폴더 접근 등)이 있는지 보고, 인터넷 연결을 확인한 뒤 다시 켜 주세요."
+    exit 1
+  fi
+done
+wait "$compose_pid" || { echo "  서버를 만들지 못했습니다. 위 오류 줄을 확인하세요."; exit 1; }
 if [ -n "$SOCKET" ]; then
   # 예전 방식으로 켜 둔 중계·터널이 남아 있으면 끈다(쓸 일이 없다)
   docker compose --profile slack-buttons stop slack-gateway tunnel >/dev/null 2>&1 || true
