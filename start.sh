@@ -66,16 +66,30 @@ case "$PWD" in
     echo "        서버가 「Starting」에서 몇 분째 멈춰 있으면 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더 > Docker 를 확인하세요." ;;
 esac
 
-# 공개 이미지만 쓰는데 docker 가 맥 키체인(비밀번호 저장소)에 로그인 정보를 물으러 가면, 키체인 창이 다른 창 뒤에 숨어
-# 내려받기가 끝없이 멈추거나(2026-10-28, 1시간 넘게 「Pulling」) 창이 닫혀 실패한다(2026-10-27). 그래서 이번 실행만 키체인을 쓰지 않는
-# 최소 설정을 쓴다. 지금 쓰는 연결(OrbStack)과 compose 확장은 그대로 연결한다.
-if [ -d "$HOME/.docker" ]; then
-  DOCKER_CONFIG_TMP=$(mktemp -d)
-  ctx=$( (grep -o '"currentContext"[[:space:]]*:[[:space:]]*"[^"]*"' "$HOME/.docker/config.json" 2>/dev/null || true) | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-  if [ -n "$ctx" ]; then printf '{"currentContext":"%s"}\n' "$ctx" > "$DOCKER_CONFIG_TMP/config.json"; else echo '{}' > "$DOCKER_CONFIG_TMP/config.json"; fi
-  for d in contexts cli-plugins; do [ -e "$HOME/.docker/$d" ] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG_TMP/$d"; done
-  export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
+# 공개 이미지만 쓰는데 docker 가 맥 키체인(비밀번호 저장소)에 로그인 정보를 물으러 가서 키체인 창이 뜬다.
+# 설정 파일에 키체인을 적지 않아도, 맥의 docker 는 키체인 도우미 프로그램(OrbStack 이 함께 깐다)이 보이면 저절로 그걸 쓴다.
+# 그래서 이번 실행만 「로그인 정보 없음」이라고만 답하는 빈 도우미를 쓰게 한다. 공개 이미지는 로그인 없이 내려받는다.
+# (2026-10-27 창이 닫혀 실패, 10-28 창이 뒤에 숨어 1시간 넘게 멈춤)
+DOCKER_CONFIG_TMP=$(mktemp -d)
+mkdir -p "$DOCKER_CONFIG_TMP/bin"
+cat > "$DOCKER_CONFIG_TMP/bin/docker-credential-none" <<'HELPER'
+#!/bin/sh
+case "$1" in
+  get) cat >/dev/null; echo "credentials not found in native keychain"; exit 1 ;;
+  list) echo "{}" ;;
+  *) cat >/dev/null ;;
+esac
+HELPER
+chmod +x "$DOCKER_CONFIG_TMP/bin/docker-credential-none"
+ctx=$( (grep -o '"currentContext"[[:space:]]*:[[:space:]]*"[^"]*"' "$HOME/.docker/config.json" 2>/dev/null || true) | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$ctx" ]; then
+  printf '{"credsStore":"none","currentContext":"%s"}\n' "$ctx" > "$DOCKER_CONFIG_TMP/config.json"
+else
+  echo '{"credsStore":"none"}' > "$DOCKER_CONFIG_TMP/config.json"
 fi
+for d in contexts cli-plugins; do [ -e "$HOME/.docker/$d" ] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG_TMP/$d"; done
+export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
+export PATH="$DOCKER_CONFIG_TMP/bin:$PATH"
 
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
 # 지금 버전(바뀌면 서버가 켜질 때 슬랙에 알린다)
