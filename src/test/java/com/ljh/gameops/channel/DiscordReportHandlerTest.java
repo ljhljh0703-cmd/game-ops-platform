@@ -132,4 +132,19 @@ class DiscordReportHandlerTest extends IntegrationTest {
             assertThat(x.text()).contains("Sent to the dev team as issue #1");
         });
     }
+
+    @Test
+    void 놓친_글은_도배_검사_없이_받고_받은_시각은_쓴_시각() {
+        var at = java.time.OffsetDateTime.now().minusDays(2);
+        for (int i = 0; i < 5; i++) { // 실적 없는 사람 한도(3)를 넘어도 받는다: 이미 채널에 올라와 있던 글
+            var in = new DiscordInbound("msg:b" + i, "C_REPORT", null, "late-1", false, null, "놓친 버그 " + i + "번 상점", null, "C_REPORT:b" + i);
+            assertThat(handler.backfill(new com.ljh.gameops.channel.discord.DiscordBackfill.Item(in, null, at, "b" + i))).isPresent();
+        }
+        assertThat(jdbc.queryForObject("select count(*) from report where received_at < now() - interval '1 day'", Integer.class)).isEqualTo(5);
+        assertThat(handler.seen("msg:b0")).isTrue();
+        // 같은 글을 다시 받으면 이미 받은 것으로
+        var again = new DiscordInbound("msg:b0", "C_REPORT", null, "late-1", false, null, "놓친 버그 0번 상점", null, "C_REPORT:b0");
+        assertThat(handler.backfill(new com.ljh.gameops.channel.discord.DiscordBackfill.Item(again, null, at, "b0")))
+                .hasValueSatisfying(r -> assertThat(r.kind()).isEqualTo(DiscordReportHandler.Reply.Kind.DUPLICATE));
+    }
 }

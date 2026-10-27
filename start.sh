@@ -66,6 +66,17 @@ case "$PWD" in
     echo "        서버가 「Starting」에서 몇 분째 멈춰 있으면 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더 > Docker 를 확인하세요." ;;
 esac
 
+# 공개 이미지만 쓰는데 docker 가 맥 키체인(비밀번호 저장소)에 로그인 정보를 물으러 가다 창이 닫히면 빌드가 멈춘다
+# (2026-10-27 「error getting credentials … User canceled the operation」). 이번 실행만 키체인을 거치지 않게 한다
+if [ -f "$HOME/.docker/config.json" ] && grep -q '"credsStore"' "$HOME/.docker/config.json"; then
+  DOCKER_CONFIG_TMP=$(mktemp -d)
+  cp "$HOME/.docker/config.json" "$DOCKER_CONFIG_TMP/config.json"
+  if command -v plutil >/dev/null 2>&1 && plutil -remove credsStore "$DOCKER_CONFIG_TMP/config.json" >/dev/null 2>&1; then
+    for d in contexts cli-plugins; do [ -e "$HOME/.docker/$d" ] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG_TMP/$d"; done
+    export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
+  fi
+fi
+
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
 # shellcheck disable=SC2086
 docker compose $PROFILE up -d --build

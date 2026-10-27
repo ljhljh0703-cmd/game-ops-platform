@@ -88,6 +88,79 @@ public class DiscordGateway extends ListenerAdapter {
         return o;
     }
 
+    /** 놓친 제보 받기: 채널마다 최근 글을 이만큼까지 거슬러 읽는다. 답장은 이 기간 안 글에만 */
+    static final int BACKFILL_MAX = 1000;
+    static final java.time.Duration BACKFILL_REPLY_WITHIN = java.time.Duration.ofDays(3);
+
+    @Override
+    public void onReady(net.dv8tion.jda.api.events.session.ReadyEvent e) {
+        var at = java.time.OffsetDateTime.now();
+        workers.submit(() -> backfillAll(at));
+    }
+
+    @Override
+    public void onSessionRecreate(net.dv8tion.jda.api.events.session.SessionRecreateEvent e) {
+        var at = java.time.OffsetDateTime.now();
+        workers.submit(() -> backfillAll(at));
+    }
+
+    /** 봇이 꺼져 있던 동안 제보 채널에 올라온 글을 받는다(DiscordBackfill). 같은 글은 두 번 받지 않는다 */
+    /** @param connectedAt 접속한 시각. 그 뒤 글은 실시간으로 받으므로 여기서는 그 앞 글만 본다(같은 글을 두 길로 받지 않게) */
+    void backfillAll(java.time.OffsetDateTime connectedAt) {
+        int reports = 0, replies = 0;
+        java.util.Set<String> done = new java.util.HashSet<>();
+        java.util.List<String> wanted = new java.util.ArrayList<>(props.reportChannelIds());
+        games.all().forEach(g -> wanted.addAll(g.discordChannels()));
+        for (String w : wanted) {
+            java.util.List<net.dv8tion.jda.api.entities.channel.concrete.TextChannel> chans = w.matches("\\d+")
+                    ? java.util.Optional.ofNullable(jda.getTextChannelById(w)).map(java.util.List::of).orElse(java.util.List.of())
+                    : jda.getTextChannelsByName(w, true);
+            for (var tc : chans) {
+                if (!done.add(tc.getId())) continue;
+                try {
+                    int[] n = backfill(tc, connectedAt);
+                    reports += n[0];
+                    replies += n[1];
+                } catch (Exception ex) {
+                    log.warn("놓친 제보 받기 실패 channel={}: {}", tc.getName(), ex.getMessage());
+                }
+            }
+        }
+        log.info("놓친 제보 받기 끝: 제보 {}건 · 재현 정보 {}건", reports, replies);
+        handler.backfillSummary(reports, replies);
+    }
+
+    private int[] backfill(net.dv8tion.jda.api.entities.channel.concrete.TextChannel tc, java.time.OffsetDateTime connectedAt) throws Exception {
+        java.util.List<Message> newestFirst = tc.getIterableHistory().takeAsync(BACKFILL_MAX).get(2, java.util.concurrent.TimeUnit.MINUTES);
+        java.util.List<Message> history = new java.util.ArrayList<>(newestFirst);
+        java.util.Collections.reverse(history);
+        String self = jda.getSelfUser().getId();
+        java.util.Map<String, Message> byId = new java.util.HashMap<>();
+        java.util.List<DiscordBackfill.Msg> msgs = new java.util.ArrayList<>();
+        for (Message m : history) {
+            if (!m.getTimeCreated().isBefore(connectedAt)) continue;
+            byId.put(m.getId(), m);
+            String files = m.getAttachments().stream().map(Message.Attachment::getUrl).collect(Collectors.joining("\n"));
+            msgs.add(new DiscordBackfill.Msg(m.getId(), m.getAuthor().getId(), m.getAuthor().isBot() || m.isWebhookMessage(),
+                    m.getContentRaw(), files.isEmpty() ? null : files, m.getTimeCreated(), originalOf(m, self), roles(m.getMember())));
+        }
+        int reports = 0, replies = 0;
+        java.time.OffsetDateTime replyAfter = java.time.OffsetDateTime.now().minus(BACKFILL_REPLY_WITHIN);
+        for (DiscordBackfill.Item item : DiscordBackfill.plan(msgs, tc.getId(), tc.getName(), handler::seen)) {
+            var reply = handler.backfill(item);
+            if (reply.isEmpty()) continue;
+            var r = reply.get();
+            if (r.kind() == DiscordReportHandler.Reply.Kind.DUPLICATE || r.kind() == DiscordReportHandler.Reply.Kind.ERROR) continue;
+            if (item.isReply()) replies++; else reports++;
+            Message first = byId.get(item.firstMessageId());
+            if (first != null && item.at().isAfter(replyAfter)) {
+                first.replyEmbeds(DiscordCards.intake(r, true)).queue(null, err -> log.warn("놓친 제보 답장 실패: {}", err.getMessage()));
+            }
+        }
+        if (reports + replies > 0) log.info("놓친 제보 받기 channel={} 제보 {} · 재현 정보 {}", tc.getName(), reports, replies);
+        return new int[]{reports, replies};
+    }
+
     @Override
     public void onMessageReceived(MessageReceivedEvent e) {
         Message m = e.getMessage();

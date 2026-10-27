@@ -149,12 +149,71 @@ public class DiscordReportHandler {
 
     /** @param quietRepeat 채널 글이면 true — 막힌 사람에게 두 번째부터는 답하지 않는다(null). 명령은 답해야 해서 false */
     private Reply accept(DiscordInbound in, String game, boolean quietRepeat) {
+        return accept(in, game, quietRepeat, null);
+    }
+
+    // ── 놓친 제보 받기(DiscordBackfill) ──
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.report.ReportRepository reports;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.notify.OutboxService outbox;
+
+    /** 놓친 제보를 받았으면 슬랙 긴급 채널에 한 줄 */
+    public void backfillSummary(int reports, int replies) {
+        if (outbox == null || reports + replies == 0) return;
+        String text = "📥 봇이 꺼져 있던 동안 디스코드에 올라온 글을 받았어요: 제보 " + reports + "건"
+                + (replies > 0 ? " · 재현 정보 " + replies + "건" : "") + ". 사흘 안 글에는 봇이 접수 답장을 달았어요.";
+        try {
+            outbox.enqueueOnce(com.ljh.gameops.notify.NotificationType.OPS_ALERT, java.util.Map.of("text", text),
+                    "backfill:" + java.time.Instant.now().getEpochSecond() / 60);
+        } catch (RuntimeException e) {
+            log.warn("놓친 제보 알림 실패: {}", e.getMessage());
+        }
+    }
+
+    /** 이 메시지를 이미 받았는지(제보로 저장됐거나 보류함에 있음) */
+    public boolean seen(String externalId) {
+        if (reports != null && reports.findBySourceChannelAndExternalId(SourceChannel.DISCORD, externalId).isPresent()) return true;
+        if (jdbc == null) return false;
+        Integer n = jdbc.queryForObject("SELECT count(*) FROM held_report WHERE external_id = ?", Integer.class, externalId);
+        return n != null && n > 0;
+    }
+
+    /**
+     * 놓친 글 하나를 받는다. 새 제보면 도배 검사 없이 받고 받은 시각은 글을 쓴 시각으로.
+     * 답글은 원래 제보에 같은 글이 이미 들어 있으면 건너뛴다(재현 정보를 두 번 넣지 않게)
+     */
+    public Optional<Reply> backfill(DiscordBackfill.Item item) {
+        if (channelGame(item.in()).isEmpty()) return Optional.empty();
+        if (item.isReply()) {
+            String text = item.in().content() == null ? "" : item.in().content().strip();
+            var orig = reports == null ? Optional.<com.ljh.gameops.report.Report>empty()
+                    : reports.findBySourceChannelAndExternalId(SourceChannel.DISCORD, "msg:" + item.originalId());
+            if (orig.isPresent()) {
+                var r = orig.get();
+                boolean already = text.isEmpty() || (r.getReproSteps() != null && r.getReproSteps().contains(text))
+                        || r.getBody().contains(text);
+                return already ? Optional.empty() : onReplyMessage(item.in(), item.originalId());
+            }
+            if (seen(item.in().externalId())) return Optional.empty();
+        }
+        String chosen = channelGame(item.in()).get();
+        return Optional.ofNullable(accept(item.in(), chosen, false, item.at()));
+    }
+
+    /** @param backfillAt 놓친 글을 나중에 받을 때 그 글을 쓴 시각. 보통 접수면 null */
+    private Reply accept(DiscordInbound in, String game, boolean quietRepeat, java.time.OffsetDateTime backfillAt) {
         // 어느 채널 글을 어느 게임으로 받았는지 남긴다(게임이 엉뚱하게 잡히면 이 줄로 원인을 본다)
         log.info("디스코드 제보 접수 channelId={} channelName={} game={}", in.channelId(), in.channelName(), game);
         String lang = Lang.detect(in.content());
         try {
-            IntakeResult r = intake.submit(new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
-                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro(), in.authorRoles()));
+            SubmitReport cmd = new SubmitReport(game, SourceChannel.DISCORD, in.externalId(),
+                    in.authorId(), in.content(), in.attachmentUrls(), in.replyTo(), in.repro(), in.authorRoles());
+            IntakeResult r = backfillAt != null ? intake.submitBackfill(cmd, backfillAt) : intake.submit(cmd);
             if (r.outcome() == IntakeResult.Outcome.HELD) {
                 String name = games.byCode(game).map(GameSpec::name).orElse(game);
                 return new Reply("[" + name + "] " + PlayerText.held(lang), Reply.Kind.HELD, null, name, null, null, 0, null, lang);

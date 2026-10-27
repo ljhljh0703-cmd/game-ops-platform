@@ -90,8 +90,13 @@ fi
 
 # 권한이 없으면 터미널로. 다 켜지면 알림
 log "서버 켜는 중(터미널로, 이 앱에 전체 디스크 접근 권한 없음)"
-in_terminal "./start.sh"
-if wait_until up 420; then
+# 다시 켜기일 때는 옛 서버가 아직 답하므로, 켜기 스크립트가 끝났다는 표시 파일을 기다린다
+rm -f "$DIR/mac/.last-rc"
+in_terminal './start.sh; echo $? > mac/.last-rc'
+for _ in $(seq 1 140); do [ -s "$DIR/mac/.last-rc" ] && break; sleep 3; done
+rc=$(cat "$DIR/mac/.last-rc" 2>/dev/null || echo "?")
+log "켜기 끝(결과 $rc)"
+if [ "$rc" = "0" ] && healthy; then
   say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."
   if [ ! -f "$DIR/mac/.tip-shown" ]; then
     touch "$DIR/mac/.tip-shown" 2>/dev/null
@@ -100,4 +105,5 @@ if wait_until up 420; then
   fi
   exit 0
 fi
-fail "7분 안에 켜지지 않았어요. 터미널 창과 기록을 확인해 주세요."
+[ "$rc" = "?" ] && fail "7분 안에 끝나지 않았어요. 터미널 창과 기록을 확인해 주세요."
+fail "켜지 못했어요. 기록을 보면 이유가 나와요."

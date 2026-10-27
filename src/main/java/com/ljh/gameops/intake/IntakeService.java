@@ -105,17 +105,34 @@ public class IntakeService {
         return submit(cmd, true);
     }
 
+    /**
+     * 봇이 꺼져 있던 동안 채널에 올라온 글을 나중에 받을 때(DiscordBackfill). 이미 채널에 올라와 있는 글이라 도배·몰림 검사는 하지 않고,
+     * 받은 시각은 글을 쓴 시각으로 둔다(처리 지표가 늦게 받은 만큼 길어지지 않게)
+     */
+    public IntakeResult submitBackfill(SubmitReport cmd, OffsetDateTime sentAt) {
+        IntakeResult r = submit(cmd, true, true);
+        if (sentAt != null && r.outcome() != IntakeResult.Outcome.DUPLICATE_DELIVERY && r.reportId() > 0) {
+            tx.executeWithoutResult(st -> em.createNativeQuery("UPDATE report SET received_at = ?1 WHERE id = ?2")
+                    .setParameter(1, sentAt).setParameter(2, r.reportId()).executeUpdate());
+        }
+        return r;
+    }
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.fasterxml.jackson.databind.ObjectMapper mapper;
 
     private IntakeResult submit(SubmitReport cmd, boolean released) {
+        return submit(cmd, released, false);
+    }
+
+    private IntakeResult submit(SubmitReport cmd, boolean released, boolean skipGuard) {
         Game game = games.findByCode(cmd.gameCode())
                 .orElseThrow(() -> new NotFoundException("등록되지 않은 게임: " + cmd.gameCode()));
 
         Optional<IntakeResult> redelivered = findRedelivery(cmd);
         if (redelivered.isPresent()) return redelivered.get();
 
-        if (guard != null && guard.check(game, cmd, released) == IntakeGuard.Decision.HOLD) return hold(game, cmd);
+        if (!skipGuard && guard != null && guard.check(game, cmd, released) == IntakeGuard.Decision.HOLD) return hold(game, cmd);
 
         // 외국어면 AI 가 한국어로 옮겨 운영자가 읽게 한다(결정 42). 분류는 원문 먼저, 묶기 글자 비교는 원문(번역문 비교는 평가에서 도움이 안 됨)
         String lang = com.ljh.gameops.report.Lang.detect(cmd.body());
