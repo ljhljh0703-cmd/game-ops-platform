@@ -1,6 +1,9 @@
 #!/bin/bash
-# 운영봇 — 누르면 OrbStack 을 켜고 게임 운영 서버(디스코드·슬랙 봇)를 띄운다. 이미 켜져 있으면 「끄기·다시 켜기」를 묻는다.
+# 운영봇 — 누르면 OrbStack 을 켜고 게임 운영 서버(디스코드·슬랙 봇)를 띄운다. 이미 켜져 있으면 「다시 켜기·그대로 두기·끄기」를 묻는다.
 # 서버 폴더는 기본 ~/Downloads/AI Game/game-ops-platform. 옮겼으면 ~/.gameops-dir 파일에 새 경로 한 줄을 적는다.
+#
+# 맥은 다운로드 폴더를 따로 지킨다. 이 앱에 「전체 디스크 접근」을 주지 않으면 docker 가 폴더 안 파일(.env)을 못 읽는다
+# (2026-10-27 실제로 「open .env: operation not permitted」). 그때는 이미 허락받은 「터미널」에 맡겨 켠다. 창이 하나 뜨지만 켜진다.
 export PATH="$HOME/.orbstack/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 DIR="$HOME/Downloads/AI Game/game-ops-platform"
 [ -f "$HOME/.gameops-dir" ] && DIR="$(head -1 "$HOME/.gameops-dir")"
@@ -8,7 +11,7 @@ DIR="$HOME/Downloads/AI Game/game-ops-platform"
 LOG="$DIR/mac/launcher.log"
 log() { echo "$(date '+%m-%d %H:%M:%S') $*" >> "$LOG" 2>/dev/null; }
 say_note() { log "알림: $1"; osascript -e "display notification \"$1\" with title \"운영봇\"" >/dev/null 2>&1; }
-# 질문 창은 다른 창 뒤에 숨지 않게 맨 앞으로(첫 판에서 창이 뒤에 숨어 아무 일도 안 일어난 것처럼 보였다)
+# 질문 창은 다른 창 뒤에 숨지 않게 맨 앞으로. 2분 동안 대답이 없으면 닫는다
 ask() {
   local r
   r=$(osascript -e "tell application \"System Events\" to activate" \
@@ -34,15 +37,39 @@ docker_ready() {
   kill "$p" 2>/dev/null; return 1
 }
 
+# 이 앱이 다운로드 폴더 파일을 docker 에 넘길 수 있는지(전체 디스크 접근 권한이 있는지)
+docker_can_read() {
+  (cd "$DIR" && docker compose config -q >/dev/null 2>&1)
+}
+
+# 터미널에 맡겨 실행한다(터미널은 다운로드 폴더 접근이 이미 허락돼 있다)
+in_terminal() {
+  local q="${DIR//\"/\\\"}"
+  osascript -e "tell application \"Terminal\" to do script \"cd \\\"$q\\\" && $1; exit\"" >/dev/null 2>&1
+}
+
+wait_until() { # $1 = up | down, $2 = 최대 초
+  local i
+  for i in $(seq 1 $(( $2 / 3 ))); do
+    if [ "$1" = up ] && healthy; then return 0; fi
+    if [ "$1" = down ] && ! healthy; then return 0; fi
+    sleep 3
+  done
+  return 1
+}
+
 log "누름"
-[ -x "$DIR/start.sh" ] || fail "서버 폴더를 찾지 못했어요: $DIR (맥이 다운로드 폴더 접근을 막았을 수 있어요. 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더에서 운영봇을 허용해 주세요)"
+[ -x "$DIR/start.sh" ] || fail "서버 폴더를 찾지 못했어요: $DIR"
 
 if healthy; then
   b=$(ask "운영봇이 켜져 있어요. 새로 바뀐 게 있으면 다시 켜야 반영돼요." "\"다시 켜기\", \"그대로 두기\", \"끄기\"")
   case "$b" in
     "끄기")
-      cd "$DIR" && docker compose --profile slack-buttons down >/dev/null 2>&1
-      say_note "껐어요. 디스코드·슬랙 봇이 오프라인이 됩니다."; exit 0 ;;
+      if docker_can_read; then (cd "$DIR" && docker compose --profile slack-buttons down >/dev/null 2>&1)
+      else in_terminal "docker compose --profile slack-buttons down"; fi
+      if wait_until down 60; then say_note "껐어요. 디스코드·슬랙 봇이 오프라인이 됩니다."
+      else fail "끄지 못했어요."; fi
+      exit 0 ;;
     "다시 켜기") ;;
     *) exit 0 ;;
   esac
@@ -53,12 +80,24 @@ open -g -a OrbStack || fail "OrbStack 을 찾지 못했어요. 설치돼 있는�
 for _ in $(seq 1 45); do docker_ready && break; sleep 2; done
 docker_ready || fail "OrbStack 이 2분 안에 켜지지 않았어요. OrbStack 을 직접 열어 확인해 주세요."
 
-log "서버 켜는 중"
-cd "$DIR" && ./start.sh >/dev/null 2>&1
-rc=$?
-log "켜기 끝(결과 $rc)"
-if [ $rc -eq 0 ] && healthy; then
-  say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."
-else
+if docker_can_read; then
+  log "서버 켜는 중(앱에서)"
+  (cd "$DIR" && ./start.sh >/dev/null 2>&1); rc=$?
+  log "켜기 끝(결과 $rc)"
+  [ $rc -eq 0 ] && healthy && { say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."; exit 0; }
   fail "켜지 못했어요. 기록을 보면 이유가 나와요."
 fi
+
+# 권한이 없으면 터미널로. 다 켜지면 알림
+log "서버 켜는 중(터미널로, 이 앱에 전체 디스크 접근 권한 없음)"
+in_terminal "./start.sh"
+if wait_until up 420; then
+  say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."
+  if [ ! -f "$DIR/mac/.tip-shown" ]; then
+    touch "$DIR/mac/.tip-shown" 2>/dev/null
+    b=$(ask "켜졌어요. 터미널 창 없이 켜려면 시스템 설정에서 운영봇에 「전체 디스크 접근 권한」을 한 번 켜 주세요." "\"설정 열기\", \"다음에\"")
+    [ "$b" = "설정 열기" ] && open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+  fi
+  exit 0
+fi
+fail "7분 안에 켜지지 않았어요. 터미널 창과 기록을 확인해 주세요."
