@@ -58,6 +58,27 @@ public class SlackCommandController {
     @jakarta.annotation.PreDestroy
     void stop() { pool.shutdown(); }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.intake.HeldReleaser heldReleaser;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    org.springframework.context.ApplicationEventPublisher events;
+
+    /** 명령어 모음(결정 47) */
+    static final String HELP = """
+            *🤖 /피드백정리 명령어*
+            `/피드백정리 [게임] [기간]` 최근 제보 정리 카드 (예: 보석타워 7)
+            `/피드백정리 이슈 [게임]` 열린 이슈를 급한 순으로
+            `/피드백정리 지표 [게임] [기간]` 처리 지표 (고칠 때까지·QA 확인까지)
+            `/피드백정리 패치노트 [게임]` 패치노트 초안 카드
+            `/피드백정리 사용량` 이번 달 AI 비용·예산
+            `/피드백정리 보류함` 몰릴 때 받아 둔 제보 수, 풀 수 있으면 바로 접수
+            `/피드백정리 놓친제보` 디스코드 채널 기록을 다시 읽어 빠진 제보 받기
+            `/피드백정리 도움말` 이 목록
+            게임을 안 적으면 게임 알림 채널에서는 그 게임, 아니면 전체.
+            플레이어용 디스코드 명령: /제보 · /알려진문제 · /내제보 · /패치노트 · /도움말""";
+
     /** 명령 뒤 글에서 읽은 범위 */
     record Scope(GameSpec game, int days, String error) {}
 
@@ -79,6 +100,40 @@ public class SlackCommandController {
         if (!guard.isSlackAdmin(user)) return reply("이 명령은 운영 담당만 쓸 수 있어요.");
 
         String text = f.getOrDefault("text", "").strip();
+        if (text.equals("도움말") || text.equals("help") || text.equals("?")) return reply(HELP);
+        if (text.equals("보류함") && jdbc != null) {
+            int released = heldReleaser == null ? 0 : heldReleaser.release();
+            var rows = jdbc.queryForList("SELECT g.name, count(*) AS n FROM held_report h JOIN game g ON g.id = h.game_id GROUP BY g.name ORDER BY g.name");
+            if (rows.isEmpty()) return reply("📦 보류함이 비어 있어요." + (released > 0 ? " 방금 " + released + "건을 접수로 넘겼어요." : ""));
+            StringBuilder out = new StringBuilder("📦 보류함(제보가 몰려 잠시 받아 둔 새 사람 제보)\n");
+            rows.forEach(r -> out.append("· ").append(r.get("name")).append(" ").append(r.get("n")).append("건\n"));
+            if (released > 0) out.append("방금 ").append(released).append("건을 접수로 넘겼어요. ");
+            return reply(out.append("몰림이 풀리면 30초마다 차례로 접수돼요.").toString());
+        }
+        if (text.equals("놓친제보") && events != null) {
+            events.publishEvent(new com.ljh.gameops.channel.discord.DiscordGateway.BackfillRequested());
+            return reply("📥 디스코드 제보 채널 기록을 다시 읽고 있어요. 새로 받은 게 있으면 긴급 채널에 한 줄로 알려요.");
+        }
+        if ((text.equals("이슈") || text.startsWith("이슈 ")) && jdbc != null) {
+            Scope s = scope(text.substring(2), f.get("channel_id"), f.get("channel_name"));
+            if (s.error() != null) return reply(s.error());
+            var rows = jdbc.queryForList("""
+                    SELECT i.id, i.title, i.severity, i.status, i.report_count, g.name FROM issue i JOIN game g ON g.id = i.game_id
+                    WHERE i.status IN ('OPEN','IN_PROGRESS','VERIFYING') AND (CAST(? AS text) IS NULL OR g.code = ?)
+                    ORDER BY CASE i.severity WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, i.report_count DESC LIMIT 10""",
+                    s.game() == null ? null : s.game().code(), s.game() == null ? null : s.game().code());
+            if (rows.isEmpty()) return reply("열린 이슈가 없어요.");
+            StringBuilder out = new StringBuilder("📋 열린 이슈 " + (s.game() == null ? "(전체)" : "(" + s.game().name() + ")") + " · 급한 순\n");
+            for (var r : rows) {
+                var sev = com.ljh.gameops.issue.Severity.valueOf((String) r.get("severity"));
+                var st = com.ljh.gameops.issue.IssueStatus.valueOf((String) r.get("status"));
+                out.append(SlackCards.dot(sev)).append(" #").append(r.get("id")).append(" ")
+                        .append(SlackCards.escape(SlackCards.cut((String) r.get("title"), 60))).append(" · ")
+                        .append(com.ljh.gameops.issue.Labels.STATUS.get(st)).append(" · 제보 ").append(r.get("report_count")).append("건")
+                        .append(s.game() == null ? " · " + r.get("name") : "").append("\n");
+            }
+            return reply(out.toString().strip());
+        }
         if (text.equals("사용량") && usage != null) {
             String q = quota != null && quota.github() != null ? "\n" + quota.github().line() : "";
             return reply("💸 " + usage.month().line() + q + "\n(서버가 부른 AI 만 셉니다. 맥의 Claude·Codex 는 각자 구독이라 따로예요)");

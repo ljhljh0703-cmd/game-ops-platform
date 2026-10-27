@@ -147,4 +147,17 @@ class DiscordReportHandlerTest extends IntegrationTest {
         assertThat(handler.backfill(new com.ljh.gameops.channel.discord.DiscordBackfill.Item(again, null, at, "b0")))
                 .hasValueSatisfying(r -> assertThat(r.kind()).isEqualTo(DiscordReportHandler.Reply.Kind.DUPLICATE));
     }
+
+    @Test
+    void 플레이어_명령_알려진문제_내제보_도움말() {
+        handler.onChannelMessageReply(new DiscordInbound("msg:k1", "C_REPORT", null, "player-k", false, null, "보스 웨이브에서 튕겨요", null));
+        var cmd = new DiscordInbound("cmd:1", "C_REPORT", null, "player-k", false, null, null, null);
+        assertThat(handler.known(cmd, "ko")).contains("지금 알고 있는 문제").contains("보스 웨이브에서 튕겨요").contains("크래시 · 확인 중 · 1명 제보");
+        assertThat(handler.known(cmd, "en")).contains("Known issues").contains("Crash · Reported");
+        assertThat(handler.myStatus(cmd, "ko")).contains("내 제보").contains("→ **확인 중**");
+        assertThat(handler.myStatus(new DiscordInbound("cmd:2", "C_REPORT", null, "nobody", false, null, null, null), "ko")).contains("받은 제보가 없어요");
+        assertThat(handler.patchNotes(cmd, "ko")).contains("아직 공지한 패치노트가 없어요");
+        assertThat(handler.help("ja")).contains("/known");
+        assertThat(handler.known(new DiscordInbound("cmd:3", "C_CHAT", null, "x", false, null, null, null), "ko")).contains("게임 제보 채널에서");
+    }
 }

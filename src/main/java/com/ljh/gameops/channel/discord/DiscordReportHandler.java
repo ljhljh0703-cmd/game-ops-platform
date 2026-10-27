@@ -162,6 +162,66 @@ public class DiscordReportHandler {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.ljh.gameops.notify.OutboxService outbox;
 
+    // ── 플레이어 명령어(결정 47): /help /known /mystatus /patchnotes — 모두 본인에게만 보이는 답 ──
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.intake.AuthorHasher hasher;
+
+    /** 명령을 쓴 채널의 게임(또는 고른 게임) */
+    Optional<GameSpec> gameOf(DiscordInbound in) {
+        if (in.gameCode() != null && !in.gameCode().isBlank()) return games.byCode(in.gameCode().trim());
+        return channelGame(in).flatMap(games::byCode);
+    }
+
+    public String help(String lang) { return PlayerText.help(lang); }
+
+    public String known(DiscordInbound in, String lang) {
+        var g = gameOf(in);
+        if (g.isEmpty() || jdbc == null) return PlayerText.noGame(lang);
+        var rows = jdbc.queryForList("""
+                SELECT i.title, i.category, i.status, i.report_count FROM issue i JOIN game gm ON gm.id = i.game_id
+                WHERE gm.code = ? AND i.status IN ('OPEN','IN_PROGRESS','VERIFYING')
+                ORDER BY (i.status = 'IN_PROGRESS') DESC, i.report_count DESC, i.id DESC LIMIT 7""", g.get().code());
+        StringBuilder sb = new StringBuilder(PlayerText.knownTitle(lang, g.get().name())).append('\n');
+        if (rows.isEmpty()) return sb.append(PlayerText.knownNone(lang)).toString();
+        for (var r : rows) {
+            var st = com.ljh.gameops.issue.IssueStatus.valueOf((String) r.get("status"));
+            var cat = Category.valueOf((String) r.get("category"));
+            sb.append("· ").append(DiscordCards.cut((String) r.get("title"), 60)).append("  _")
+                    .append(PlayerText.category(lang, cat)).append(" · ").append(PlayerText.status(lang, st)).append(" · ")
+                    .append(PlayerText.reportsWord(lang, ((Number) r.get("report_count")).intValue())).append("_\n");
+        }
+        return sb.append(PlayerText.knownFoot(lang)).toString();
+    }
+
+    public String myStatus(DiscordInbound in, String lang) {
+        if (jdbc == null || hasher == null) return PlayerText.mineNone(lang);
+        var rows = jdbc.queryForList("""
+                SELECT DISTINCT ON (i.id) i.id, i.title, i.status, gm.name FROM report r
+                JOIN issue_report l ON l.report_id = r.id JOIN issue i ON i.id = l.issue_id JOIN game gm ON gm.id = i.game_id
+                WHERE r.author_hash = ? AND r.received_at > now() - interval '30 days'
+                ORDER BY i.id DESC LIMIT 10""", hasher.hash(SourceChannel.DISCORD.name(), in.authorId()));
+        if (rows.isEmpty()) return PlayerText.mineNone(lang);
+        StringBuilder sb = new StringBuilder(PlayerText.mineTitle(lang)).append('\n');
+        for (var r : rows) {
+            var st = com.ljh.gameops.issue.IssueStatus.valueOf((String) r.get("status"));
+            sb.append("· #").append(r.get("id")).append(" [").append(r.get("name")).append("] ")
+                    .append(DiscordCards.cut((String) r.get("title"), 50)).append(" → **").append(PlayerText.status(lang, st)).append("**\n");
+        }
+        return sb.toString().strip();
+    }
+
+    public String patchNotes(DiscordInbound in, String lang) {
+        var g = gameOf(in);
+        if (g.isEmpty() || jdbc == null) return PlayerText.noGame(lang);
+        var rows = jdbc.queryForList("""
+                SELECT p.text, p.published_at FROM patch_note p JOIN game gm ON gm.id = p.game_id
+                WHERE gm.code = ? AND p.status = 'PUBLISHED' ORDER BY p.published_at DESC LIMIT 1""", g.get().code());
+        if (rows.isEmpty()) return PlayerText.patchNone(lang);
+        String text = (String) rows.get(0).get("text");
+        return text.length() > 1900 ? text.substring(0, 1899) + "…" : text;
+    }
+
     /** 놓친 제보를 받았으면 슬랙 긴급 채널에 한 줄 */
     public void backfillSummary(int reports, int replies) {
         if (outbox == null || reports + replies == 0) return;

@@ -69,14 +69,29 @@ public class DiscordGateway extends ListenerAdapter {
                         EnumSet.of(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT))
                 .addEventListeners(this)
                 .build();
+        var KO = net.dv8tion.jda.api.interactions.DiscordLocale.KOREAN;
+        var EN = net.dv8tion.jda.api.interactions.DiscordLocale.ENGLISH_US;
+        var JA = net.dv8tion.jda.api.interactions.DiscordLocale.JAPANESE;
+        // 명령어 모음(결정 47). 한국어 디스코드에서는 한국어 이름으로 보인다
         jda.updateCommands().addCommands(
                 Commands.slash("report", "버그·불편 제보")
+                        .setNameLocalization(KO, "제보").setDescriptionLocalization(EN, "Report a bug or problem").setDescriptionLocalization(JA, "不具合を報告")
                         .addOption(OptionType.STRING, "content", "무슨 일이 있었나요", true)
                         .addOptions(gameOption())
                         .addOption(OptionType.STRING, "version", "게임 버전 (예: 1.2.3)", false)
                         .addOption(OptionType.STRING, "device", "기기 · 브라우저 (예: 아이폰 15, 크롬)", false)
                         .addOption(OptionType.STRING, "steps", "어떻게 하면 다시 생기나요 (예: 3웨이브에서 일시정지 후 재개)", false)
-                        .addOption(OptionType.ATTACHMENT, "screenshot", "스크린샷", false)
+                        .addOption(OptionType.ATTACHMENT, "screenshot", "스크린샷", false),
+                Commands.slash("known", "지금 알고 있는 문제 보기(같은 문제면 제보 안 해도 돼요)")
+                        .setNameLocalization(KO, "알려진문제").setDescriptionLocalization(EN, "See issues we already know about").setDescriptionLocalization(JA, "把握している問題を見る")
+                        .addOptions(gameOption()),
+                Commands.slash("mystatus", "내 제보가 어떻게 되고 있는지 보기")
+                        .setNameLocalization(KO, "내제보").setDescriptionLocalization(EN, "Check the status of your reports").setDescriptionLocalization(JA, "自分の報告の状況を見る"),
+                Commands.slash("patchnotes", "최근 패치노트 보기")
+                        .setNameLocalization(KO, "패치노트").setDescriptionLocalization(EN, "Latest patch notes").setDescriptionLocalization(JA, "最新のパッチノート")
+                        .addOptions(gameOption()),
+                Commands.slash("help", "운영봇 사용법과 명령어")
+                        .setNameLocalization(KO, "도움말").setDescriptionLocalization(EN, "How to use the ops bot").setDescriptionLocalization(JA, "使い方とコマンド")
         ).queue();
     }
 
@@ -185,7 +200,10 @@ public class DiscordGateway extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent e) {
-        if (!"report".equals(e.getName())) return;
+        if (!"report".equals(e.getName())) {
+            infoCommand(e);
+            return;
+        }
         e.deferReply(true).queue(); // 3초 안에 응답해야 하므로 먼저 「처리 중」을 보낸다
         OptionMapping game = e.getOption("game");
         OptionMapping content = e.getOption("content");
@@ -197,6 +215,48 @@ public class DiscordGateway extends ListenerAdapter {
                 com.ljh.gameops.report.ReproInfo.of(str(e, "version"), str(e, "device"), str(e, "steps")), roles(e.getMember()));
         workers.submit(() -> e.getHook().sendMessageEmbeds(DiscordCards.intake(handler.onSlashCommandReply(in), false)).queue());
     }
+
+    /** /help /known /mystatus /patchnotes — 본인에게만 보이는 답. 답할 말은 그 사람 디스코드 언어로 */
+    private void infoCommand(SlashCommandInteractionEvent e) {
+        String lang = switch (e.getUserLocale()) {
+            case KOREAN -> com.ljh.gameops.report.Lang.KO;
+            case JAPANESE -> com.ljh.gameops.report.Lang.JA;
+            default -> com.ljh.gameops.report.Lang.EN;
+        };
+        e.deferReply(true).queue();
+        OptionMapping game = e.getOption("game");
+        String[] ch = slashChannel(e);
+        DiscordInbound in = new DiscordInbound("cmd:" + e.getId(), ch[0], ch[1], e.getUser().getId(), false,
+                game == null ? null : game.getAsString(), null, null);
+        workers.submit(() -> {
+            String text;
+            try {
+                text = switch (e.getName()) {
+                    case "known" -> handler.known(in, lang);
+                    case "mystatus" -> handler.myStatus(in, lang);
+                    case "patchnotes" -> handler.patchNotes(in, lang);
+                    default -> handler.help(lang);
+                };
+            } catch (RuntimeException ex) {
+                log.warn("명령 {} 실패: {}", e.getName(), ex.getMessage());
+                text = PlayerText.down(lang);
+            }
+            e.getHook().sendMessage(text).queue();
+        });
+    }
+
+    /** 슬랙 「/피드백정리 놓친제보」 — 지금 바로 채널 기록을 다시 읽는다 */
+    @org.springframework.context.event.EventListener
+    public void onBackfillRequest(BackfillRequested req) {
+        if (jda != null && jda.getStatus() == JDA.Status.CONNECTED) {
+            // 방금 쓴 글은 실시간 길(이어 쓴 줄 모으기)이 받는 중일 수 있어 2분 전 글까지만
+            var at = java.time.OffsetDateTime.now().minusMinutes(2);
+            workers.submit(() -> backfillAll(at));
+        }
+    }
+
+    /** 놓친 제보 다시 읽기 요청(슬랙 명령) */
+    public record BackfillRequested() {}
 
     /** 역할 ID 와 이름 둘 다(설정에 어느 쪽을 적어도 되게) */
     static java.util.List<String> roles(net.dv8tion.jda.api.entities.Member member) {

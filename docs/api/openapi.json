@@ -1,6 +1,14 @@
 {
   "components" : {
     "schemas" : {
+      "AlertRequest" : {
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "AutoRequest" : {
         "properties" : {
           "days" : {
@@ -926,7 +934,7 @@
     "/api/admin/digests" : {
       "post" : {
         "description" : "정리 글(슬랙 서식, 2800자까지)을 기록하고 슬랙에 「🧠 최근 피드백 정리」 카드로 보낸다. game 을 고르면 그 게임 채널",
-        "operationId" : "post",
+        "operationId" : "post_1",
         "parameters" : [ {
           "in" : "header",
           "name" : "X-Api-Key",
@@ -1097,6 +1105,50 @@
         } ],
         "summary" : "처리 지표",
         "tags" : [ "처리 지표" ]
+      }
+    },
+    "/api/admin/ops-alert" : {
+      "post" : {
+        "description" : "서버 밖(자동 업데이트 등)에서 슬랙 긴급 채널로 한 줄 알린다. 500자까지",
+        "operationId" : "post",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AlertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "운영 알림 한 줄",
+        "tags" : [ "운영" ]
       }
     },
     "/api/admin/patch-notes" : {
@@ -1875,6 +1927,9 @@
   }, {
     "description" : "디스코드 말고 게임 클라이언트·웹폼에서 직접 제보를 넣을 때",
     "name" : "제보"
+  }, {
+    "description" : "서버 버전 알림",
+    "name" : "운영"
   }, {
     "description" : "AI·깃허브 API 사용량과 남은 예산·한도",
     "name" : "사용량"

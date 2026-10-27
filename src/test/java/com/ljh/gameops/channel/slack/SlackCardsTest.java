@@ -32,19 +32,20 @@ class SlackCardsTest {
     }
 
     @Test
-    void 열린_이슈_카드는_제목_4칸_인용_맥락_버튼_한_줄() {
+    void 열린_이슈_카드는_문제_제목_한눈_요약_다음_할_일_인용_맥락_버튼() {
         var a = SlackCards.card(card(Severity.HIGH, IssueStatus.OPEN, 3, "보스 웨이브에서 튕겨요ㅠ"), null);
         assertThat(a.getColor()).isEqualTo("#E8912D");
         var blocks = a.getBlocks();
-        assertThat(((HeaderBlock) blocks.get(0)).getText().getText()).isEqualTo("🟠 [보석타워] 새 이슈 #12");
-        var fields = ((SectionBlock) blocks.get(1)).getFields();
-        assertThat(fields).extracting(f -> f.getText())
-                .containsExactly("*분류*\n크래시", "*심각도*\n높음", "*제보*\n3건", "*상태*\n열림");
+        // 제목 줄은 「무슨 문제인지」(결정 48)
+        assertThat(((HeaderBlock) blocks.get(0)).getText().getText()).isEqualTo("🟠 보석타워 · 보스 웨이브에서 튕겨요");
+        String summary = ((SectionBlock) blocks.get(1)).getText().getText();
+        assertThat(summary).startsWith("🆕 새 이슈 #12 · *크래시 · 높음* · 👥 제보 3건 · 지금 *열림*")
+                .contains("👉 재현 정보(버전·기기)가 아직 없어요");
         assertThat(((SectionBlock) blocks.get(2)).getText().getText()).isEqualTo("> 보스 웨이브에서 튕겨요ㅠ");
         // 디스코드 · 처음 시각은 서울 시간(UTC 13:31 → 22:31)
         String json = GsonFactory.createSnakeCase().toJson(a);
         assertThat(json).contains("재발 의심").contains("#3").contains("디스코드 · 처음 10/20 22:31");
-        assertThat(buttons(blocks)).containsExactly("진행 중", "✅ 해결", "보류", "🏷️ 분류 고치기", "✂️ 잘못 묶임 떼어내기");
+        assertThat(buttons(blocks)).containsExactly("🛠 고치는 중", "✅ 해결", "⏸ 보류", "🏷️ 분류 고치기", "✂️ 잘못 묶임 떼어내기");
     }
 
     @Test
@@ -71,7 +72,7 @@ class SlackCardsTest {
         var a = SlackCards.card(c, null);
         assertThat(a.getColor()).isEqualTo("#2EB67D");
         assertThat(((HeaderBlock) a.getBlocks().get(0)).getText().getText()).startsWith("✅ ");
-        assertThat(buttons(a.getBlocks())).containsExactly("다시 열기");
+        assertThat(buttons(a.getBlocks())).containsExactly("↩️ 다시 열기");
         assertThat(a.getBlocks()).filteredOn(b -> b instanceof com.slack.api.model.block.ContextBlock)
                 .flatExtracting(b -> ((com.slack.api.model.block.ContextBlock) b).getElements())
                 .extracting(e -> ((com.slack.api.model.block.composition.MarkdownTextObject) e).getText())
@@ -82,7 +83,7 @@ class SlackCardsTest {
     @Test
     void 진행_중이면_진행_중_버튼은_빠진다() {
         assertThat(buttons(SlackCards.card(card(Severity.HIGH, IssueStatus.IN_PROGRESS, 2, "x"), null).getBlocks()))
-                .containsExactly("✅ 해결", "보류", "🏷️ 분류 고치기", "✂️ 잘못 묶임 떼어내기");
+                .containsExactly("✅ 해결", "⏸ 보류", "🏷️ 분류 고치기", "✂️ 잘못 묶임 떼어내기");
     }
 
     @Test

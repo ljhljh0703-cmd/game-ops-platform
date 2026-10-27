@@ -113,4 +113,17 @@ class SlackCommandTest extends IntegrationTest {
         var none = http.exchange("/api/admin/digests/auto", HttpMethod.POST, new HttpEntity<>("{\"game\":\"gemtower\"}", h), Map.class);
         assertThat(none.getBody()).containsEntry("posted", false);
     }
+
+    @Test
+    void 명령어_모음_도움말_이슈_보류함() {
+        assertThat(post(form("U_ADMIN", "도움말", "random")).getBody().get("text").toString())
+                .contains("/피드백정리 이슈").contains("놓친제보").contains("/알려진문제");
+        intake.submit(new SubmitReport("gemtower", SourceChannel.API, null, "a", "결제했는데 보석이 안 들어왔어요", null));
+        intake.submit(new SubmitReport("gemtower", SourceChannel.API, null, "b", "루비 타워 공격력이 너무 약해요", null));
+        String issues = post(form("U_ADMIN", "이슈 보석타워", "random")).getBody().get("text").toString();
+        assertThat(issues).contains("열린 이슈 (보석타워) · 급한 순").contains("🔴");
+        assertThat(issues.indexOf("결제")).isLessThan(issues.indexOf("루비")); // 급한 것 먼저
+        assertThat(post(form("U_ADMIN", "이슈", "random")).getBody().get("text").toString()).contains("(전체)");
+        assertThat(post(form("U_ADMIN", "보류함", "random")).getBody().get("text").toString()).contains("보류함이 비어 있어요");
+    }
 }

@@ -19,7 +19,7 @@ public final class PlayerText {
         return Lang.EN;
     }
 
-    private static String pick(String lang, String ko, String en, String ja) {
+    static String pick(String lang, String ko, String en, String ja) {
         return switch (of(lang)) { case Lang.EN -> en; case Lang.JA -> ja; default -> ko; };
     }
 
@@ -63,6 +63,51 @@ public final class PlayerText {
         return pick(lang, "짧은 시간에 제보가 많아요. 10분쯤 뒤에 다시 올려 주세요. 같은 문제면 처음 글에 답글로 더해 주시면 돼요.",
                 "Too many reports in a short time. Please wait about 10 minutes. If it's the same problem, just reply to your first post.",
                 "短時間に報告が多すぎます。10分ほど待ってから送ってください。同じ問題なら最初の投稿に返信で追加してください。");
+    }
+
+    // ── 명령어 모음(결정 47) ──
+
+    static String help(String l) {
+        return pick(l, """
+                **운영봇 사용법**
+                · 버그·불편은 이 채널에 그냥 쓰면 접수돼요. 여러 줄로 나눠 써도 하나로 받아요.
+                · 게임 버전·기기·재현 순서·스크린샷을 함께 적으면 더 빨리 고쳐요. 봇 답장에 답글로 더 적어도 돼요.
+                · 고치면 제보한 글에 「고쳤어요」 답장이 가요.
+                **명령어**
+                `/report` 칸을 나눠 제보 · `/known` 지금 알고 있는 문제 · `/mystatus` 내 제보 상태 · `/patchnotes` 최근 패치노트 · `/help` 이 안내""",
+                """
+                **How to use the ops bot**
+                · Just post bugs or issues in this channel. Several short lines are merged into one report.
+                · Game version, device, steps and a screenshot help us fix it faster. You can add them by replying to the bot.
+                · When it's fixed, the bot replies to your post.
+                **Commands**
+                `/report` structured report · `/known` known issues · `/mystatus` your reports · `/patchnotes` latest patch notes · `/help` this guide""",
+                """
+                **運営ボットの使い方**
+                · 不具合や不便はこのチャンネルにそのまま書けば受け付けます。複数行に分けても一つにまとめます。
+                · バージョン・端末・再現手順・スクリーンショットがあると早く直せます。ボットの返信に返信して追加できます。
+                · 直ったら投稿に返信します。
+                **コマンド**
+                `/report` 項目別に報告 · `/known` 把握している問題 · `/mystatus` 自分の報告 · `/patchnotes` 最新パッチノート · `/help` この案内""");
+    }
+
+    static String knownTitle(String l, String game) { return pick(l, "**" + game + " · 지금 알고 있는 문제**", "**" + game + " · Known issues**", "**" + game + " · 把握している問題**"); }
+    static String knownNone(String l) { return pick(l, "지금 열려 있는 문제가 없어요.", "No open issues right now.", "現在対応中の問題はありません。"); }
+    static String knownFoot(String l) { return pick(l, "같은 문제면 따로 제보하지 않아도 돼요. 다른 기기·버전에서 나면 알려 주세요.", "No need to report these again unless it happens on a different device or version.", "同じ問題なら報告は不要です。別の端末・バージョンで起きたら教えてください。"); }
+    static String reportsWord(String l, int n) { return pick(l, n + "명 제보", n + " reports", n + "件"); }
+    static String mineTitle(String l) { return pick(l, "**내 제보 (최근 30일)**", "**Your reports (last 30 days)**", "**あなたの報告(直近30日)**"); }
+    static String mineNone(String l) { return pick(l, "최근 30일 안에 받은 제보가 없어요.", "No reports from you in the last 30 days.", "直近30日の報告はありません。"); }
+    static String patchNone(String l) { return pick(l, "아직 공지한 패치노트가 없어요.", "No patch notes have been published yet.", "まだパッチノートはありません。"); }
+    static String noGame(String l) { return pick(l, "게임 제보 채널에서 쓰거나 게임을 골라 주세요.", "Use this in a game's report channel or pick a game.", "ゲームの報告チャンネルで使うか、ゲームを選んでください。"); }
+
+    static String status(String l, com.ljh.gameops.issue.IssueStatus s) {
+        return switch (s) {
+            case OPEN -> pick(l, "확인 중", "Reported", "確認中");
+            case IN_PROGRESS -> pick(l, "고치는 중", "Being fixed", "修正中");
+            case VERIFYING -> pick(l, "고쳐서 확인 중", "Fixed, testing", "修正済み・確認中");
+            case RESOLVED -> pick(l, "고쳤어요", "Fixed", "修正済み");
+            case WONT_FIX -> pick(l, "보류", "On hold", "保留");
+        };
     }
 
     static String held(String lang) {

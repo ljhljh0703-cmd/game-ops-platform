@@ -78,6 +78,9 @@ if [ -f "$HOME/.docker/config.json" ] && grep -q '"credsStore"' "$HOME/.docker/c
 fi
 
 echo "[3/4] 서버·DB 켜기 (처음에는 내려받기 때문에 몇 분 걸립니다)"
+# 지금 버전(바뀌면 서버가 켜질 때 슬랙에 알린다)
+GAMEOPS_VERSION="$(git log -1 --format='%h %s' 2>/dev/null | cut -c1-120 || true)"
+export GAMEOPS_VERSION
 # shellcheck disable=SC2086
 docker compose $PROFILE up -d --build
 if [ -n "$SOCKET" ]; then

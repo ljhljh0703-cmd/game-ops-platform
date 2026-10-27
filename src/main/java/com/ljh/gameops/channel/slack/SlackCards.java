@@ -62,6 +62,11 @@ public final class SlackCards {
         };
     }
 
+    /** 심각도 동그라미(목록용) */
+    public static String dot(Severity s) {
+        return switch (s) { case CRITICAL -> "🔴"; case HIGH -> "🟠"; case MEDIUM -> "🟡"; case LOW -> "⚪"; };
+    }
+
     static String mark(IssueCard c) {
         if (c.status() == IssueStatus.RESOLVED) return "✅";
         if (c.status() == IssueStatus.WONT_FIX) return "⏸️";
@@ -75,12 +80,12 @@ public final class SlackCards {
     }
 
     /** 슬랙 서식 문자 바꿔 쓰기 — 슬랙 문서가 정한 세 글자(& < >). */
-    static String escape(String s) {
+    public static String escape(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
-    static String cut(String s, int max) {
+    public static String cut(String s, int max) {
         if (s == null) return "";
         String t = s.strip();
         return t.length() <= max ? t : t.substring(0, max - 1) + "…";
@@ -103,12 +108,9 @@ public final class SlackCards {
 
     static List<LayoutBlock> blocks(IssueCard c, String note) {
         List<LayoutBlock> b = new ArrayList<>();
-        b.add(HeaderBlock.builder().text(plain(cut(mark(c) + " [" + c.gameName() + "] " + c.label() + " #" + c.issueId(), 150))).build());
-        b.add(SectionBlock.builder().fields(List.<TextObject>of(
-                md("*분류*\n" + CATEGORY.get(c.category())),
-                md("*심각도*\n" + SEVERITY.get(c.severity())),
-                md("*제보*\n" + c.reportCount() + "건"),
-                md("*상태*\n" + STATUS.get(c.status())))).build());
+        // 한눈에(결정 48): 제목 줄에 「무슨 문제인지」, 다음 줄에 분류·심각도·몇 명·지금 상태, 그 아래 「다음 할 일」 한 줄
+        b.add(HeaderBlock.builder().text(plain(cut(mark(c) + " " + c.gameName() + " · " + c.title(), 150))).build());
+        b.add(SectionBlock.builder().text(md(summary(c) + "\n👉 " + next(c))).build());
         b.add(SectionBlock.builder().text(md(quote(c.quote()))).build());
 
         // 맥락은 한 블록에 모은다(블록이 6개를 넘으면 슬랙이 접는다). 방금 한 일이 있으면 맨 앞에
@@ -136,25 +138,51 @@ public final class SlackCards {
         return b;
     }
 
+    /** 「🆕 새 이슈 #12 · *크래시 · 높음* · 👥 제보 3건 · 지금 *확인 전*」 */
+    static String summary(IssueCard c) {
+        return labelIcon(c.label()) + c.label() + " #" + c.issueId() + " · *" + CATEGORY.get(c.category()) + " · " + SEVERITY.get(c.severity())
+                + "* · 👥 제보 " + c.reportCount() + "건 · 지금 *" + STATUS.get(c.status()) + "*";
+    }
+
+    private static String labelIcon(String label) {
+        if (label == null) return "";
+        if (label.contains("새")) return "🆕 ";
+        if (label.contains("심각")) return "⬆️ ";
+        return "";
+    }
+
+    /** 이 카드를 본 사람이 다음에 할 일 한 줄 */
+    static String next(IssueCard c) {
+        return switch (c.status()) {
+            case OPEN -> c.repro().isEmpty()
+                    ? "재현 정보(버전·기기)가 아직 없어요. 플레이어에게 이미 물어봤어요. 고치기 시작하면 「🛠 고치는 중」"
+                    : "고치기 시작하면 「🛠 고치는 중」, 개발 AI에게 넘기려면 피드백 정리 카드에서. 고칠 일이 아니면 「⏸ 보류」";
+            case IN_PROGRESS -> "고친 PR 에 `ops-" + c.issueId() + "` 를 적으면 합칠 때 자동으로 넘어가요. 직접 고쳤으면 「✅ 해결」";
+            case VERIFYING -> "QA 가 게임에서 직접 확인하고 「✅ 확인 완료」를 눌러 주세요. 그때 플레이어에게 「고쳤어요」가 가요";
+            case RESOLVED -> "해결됐어요. 플레이어에게 「고쳤어요」를 보냈어요. 다시 나면 「다시 열기」";
+            case WONT_FIX -> "보류했어요. 다시 볼 일이 생기면 「다시 열기」";
+        };
+    }
+
     private static List<BlockElement> statusButtons(IssueCard c) {
         long id = c.issueId();
         List<BlockElement> out = new ArrayList<>();
         switch (c.status()) {
             case OPEN -> {
-                out.add(statusButton(id, IssueStatus.IN_PROGRESS, "진행 중", null));
+                out.add(statusButton(id, IssueStatus.IN_PROGRESS, "🛠 고치는 중", null));
                 out.add(statusButton(id, IssueStatus.RESOLVED, "✅ 해결", "primary"));
-                out.add(statusButton(id, IssueStatus.WONT_FIX, "보류", null));
+                out.add(statusButton(id, IssueStatus.WONT_FIX, "⏸ 보류", null));
             }
             case IN_PROGRESS -> {
                 out.add(statusButton(id, IssueStatus.RESOLVED, "✅ 해결", "primary"));
-                out.add(statusButton(id, IssueStatus.WONT_FIX, "보류", null));
+                out.add(statusButton(id, IssueStatus.WONT_FIX, "⏸ 보류", null));
             }
             // 고친 코드가 합쳐져 QA 확인 대기. 확인하면 해결(이때 플레이어 답장), 아직 나면 다시 열기
             case VERIFYING -> {
                 out.add(statusButton(id, IssueStatus.RESOLVED, "✅ QA 확인 완료", "primary"));
                 out.add(statusButton(id, IssueStatus.OPEN, "↩️ 아직 나요 · 다시 열기", null));
             }
-            case RESOLVED, WONT_FIX -> out.add(statusButton(id, IssueStatus.OPEN, "다시 열기", null));
+            case RESOLVED, WONT_FIX -> out.add(statusButton(id, IssueStatus.OPEN, "↩️ 다시 열기", null));
         }
         return out;
     }

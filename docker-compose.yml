@@ -38,12 +38,31 @@ services:
       GAMES_FILE: /app/config/games.json
       # 슬랙 버튼 주소가 바뀌면 슬랙 긴급 채널에 알린다(터널을 안 켰으면 조용히 쉰다)
       TUNNEL_METRICS_URL: http://tunnel:2000/quicktunnel
+      # 지금 버전. 자동 업데이트·start.sh 가 넣는다(결정 46)
+      GAMEOPS_VERSION: ${GAMEOPS_VERSION:-}
     volumes:
       # 파일 하나가 아니라 폴더를 연결한다(편집기가 저장할 때 파일을 새로 만들어도 반영되게)
       - ./config:/app/config:ro
     # 내 컴퓨터 안에서만 열린다(같은 와이파이의 다른 기기도 못 들어온다). 바깥은 슬랙 버튼 주소 하나뿐.
     ports:
       - "127.0.0.1:8080:8080"
+
+  # 자동 업데이트(결정 46): 깃허브 main 에 새 커밋이 오면 이 폴더를 맞추고 서버를 새로 만들어 켠다. 안 켜지면 되돌린다.
+  # 끄기: .env 에 AUTO_UPDATE=false. 같은 경로로 폴더를 연결해야 서버를 다시 만들 때 경로가 맞는다.
+  updater:
+    image: docker:27-cli
+    restart: unless-stopped
+    depends_on:
+      - app
+    working_dir: ${PWD}
+    environment:
+      UPDATE_INTERVAL: ${UPDATE_INTERVAL:-600}
+    volumes:
+      - type: bind
+        source: .
+        target: ${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["sh", "deploy/updater.sh"]
 
   # 슬랙 버튼용 공개 주소. SLACK_SIGNING_SECRET 이 있을 때 start.sh 가 함께 켠다(직접 켤 때: docker compose --profile slack-buttons up -d).
   # gateway 는 /slack/interactions 하나만 서버로 넘기고, tunnel 은 그 문만 인터넷에 연결한다.

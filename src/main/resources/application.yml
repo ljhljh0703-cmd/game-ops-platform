@@ -26,6 +26,8 @@ management:
       show-details: never
 
 gameops:
+  # 지금 버전(「짧은 커밋 번호 커밋 제목」). 자동 업데이트·start.sh 가 넣는다. 바뀌면 켜질 때 슬랙에 알린다(결정 46)
+  version: ${GAMEOPS_VERSION:}
   author-hash-salt: ${AUTHOR_HASH_SALT:change-me-local-only}
   issue:
     # 분류가 같은 이슈끼리만 비교하므로 기준이 낮다(P9). 되돌리려면 DUPLICATE_SAME_CATEGORY_ONLY=false, DUPLICATE_THRESHOLD=0.55
