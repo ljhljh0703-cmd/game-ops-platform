@@ -1,0 +1,51 @@
+#!/bin/bash
+# 운영봇 — 누르면 OrbStack 을 켜고 게임 운영 서버(디스코드·슬랙 봇)를 띄운다. 이미 켜져 있으면 「끄기·다시 켜기」를 묻는다.
+# 서버 폴더는 기본 ~/Downloads/AI Game/game-ops-platform. 옮겼으면 ~/.gameops-dir 파일에 새 경로 한 줄을 적는다.
+export PATH="$HOME/.orbstack/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+DIR="$HOME/Downloads/AI Game/game-ops-platform"
+[ -f "$HOME/.gameops-dir" ] && DIR="$(head -1 "$HOME/.gameops-dir")"
+
+say_note() { osascript -e "display notification \"$1\" with title \"운영봇\"" >/dev/null 2>&1; }
+ask() { osascript -e "button returned of (display dialog \"$1\" with title \"운영봇\" buttons {$2} default button 1)" 2>/dev/null; }
+fail() {
+  local b
+  b=$(ask "$1" "\"기록 보기\", \"닫기\"")
+  [ "$b" = "기록 보기" ] && [ -f "$DIR/start.log" ] && open -e "$DIR/start.log"
+  exit 1
+}
+healthy() { curl -fs --max-time 3 localhost:8080/actuator/health >/dev/null 2>&1; }
+
+# docker info 가 멈추는 일이 있어(2026-10-20) 5초 안에 답이 없으면 아직 안 켜진 것으로 본다
+docker_ready() {
+  docker info >/dev/null 2>&1 & local p=$!
+  for _ in 1 2 3 4 5; do
+    if ! kill -0 "$p" 2>/dev/null; then wait "$p"; return $?; fi
+    sleep 1
+  done
+  kill "$p" 2>/dev/null; return 1
+}
+
+[ -x "$DIR/start.sh" ] || fail "서버 폴더를 찾지 못했어요: $DIR"
+
+if healthy; then
+  b=$(ask "운영봇이 켜져 있어요." "\"그대로 두기\", \"다시 켜기\", \"끄기\"")
+  case "$b" in
+    "끄기")
+      cd "$DIR" && docker compose --profile slack-buttons down >/dev/null 2>&1
+      say_note "껐어요. 디스코드·슬랙 봇이 오프라인이 됩니다."; exit 0 ;;
+    "다시 켜기") ;;
+    *) exit 0 ;;
+  esac
+fi
+
+say_note "켜는 중이에요. 1~3분쯤 걸려요."
+open -g -a OrbStack || fail "OrbStack 을 찾지 못했어요. 설치돼 있는지 확인해 주세요."
+for _ in $(seq 1 45); do docker_ready && break; sleep 2; done
+docker_ready || fail "OrbStack 이 2분 안에 켜지지 않았어요. OrbStack 을 직접 열어 확인해 주세요."
+
+cd "$DIR" && ./start.sh >/dev/null 2>&1
+if [ $? -eq 0 ] && healthy; then
+  say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."
+else
+  fail "켜지 못했어요. 기록을 보면 이유가 나와요."
+fi
