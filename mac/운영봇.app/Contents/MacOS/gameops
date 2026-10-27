@@ -5,8 +5,17 @@ export PATH="$HOME/.orbstack/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:
 DIR="$HOME/Downloads/AI Game/game-ops-platform"
 [ -f "$HOME/.gameops-dir" ] && DIR="$(head -1 "$HOME/.gameops-dir")"
 
-say_note() { osascript -e "display notification \"$1\" with title \"운영봇\"" >/dev/null 2>&1; }
-ask() { osascript -e "button returned of (display dialog \"$1\" with title \"운영봇\" buttons {$2} default button 1)" 2>/dev/null; }
+LOG="$DIR/mac/launcher.log"
+log() { echo "$(date '+%m-%d %H:%M:%S') $*" >> "$LOG" 2>/dev/null; }
+say_note() { log "알림: $1"; osascript -e "display notification \"$1\" with title \"운영봇\"" >/dev/null 2>&1; }
+# 질문 창은 다른 창 뒤에 숨지 않게 맨 앞으로(첫 판에서 창이 뒤에 숨어 아무 일도 안 일어난 것처럼 보였다)
+ask() {
+  local r
+  r=$(osascript -e "tell application \"System Events\" to activate" \
+      -e "tell application \"System Events\" to button returned of (display dialog \"$1\" with title \"운영봇\" buttons {$2} default button 1 giving up after 120)" 2>/dev/null)
+  log "질문: $1 → ${r:-(응답 없음)}"
+  echo "$r"
+}
 fail() {
   local b
   b=$(ask "$1" "\"기록 보기\", \"닫기\"")
@@ -25,10 +34,11 @@ docker_ready() {
   kill "$p" 2>/dev/null; return 1
 }
 
-[ -x "$DIR/start.sh" ] || fail "서버 폴더를 찾지 못했어요: $DIR"
+log "누름"
+[ -x "$DIR/start.sh" ] || fail "서버 폴더를 찾지 못했어요: $DIR (맥이 다운로드 폴더 접근을 막았을 수 있어요. 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더에서 운영봇을 허용해 주세요)"
 
 if healthy; then
-  b=$(ask "운영봇이 켜져 있어요." "\"그대로 두기\", \"다시 켜기\", \"끄기\"")
+  b=$(ask "운영봇이 켜져 있어요. 새로 바뀐 게 있으면 다시 켜야 반영돼요." "\"다시 켜기\", \"그대로 두기\", \"끄기\"")
   case "$b" in
     "끄기")
       cd "$DIR" && docker compose --profile slack-buttons down >/dev/null 2>&1
@@ -43,8 +53,11 @@ open -g -a OrbStack || fail "OrbStack 을 찾지 못했어요. 설치돼 있는�
 for _ in $(seq 1 45); do docker_ready && break; sleep 2; done
 docker_ready || fail "OrbStack 이 2분 안에 켜지지 않았어요. OrbStack 을 직접 열어 확인해 주세요."
 
+log "서버 켜는 중"
 cd "$DIR" && ./start.sh >/dev/null 2>&1
-if [ $? -eq 0 ] && healthy; then
+rc=$?
+log "켜기 끝(결과 $rc)"
+if [ $rc -eq 0 ] && healthy; then
   say_note "켜졌어요. 디스코드·슬랙 봇이 접속했어요."
 else
   fail "켜지 못했어요. 기록을 보면 이유가 나와요."
