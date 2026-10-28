@@ -10,6 +10,9 @@ INTERVAL="${UPDATE_INTERVAL:-600}"
 apk add --no-cache git >/dev/null 2>&1 || true
 git config --global --add safe.directory '*'
 
+# 맥 사용자 폴더(개발 AI 러너가 ~/.codex 를 연결한다). 이 컨테이너 안 HOME 은 맥 것이 아니라 폴더 경로에서 구한다
+case "$PWD" in /Users/*) HOME=$(printf '%s' "$PWD" | cut -d/ -f1-3); export HOME ;; esac
+
 say() { echo "$(date '+%m-%d %H:%M:%S') $*"; }
 envval() { grep "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' \r"; }
 healthy() { wget -qO- -T 3 http://app:8080/actuator/health 2>/dev/null | grep -q '"UP"'; }
@@ -22,7 +25,9 @@ alert() {
 }
 deploy() { # 지금 체크아웃된 커밋으로 서버를 새로 만든다
   export GAMEOPS_VERSION="$(git log -1 --format='%h %s' | cut -c1-120)"
-  docker compose up -d --build app >/tmp/deploy.log 2>&1
+  svc=$(docker compose config --services 2>/dev/null | grep -xE 'app|dev-runner' | tr '\n' ' ')
+  # shellcheck disable=SC2086
+  docker compose up -d --build ${svc:-app} >/tmp/deploy.log 2>&1
 }
 wait_healthy() {
   i=0
@@ -58,6 +63,10 @@ check() {
 
 say "자동 업데이트 시작: $REPO $BRANCH, ${INTERVAL}초마다"
 sleep "${UPDATE_FIRST_DELAY:-60}"
+# 개발 AI 러너가 없으면 켠다(이 기능 전에 켠 서버에도 업데이트만으로 들어오게)
+if docker compose config --services 2>/dev/null | grep -qx dev-runner && [ -z "$(docker compose ps -q dev-runner 2>/dev/null)" ]; then
+  docker compose up -d --build dev-runner >/tmp/runner.log 2>&1 && say "개발 AI 러너 켬" || say "개발 AI 러너 켜기 실패: $(tail -1 /tmp/runner.log)"
+fi
 while true; do
   if [ "$(cat /tmp/skip 2>/dev/null)" != "$(git ls-remote "$REPO" "refs/heads/$BRANCH" 2>/dev/null | cut -f1)" ]; then
     check

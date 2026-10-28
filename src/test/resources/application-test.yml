@@ -17,3 +17,9 @@ gameops:
   discord:
     report-channel-ids: C_REPORT
     default-game: gemtower
+# 테스트마다 설정이 달라 서버가 여러 벌 뜬다 — 한 벌의 DB 연결 수를 줄여 테스트 DB 연결 한도(100)를 넘지 않게
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1

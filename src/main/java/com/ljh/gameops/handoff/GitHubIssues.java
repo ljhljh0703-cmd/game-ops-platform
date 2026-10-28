@@ -10,6 +10,16 @@ public interface GitHubIssues {
     /** 이슈를 만든다. 실패하면 이유를 담은 예외 */
     Created create(String repo, String title, String body, List<String> labels);
 
+    /** PR 열기(결정 49 — 러너가 올린 브랜치를 기본 브랜치로). 실패하면 이유를 담은 예외 */
+    default Created openPr(String repo, String branch, String title, String body) {
+        throw new IllegalStateException("깃허브 토큰이 없어요(.env 의 GITHUB_TOKEN)");
+    }
+
+    /** PR 합치기(스쿼시). 실패하면 이유를 담은 예외 */
+    default void mergePr(String repo, int number, String title) {
+        throw new IllegalStateException("깃허브 토큰이 없어요(.env 의 GITHUB_TOKEN)");
+    }
+
     /** 토큰이 있어 실제로 만들 수 있는지 */
     boolean ready();
 }

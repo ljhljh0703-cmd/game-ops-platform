@@ -60,6 +60,8 @@ public class SlackInteractionController {
     private final com.ljh.gameops.jira.JiraHandoffService jira;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.ljh.gameops.patch.PatchNoteService patches;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.handoff.DevFixService fixes;
     // 깃허브 이슈 만들기는 3초를 넘길 수 있어 뒤에서
     private final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
 
@@ -123,6 +125,10 @@ public class SlackInteractionController {
         }
 
         String responseUrl = payload.path("response_url").asText(null);
+        // 링크 버튼(PR 바뀐 코드 보기)은 슬랙이 알려만 주는 것이라 할 일이 없다
+        if (SlackCards.ACTION_FIX_LINK.equals(payload.path("actions").path(0).path("action_id").asText(""))) {
+            return ResponseEntity.ok().build();
+        }
         // 홈 현황판 「새로고침」은 보기만 하는 것이라 누구나
         if (SlackHome.ACTION_REFRESH.equals(payload.path("actions").path(0).path("action_id").asText(""))) {
             if (userId != null) home.publish(userId);
@@ -155,6 +161,25 @@ public class SlackInteractionController {
                     } catch (RuntimeException e) {
                         log.warn("개발 AI에게 넘기기 실패 digest={}: {}", digestId, e.getMessage());
                         responder.reply(responseUrl, "개발 AI에게 넘기지 못했어요: " + e.getMessage());
+                    }
+                });
+                return ResponseEntity.ok().build();
+            }
+            if (fixes != null && (actionId.startsWith(SlackCards.ACTION_FIX_APPROVE) || actionId.equals(SlackCards.ACTION_FIX_HOLD)
+                    || actionId.equals(SlackCards.ACTION_FIX_RETRY) || actionId.equals(SlackCards.ACTION_FIX_MERGE))) {
+                String[] v = value.split(":", 2);
+                long fixId = Long.parseLong(v[0]);
+                String actor = "slack:" + userId;
+                // 깃허브 이슈 만들기·합치기는 3초를 넘길 수 있어 뒤에서. 끝나면 카드가 공통 갱신으로 바뀌고, 실패하면 누른 사람에게만 이유
+                pool.submit(() -> {
+                    try {
+                        if (actionId.startsWith(SlackCards.ACTION_FIX_APPROVE)) fixes.approve(fixId, v.length > 1 ? v[1] : "A", actor, channel, messageTs);
+                        else if (actionId.equals(SlackCards.ACTION_FIX_HOLD)) fixes.hold(fixId, actor, channel, messageTs);
+                        else if (actionId.equals(SlackCards.ACTION_FIX_RETRY)) fixes.retry(fixId, actor, channel, messageTs);
+                        else fixes.merge(fixId, actor, channel, messageTs);
+                    } catch (RuntimeException e) {
+                        log.warn("개발 AI 수정 버튼 실패 fix={} {}: {}", fixId, actionId, e.getMessage());
+                        responder.reply(responseUrl, "처리하지 못했어요: " + e.getMessage());
                     }
                 });
                 return ResponseEntity.ok().build();

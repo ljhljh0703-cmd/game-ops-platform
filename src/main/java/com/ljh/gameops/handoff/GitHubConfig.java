@@ -58,8 +58,48 @@ public class GitHubConfig {
                     throw new IllegalStateException(why, e);
                 }
             }
+            public Created openPr(String repo, String branch, String title, String body) {
+                checkRepo(repo);
+                try {
+                    JsonNode info = client.get().uri("/repos/" + repo).retrieve().body(JsonNode.class);
+                    String base = info == null ? "main" : info.path("default_branch").asText("main");
+                    JsonNode r = client.post().uri("/repos/" + repo + "/pulls").contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of("title", title, "head", branch, "base", base, "body", body))
+                            .retrieve().body(JsonNode.class);
+                    return new Created(r.path("number").asInt(), r.path("html_url").asText());
+                } catch (RestClientResponseException e) {
+                    throw new IllegalStateException(why(e, repo, "PR 만들기(Pull requests 쓰기)"), e);
+                }
+            }
+
+            public void mergePr(String repo, int number, String title) {
+                checkRepo(repo);
+                try {
+                    client.put().uri("/repos/" + repo + "/pulls/" + number + "/merge").contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of("merge_method", "squash", "commit_title", title + " (#" + number + ")"))
+                            .retrieve().toBodilessEntity();
+                } catch (RestClientResponseException e) {
+                    int code = e.getStatusCode().value();
+                    if (code == 405) throw new IllegalStateException("깃허브가 지금은 합칠 수 없대요(검사 실패나 충돌). PR 화면에서 확인해 주세요", e);
+                    if (code == 409) throw new IllegalStateException("기본 브랜치가 그새 바뀌어 충돌이 났어요. PR 화면에서 확인해 주세요", e);
+                    throw new IllegalStateException(why(e, repo, "합치기(Contents 쓰기)"), e);
+                }
+            }
+
             public boolean ready() { return true; }
         };
+    }
+
+    private static void checkRepo(String repo) {
+        if (repo == null || !repo.matches("[\\w.-]+/[\\w.-]+")) throw new IllegalArgumentException("저장소 이름 형식 오류: " + repo);
+    }
+
+    private static String why(RestClientResponseException e, String repo, String what) {
+        int code = e.getStatusCode().value();
+        return code == 401 ? "토큰이 틀렸거나 만료됐어요"
+                : code == 403 || code == 404 ? "토큰에 " + repo + " " + what + " 권한이 없어요"
+                : code == 422 ? "깃허브가 요청을 받지 않았어요(이미 같은 PR 이 있거나 바뀐 것이 없음)"
+                : "깃허브 응답 " + code;
     }
 
     @Bean

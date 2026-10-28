@@ -25,13 +25,19 @@ public class FeedbackService {
     private final GameRepository games;
     private final OutboxService outbox;
     private final AuditLogRepository audit;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
-    public FeedbackService(JdbcTemplate jdbc, GameRepository games, OutboxService outbox, AuditLogRepository audit) {
+    public FeedbackService(JdbcTemplate jdbc, GameRepository games, OutboxService outbox, AuditLogRepository audit,
+                           org.springframework.context.ApplicationEventPublisher events) {
         this.jdbc = jdbc;
         this.games = games;
         this.outbox = outbox;
         this.audit = audit;
+        this.events = events;
     }
+
+    /** 정리를 올림(커밋 뒤) — 개발 AI 러너가 켜져 있으면 수정안 쓰기를 시작한다(결정 49) */
+    public record DigestPosted(long digestId) {}
 
     /** version·device·steps·attachments = 제보의 재현 정보(V12). 없으면 null */
     public record Item(long reportId, long issueId, String game, OffsetDateTime receivedAt, String body,
@@ -74,6 +80,7 @@ public class FeedbackService {
                 Long.class, gameId, days, count, text.strip(), actor);
         audit.save(new AuditLog(actor, "DIGEST_POST", "digest:" + id, (gameCode == null ? "전체" : gameCode) + " 최근 " + days + "일 제보 " + count + "건"));
         outbox.enqueue(NotificationType.DIGEST, Map.of("digestId", id));
+        events.publishEvent(new DigestPosted(id));
         return id;
     }
 

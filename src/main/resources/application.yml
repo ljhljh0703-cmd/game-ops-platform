@@ -95,6 +95,13 @@ gameops:
     api-url: ${GITHUB_API_URL:https://api.github.com}
     # 고친 코드가 들어왔는지 보는 간격(합쳐진 PR·기본 브랜치 커밋의 ops-번호 → 자동 해결)
     watch-ms: ${GITHUB_WATCH_MS:20000}
+  dev-runner:
+    # 승인하면 개발 AI가 고친다(결정 49): 정리가 올라오면 맥의 러너(Codex)가 수정안을 쓰고, 슬랙에서 승인하면 고쳐 PR 을 올린다.
+    # 끄면 예전처럼 「개발 AI에게 넘기기」 버튼(지시서만)
+    enabled: ${DEV_RUNNER_ENABLED:false}
+    # 러너가 일을 가져가고 이만큼 대답이 없으면 다시 내준다(두 번까지)
+    stale-minutes: ${DEV_RUNNER_STALE_MINUTES:50}
+    max-attempts: ${DEV_RUNNER_MAX_ATTEMPTS:2}
   ai:
     # 서버가 부르는 AI(분류·보고서) 비용 계산 단가 — 백만 토큰당 달러(Anthropic 가격표 claude-haiku-5-5, 2026-10 확인). 모델을 바꾸면 같이 바꾼다
     price-input-per-mtok: ${AI_PRICE_INPUT:0.10}

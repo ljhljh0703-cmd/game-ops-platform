@@ -64,6 +64,23 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     entrypoint: ["sh", "deploy/updater.sh"]
 
+  # 개발 AI 러너(결정 49): 슬랙에서 승인한 수정을 Codex 로 고쳐 브랜치를 올린다. .env 에 DEV_RUNNER_ENABLED=true 일 때만 일이 온다.
+  # Codex 로그인은 맥의 ~/.codex(codex login 한 번)를 쓴다. 깃허브 토큰에 게임 저장소 Contents·Pull requests 쓰기 권한이 필요하다
+  dev-runner:
+    build:
+      context: .
+      dockerfile: deploy/dev-runner.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      OPS_API: http://app:8080
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      CODEX_HOME: /codex
+    volumes:
+      - ${HOME}/.codex:/codex
+
   # 슬랙 버튼용 공개 주소. SLACK_SIGNING_SECRET 이 있을 때 start.sh 가 함께 켠다(직접 켤 때: docker compose --profile slack-buttons up -d).
   # gateway 는 /slack/interactions 하나만 서버로 넘기고, tunnel 은 그 문만 인터넷에 연결한다.
   slack-gateway:

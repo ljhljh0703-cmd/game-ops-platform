@@ -13,12 +13,15 @@ public class DigestCardFactory {
     private final FeedbackService feedback;
     private final ObjectProvider<DevHandoffService> handoff;
     private final ObjectProvider<com.ljh.gameops.jira.JiraHandoffService> jira;
+    private final ObjectProvider<com.ljh.gameops.handoff.DevFixService> fixes;
 
     public DigestCardFactory(FeedbackService feedback, ObjectProvider<DevHandoffService> handoff,
-                             ObjectProvider<com.ljh.gameops.jira.JiraHandoffService> jira) {
+                             ObjectProvider<com.ljh.gameops.jira.JiraHandoffService> jira,
+                             ObjectProvider<com.ljh.gameops.handoff.DevFixService> fixes) {
         this.feedback = feedback;
         this.handoff = handoff;
         this.jira = jira;
+        this.fixes = fixes;
     }
 
     public DigestCard current(long digestId) {
@@ -26,7 +29,10 @@ public class DigestCardFactory {
         DevHandoffService h = handoff.getIfAvailable();
         List<DigestCard.Handoff> list = h == null ? List.of() : h.handoffs(digestId);
         var j = jira.getIfAvailable();
+        var f = fixes.getIfAvailable();
+        boolean runner = f != null && f.enabled();
         return new DigestCard(d.id(), d.gameName(), d.days(), d.reportCount(), d.text(), d.actor(), d.createdAt(), list,
-                j == null ? List.of() : j.tickets(digestId), j != null && j.available(d.gameCode()));
+                j == null ? List.of() : j.tickets(digestId), j != null && j.available(d.gameCode()),
+                f == null ? List.of() : f.forDigest(digestId), runner);
     }
 }

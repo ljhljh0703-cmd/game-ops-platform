@@ -399,6 +399,33 @@
         },
         "type" : "object"
       },
+      "Job" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "commitTitle" : {
+            "type" : "string"
+          },
+          "game" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "prompt" : {
+            "type" : "string"
+          },
+          "repo" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "JsonNode" : {
         "type" : "object"
       },
@@ -565,6 +592,29 @@
             "type" : "string"
           },
           "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ResultRequest" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "error" : {
+            "type" : "string"
+          },
+          "files" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "ok" : {
+            "type" : "boolean"
+          },
+          "output" : {
             "type" : "string"
           }
         },
@@ -929,6 +979,89 @@
         } ],
         "summary" : "반영한 규칙 되돌리기",
         "tags" : [ "분류 규칙" ]
+      }
+    },
+    "/api/admin/dev-jobs/claim" : {
+      "post" : {
+        "description" : "수정안 쓰기(PLAN)나 고치기(FIX). 일이 없거나 러너가 꺼져 있으면 204",
+        "operationId" : "claim",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Job"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "개발 AI 일 하나 가져가기",
+        "tags" : [ "dev-runner-controller" ]
+      }
+    },
+    "/api/admin/dev-jobs/{id}/result" : {
+      "post" : {
+        "description" : "PLAN 은 output 에 수정안 JSON, FIX 는 branch·files·output(요약 + FIXED 줄)",
+        "operationId" : "result",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Api-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResultRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "object"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "adminKey" : [ ]
+        } ],
+        "summary" : "개발 AI 일 결과",
+        "tags" : [ "dev-runner-controller" ]
       }
     },
     "/api/admin/digests" : {

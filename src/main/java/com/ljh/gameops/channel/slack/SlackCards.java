@@ -267,11 +267,80 @@ public final class SlackCards {
         if (!d.handoffs().isEmpty()) ctx.add(md(cut(links("🤖 *개발 AI에게 넘김* · ", d.handoffs()), 1400)));
         if (!d.jira().isEmpty()) ctx.add(md(cut(links("🎫 *Jira 티켓 " + d.jira().size() + "건* · ", d.jira()), 1400)));
         b.add(ContextBlock.builder().elements(ctx).build());
+        for (var f : d.fixes()) fixBlocks(b, f);
         List<BlockElement> todo = new ArrayList<>();
-        if (d.handoffs().isEmpty()) todo.add(button(ACTION_DIGEST_HANDOFF, "🤖 개발 AI에게 넘기기", String.valueOf(d.digestId()), "primary"));
+        if (d.handoffs().isEmpty() && !d.runner()) todo.add(button(ACTION_DIGEST_HANDOFF, "🤖 개발 AI에게 넘기기", String.valueOf(d.digestId()), "primary"));
         if (d.jira().isEmpty() && d.jiraAvailable()) todo.add(button(ACTION_DIGEST_JIRA, "🎫 Jira 버그 티켓 만들기", String.valueOf(d.digestId()), null));
         if (!todo.isEmpty()) b.add(ActionsBlock.builder().elements(todo).build());
         return Attachment.builder().color("#7C3AED").fallback("최근 피드백 정리 · " + scope).blocks(b).build();
+    }
+
+    // ── 개발 AI 수정 진행(결정 49) — 정리 카드 아래에 게임마다 ──
+
+    public static final String ACTION_FIX_APPROVE = "dev_fix_approve_"; // + 안 글자(A·B·C). 한 줄 안에서 action_id 가 겹치지 않게
+    public static final String ACTION_FIX_HOLD = "dev_fix_hold";
+    public static final String ACTION_FIX_RETRY = "dev_fix_retry";
+    public static final String ACTION_FIX_MERGE = "dev_fix_merge";
+    public static final String ACTION_FIX_LINK = "dev_fix_link";
+
+    /** 수정안 쓰는 중 → 검토(안마다 승인 버튼) → 고치는 중 → PR(합치기) → 합침. 실패는 이유와 다시 시도. 글은 개발 AI가 쓴 것이라 서식 문자는 바꿔 넣는다 */
+    static void fixBlocks(List<LayoutBlock> b, com.ljh.gameops.handoff.DevFixService.Fix f) {
+        String game = escape(f.gameName());
+        String id = String.valueOf(f.id());
+        switch (f.state()) {
+            case PLANNING -> b.add(ContextBlock.builder().elements(List.of(md("🔍 *" + game + "* · 개발 AI가 코드를 읽고 수정안을 쓰는 중이에요. 몇 분 걸려요"))).build());
+            case PLAN_READY, HELD -> {
+                var p = f.plan();
+                StringBuilder t = new StringBuilder();
+                t.append(f.state() == com.ljh.gameops.handoff.DevFixService.State.HELD ? "⏸ *보류한 수정안 · " : "🛠 *수정안 · ")
+                        .append(game).append("* _(개발 AI가 코드를 읽고 씀)_\n");
+                if (p != null) {
+                    if (!p.summary().isBlank()) t.append(escape(cut(p.summary(), 500))).append("\n");
+                    for (var it : p.items()) {
+                        t.append("• *운영 ").append(it.ops()).append("* ").append(escape(cut(it.cause(), 200)))
+                                .append(" → ").append(escape(cut(it.fix(), 200)));
+                        if (!it.risk().isBlank()) t.append(" _(위험 ").append(escape(it.risk())).append(")_");
+                        t.append("\n");
+                    }
+                    t.append("\n*고를 안*\n");
+                    for (var o : p.options()) {
+                        t.append("*").append(o.key()).append(". ").append(escape(o.title())).append("*").append(o.recommended() ? " 👍 추천" : "")
+                                .append("\n").append(escape(cut(o.detail(), 300))).append("\n");
+                    }
+                }
+                b.add(SectionBlock.builder().text(md(cut(t.toString(), 2900))).build());
+                List<BlockElement> btns = new ArrayList<>();
+                if (p != null) for (var o : p.options()) {
+                    btns.add(button(ACTION_FIX_APPROVE + o.key(), (o.recommended() ? "✅ " : "") + o.key() + "안으로 고치기", id + ":" + o.key(),
+                            o.recommended() ? "primary" : null));
+                }
+                if (f.state() == com.ljh.gameops.handoff.DevFixService.State.PLAN_READY) btns.add(button(ACTION_FIX_HOLD, "⏸ 보류", id, null));
+                b.add(ActionsBlock.builder().elements(btns).build());
+            }
+            case FIXING -> b.add(ContextBlock.builder().elements(List.of(md("🛠 *" + game + "* · " + f.choice() + "안 승인(" + actorLabel(f.actor())
+                    + ") · 개발 AI가 고치는 중이에요" + (f.issueUrl() == null ? "" : " · 지시서 <" + f.issueUrl() + "|#" + f.issueNumber() + ">")))).build());
+            case PR_OPEN -> {
+                StringBuilder t = new StringBuilder("🔀 *PR 올라옴 · ").append(game).append("* <").append(f.prUrl()).append("|#").append(f.prNumber()).append(">\n");
+                if (f.summary() != null && !f.summary().isBlank()) t.append(escape(cut(f.summary(), 900))).append("\n");
+                t.append("_바뀐 파일 ").append(f.files().size()).append("개: ")
+                        .append(escape(cut(String.join(", ", f.files().stream().limit(6).toList()), 300))).append("_\n")
+                        .append("합치면 이 이슈들이 해결되고 디스코드에 「고쳤어요」가 가요.");
+                b.add(SectionBlock.builder().text(md(cut(t.toString(), 2900))).build());
+                b.add(ActionsBlock.builder().elements(List.of(
+                        ButtonElement.builder().actionId(ACTION_FIX_MERGE).text(plain("🔀 합치기")).value(id).style("primary")
+                                .confirm(com.slack.api.model.block.composition.ConfirmationDialogObject.builder()
+                                        .title(plain("PR 을 합칠까요?")).text(plain(cut(f.gameName() + " 기본 브랜치에 들어가요. 바뀐 파일 " + f.files().size() + "개", 290)))
+                                        .confirm(plain("합치기")).deny(plain("취소")).build()).build(),
+                        ButtonElement.builder().actionId(ACTION_FIX_LINK).text(plain("바뀐 코드 보기")).url(f.prUrl() + "/files").build())).build());
+            }
+            case MERGED -> b.add(ContextBlock.builder().elements(List.of(md("✅ *" + game + "* · <" + f.prUrl() + "|#" + f.prNumber() + "> 합침("
+                    + actorLabel(f.actor()) + ") · 해결되면 디스코드에 「고쳤어요」가 가요"))).build());
+            case FAILED -> {
+                b.add(SectionBlock.builder().text(md("⚠️ *" + game + "* · " + escape(cut(f.error() == null ? "실패" : f.error(), 600)))).build());
+                b.add(ActionsBlock.builder().elements(List.of(button(ACTION_FIX_RETRY, "🔁 다시 시도", id, "primary"),
+                        button(ACTION_FIX_HOLD, "⏸ 보류", id, null))).build());
+            }
+        }
     }
 
     private static String links(String head, List<com.ljh.gameops.notify.DigestCard.Handoff> h) {
