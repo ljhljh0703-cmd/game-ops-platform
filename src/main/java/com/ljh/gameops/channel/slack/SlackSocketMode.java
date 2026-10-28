@@ -23,6 +23,9 @@ import java.util.Map;
 
 @Component
 public class SlackSocketMode {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.ljh.gameops.notify.OutboxService outbox;
+
     private static final Logger log = LoggerFactory.getLogger(SlackSocketMode.class);
 
     private final String appToken;
@@ -55,6 +58,17 @@ public class SlackSocketMode {
         } catch (Exception e) {
             // 토큰이 틀렸거나 슬랙 앱에서 소켓 모드가 꺼져 있으면 여기. 서버는 계속 돈다(알림 보내기는 그대로)
             log.error("슬랙 소켓 모드 연결 실패: {} — 슬랙 앱 설정 > Socket Mode 가 켜져 있는지, SLACK_APP_TOKEN(xapp-…)이 맞는지 확인", e.getMessage());
+            // 알림은 봇 토큰으로 따로 가므로, 버튼·명령이 안 된다는 걸 슬랙 긴급 채널에 바로 알린다(2026-10-28 조용히 실패)
+            if (outbox != null) {
+                String why = String.valueOf(e.getMessage()).contains("missing_scope")
+                        ? "앱 토큰(xapp-…)에 connections:write 권한이 없어요. 슬랙 앱 설정 > Basic Information > App-Level Tokens 에서 connections:write 를 넣은 토큰을 새로 만들어 .env 의 SLACK_APP_TOKEN 에 넣어 주세요."
+                        : "슬랙 앱 설정 > Socket Mode 가 켜져 있는지, .env 의 SLACK_APP_TOKEN 이 맞는지 확인해 주세요.";
+                try {
+                    outbox.enqueueOnce(com.ljh.gameops.notify.NotificationType.OPS_ALERT,
+                            java.util.Map.of("text", "⚠️ 슬랙 버튼·/피드백정리 명령이 안 돼요(알림은 와요). " + why),
+                            "socket-fail:" + java.time.LocalDate.now());
+                } catch (RuntimeException ignore) { }
+            }
         }
     }
 
