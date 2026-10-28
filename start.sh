@@ -97,18 +97,26 @@ GAMEOPS_VERSION="$(git log -1 --format='%h %s' 2>/dev/null | cut -c1-120 || true
 export GAMEOPS_VERSION
 # shellcheck disable=SC2086
 # 내려받기·만들기가 15분 넘게 끝나지 않으면 멈춘 것으로 보고 끝낸다(창 뒤에 숨은 확인 창 등)
-docker compose $PROFILE up -d --build &
-compose_pid=$!
-waited=0
-while kill -0 "$compose_pid" 2>/dev/null; do
-  sleep 5; waited=$((waited+5))
-  if [ "$waited" -ge 900 ]; then
-    kill "$compose_pid" 2>/dev/null || true
-    echo "  15분이 지나도 끝나지 않아 멈췄습니다. 맥 화면 뒤에 숨은 확인 창(키체인·폴더 접근 등)이 있는지 보고, 인터넷 연결을 확인한 뒤 다시 켜 주세요."
-    exit 1
+try=1
+while :; do
+  docker compose $PROFILE up -d --build &
+  compose_pid=$!
+  waited=0
+  while kill -0 "$compose_pid" 2>/dev/null; do
+    sleep 5; waited=$((waited+5))
+    if [ "$waited" -ge 900 ]; then
+      kill "$compose_pid" 2>/dev/null || true
+      echo "  15분이 지나도 끝나지 않아 멈췄습니다. 맥 화면 뒤에 숨은 확인 창(키체인·폴더 접근 등)이 있는지 보고, 인터넷 연결을 확인한 뒤 다시 켜 주세요."
+      exit 1
+    fi
+  done
+  wait "$compose_pid" && break
+  if [ "$try" -ge 3 ]; then
+    echo "  서버를 만들지 못했습니다. 인터넷 연결을 확인하고 다시 켜 주세요. (자세한 내용: 위 오류 줄)"; exit 1
   fi
+  echo "  만들기가 실패했습니다. 인터넷이 잠깐 끊겼을 수 있어 30초 뒤 다시 시도합니다 ($try/3)"
+  try=$((try+1)); sleep 30
 done
-wait "$compose_pid" || { echo "  서버를 만들지 못했습니다. 위 오류 줄을 확인하세요."; exit 1; }
 if [ -n "$SOCKET" ]; then
   # 예전 방식으로 켜 둔 중계·터널이 남아 있으면 끈다(쓸 일이 없다)
   docker compose --profile slack-buttons stop slack-gateway tunnel >/dev/null 2>&1 || true
