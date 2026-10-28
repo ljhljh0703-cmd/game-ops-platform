@@ -78,8 +78,10 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       CODEX_HOME: /codex
+      HOST_CODEX: /host-codex
     volumes:
-      - ${HOME}/.codex:/codex
+      # 맥 Codex 폴더. 러너는 여기서 로그인 파일만 복사해 쓴다
+      - ${HOME}/.codex:/host-codex
 
   # 슬랙 버튼용 공개 주소. SLACK_SIGNING_SECRET 이 있을 때 start.sh 가 함께 켠다(직접 켤 때: docker compose --profile slack-buttons up -d).
   # gateway 는 /slack/interactions 하나만 서버로 넘기고, tunnel 은 그 문만 인터넷에 연결한다.

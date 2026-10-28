@@ -7,12 +7,27 @@ set -u
 API="${OPS_API:-http://app:8080}"
 KEY="${ADMIN_API_KEY:-}"
 GH="${GITHUB_TOKEN:-}"
-CODEX_HOME="${CODEX_HOME:-/codex}"
+CODEX_HOME="${CODEX_HOME:-/codex}"   # 러너 전용(맥 Codex 설정·연결 도구는 안 불러온다)
+HOST_CODEX="${HOST_CODEX:-/host-codex}" # 맥의 ~/.codex — 로그인(auth.json)만 빌려 쓴다
 TIMEOUT="${DEV_RUNNER_TIMEOUT:-2400}"
-WORK=/work
+WORK="${DEV_RUNNER_WORK:-/work}"
+GIT_BASE="${GIT_BASE:-https://github.com}"
 export CODEX_HOME
 
 say() { echo "$(date '+%m-%d %H:%M:%S') $*"; }
+mkdir -p "$CODEX_HOME"
+# 로그인 빌려 쓰기: 일마다 맥 것을 복사해 오고, Codex 가 로그인을 새로 고쳤으면(그새 맥 쪽이 안 바뀐 경우만) 맥에 돌려놓는다.
+# 돌려놓지 않으면 맥 Codex 가 옛 로그인으로 남아 로그아웃될 수 있다
+auth_in() {
+  [ -s "$HOST_CODEX/auth.json" ] || return 1
+  cp "$HOST_CODEX/auth.json" "$CODEX_HOME/auth.json" && AUTH_SUM=$(md5sum < "$HOST_CODEX/auth.json")
+}
+auth_out() {
+  [ -s "$CODEX_HOME/auth.json" ] || return 0
+  cmp -s "$CODEX_HOME/auth.json" "$HOST_CODEX/auth.json" && return 0
+  [ "$(md5sum < "$HOST_CODEX/auth.json")" = "$AUTH_SUM" ] || return 0
+  cp "$CODEX_HOME/auth.json" "$HOST_CODEX/.auth.json.runner" && mv "$HOST_CODEX/.auth.json.runner" "$HOST_CODEX/auth.json" && say "Codex 로그인 갱신을 맥에 반영"
+}
 auth_header() { printf 'AUTHORIZATION: basic %s' "$(printf 'x-access-token:%s' "$GH" | base64 -w0)"; }
 git_auth() { git -c http.https://github.com/.extraheader="$(auth_header)" "$@"; }
 
@@ -32,14 +47,14 @@ while :; do
   branch=$(jq -r '.branch // empty' <<<"$job"); title=$(jq -r '.commitTitle // empty' <<<"$job")
   say "일 #$id $kind $repo"
 
-  if [ ! -s "$CODEX_HOME/auth.json" ]; then
-    fail "$id" "맥에서 Codex 로그인이 안 되어 있어요. 맥 터미널에서 codex login 을 한 번 하고 「다시 시도」를 눌러 주세요"; continue
+  if ! auth_in; then
+    fail "$id" "맥에서 Codex 로그인 파일을 못 찾았어요. 맥 터미널에서 codex login 을 한 번 하고 「다시 시도」를 눌러 주세요"; continue
   fi
   if [ -z "$GH" ]; then fail "$id" "깃허브 토큰이 없어요(.env 의 GITHUB_TOKEN)"; continue; fi
   if ! [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then fail "$id" "저장소 이름 형식 오류: $repo"; continue; fi
 
   dir="$WORK/job-$id"; rm -rf "$dir"
-  if ! git_auth clone --quiet --depth 50 "https://github.com/$repo.git" "$dir" 2>/tmp/clone.log; then
+  if ! git_auth clone --quiet --depth 50 "$GIT_BASE/$repo.git" "$dir" 2>/tmp/clone.log; then
     fail "$id" "저장소를 받지 못했어요: $(tail -1 /tmp/clone.log)"; continue
   fi
   cd "$dir" || continue
@@ -51,6 +66,7 @@ while :; do
     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox -C "$dir" -o "$out" - \
     < "$WORK/prompt-$id.txt" > "$WORK/log-$id.txt" 2>&1
   rc=$?
+  auth_out
   cd "$WORK" || true
   if [ $rc -ne 0 ] || [ ! -s "$out" ]; then
     why=$(grep -iE "error|login|auth|limit" "$WORK/log-$id.txt" | tail -2 | tr '\n' ' ' | cut -c1-300)
