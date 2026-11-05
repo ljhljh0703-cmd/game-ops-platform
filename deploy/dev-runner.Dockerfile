@@ -3,7 +3,8 @@
 FROM node:22-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git curl jq ca-certificates ripgrep python3 \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install -g @openai/codex && npm cache clean --force
+RUN npm config set fetch-retries 5 && npm config set fetch-retry-maxtimeout 120000 \
+    && npm install -g @openai/codex && npm cache clean --force
 WORKDIR /work
 COPY deploy/dev-runner.sh /usr/local/bin/dev-runner.sh
 ENTRYPOINT ["bash", "/usr/local/bin/dev-runner.sh"]

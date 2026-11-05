@@ -11,3 +11,6 @@ slack-request-url.txt
 promo/
 mac/launcher.log
 mac/.tip-shown
+.updater.log
+.updater.log.tmp
+.dev-runner-build.log

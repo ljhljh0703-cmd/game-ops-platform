@@ -99,7 +99,9 @@ export GAMEOPS_VERSION
 # 내려받기·만들기가 15분 넘게 끝나지 않으면 멈춘 것으로 보고 끝낸다(창 뒤에 숨은 확인 창 등)
 try=1
 while :; do
-  docker compose $PROFILE up -d --build &
+  # 개발 AI 러너는 빼고 먼저 켠다(러너가 안 만들어져도 봇은 켜지게). 러너는 서버가 뜬 뒤 따로
+  # shellcheck disable=SC2086
+  docker compose $PROFILE up -d --build $(docker compose $PROFILE config --services | grep -vx dev-runner) &
   compose_pid=$!
   waited=0
   while kill -0 "$compose_pid" 2>/dev/null; do
@@ -132,6 +134,14 @@ for i in $(seq 1 60); do
   if curl -fs localhost:8080/actuator/health >/dev/null 2>&1; then
     echo
     echo "켜졌습니다: $(curl -s localhost:8080/actuator/health)"
+    if docker compose $PROFILE config --services | grep -qx dev-runner; then
+      # shellcheck disable=SC2086
+      if docker compose $PROFILE up -d --build dev-runner > .dev-runner-build.log 2>&1; then
+        echo "개발 AI 러너도 켰습니다."
+      else
+        echo "개발 AI 러너는 못 켰어요(봇은 정상). 이유: $(grep -iE 'error' .dev-runner-build.log | tail -1 | cut -c1-160)"
+      fi
+    fi
     echo
     echo "제보 하나 올려 보기:"
     echo "  curl -H 'Content-Type: application/json' -d '{\"game\":\"gemtower\",\"authorId\":\"me\",\"body\":\"보스 웨이브에서 튕겨요\"}' localhost:8080/api/reports"
